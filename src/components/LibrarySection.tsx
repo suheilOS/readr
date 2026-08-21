@@ -1,16 +1,19 @@
 import type { Item } from "../item";
 import { itemMetaLine } from "../item";
 import { formatDate } from "../formatDate";
+import { focusAdjacentAction } from "../focusAdjacentAction";
 
 type LibrarySectionProps = {
   items: Item[];
+  onSendToDesk: (item: Item) => void;
+  onSendToInbox: (item: Item) => void;
 };
 
-export function LibrarySection({ items }: LibrarySectionProps) {
+export function LibrarySection({ items, onSendToDesk, onSendToInbox }: LibrarySectionProps) {
   return (
     <section className="library" aria-labelledby="library-heading">
       <div className="section-header">
-        <h2 id="library-heading">Library</h2>
+        <h2 id="library-heading" tabIndex={-1}>Library</h2>
         <span className="counter">{items.length}</span>
       </div>
       <ul className="row-list">
@@ -24,9 +27,36 @@ export function LibrarySection({ items }: LibrarySectionProps) {
               </span>
               {item.note !== null && <p className="note-preview">{item.note}</p>}
             </div>
+            <div className="row-actions">
+              <button
+                type="button"
+                className="quiet-button"
+                aria-label={`To desk: ${item.title}`}
+                onClick={(event) => {
+                  focusAdjacentAction(event.currentTarget, "library-heading");
+                  onSendToDesk(item);
+                }}
+              >
+                To desk
+              </button>
+              <button
+                type="button"
+                className="quiet-button"
+                aria-label={`To inbox: ${item.title}`}
+                onClick={(event) => {
+                  focusAdjacentAction(event.currentTarget, "library-heading");
+                  onSendToInbox(item);
+                }}
+              >
+                To inbox
+              </button>
+            </div>
           </li>
         ))}
       </ul>
+      {items.length === 0 && (
+        <p className="empty-note">Nothing finished yet.</p>
+      )}
     </section>
   );
 }

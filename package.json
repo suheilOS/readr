@@ -10,6 +10,7 @@
     "deploy": "bunx wrangler@4.110.0 deploy"
   },
   "dependencies": {
+    "@base-ui/react": "^1.7.0",
     "@fontsource/open-runde": "^5.2.1",
     "react": "^19.1.0",
     "react-dom": "^19.1.0"

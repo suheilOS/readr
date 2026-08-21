@@ -1,0 +1,37 @@
+import { useRef } from "react";
+
+type SearchBarProps = {
+  query: string;
+  onQueryChange: (query: string) => void;
+};
+
+export function SearchBar({ query, onQueryChange }: SearchBarProps) {
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  function clearSearch() {
+    onQueryChange("");
+    requestAnimationFrame(() => inputRef.current?.focus());
+  }
+
+  return (
+    <div className="search-bar">
+      <input
+        ref={inputRef}
+        className="search-input"
+        type="search"
+        name="search"
+        placeholder="Search titles and sources…"
+        aria-label="Search titles and sources"
+        value={query}
+        onChange={(event) => onQueryChange(event.target.value)}
+      />
+      {query.length > 0 && (
+        <button type="button" className="search-clear" aria-label="Clear search" onClick={clearSearch}>
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path d="m7 7 10 10M17 7 7 17" />
+          </svg>
+        </button>
+      )}
+    </div>
+  );
+}

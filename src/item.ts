@@ -4,6 +4,14 @@ export type ItemType = "article" | "book" | "paper" | "video" | "podcast";
 
 export type ItemStatus = "inbox" | "desk" | "library";
 
+export const TYPE_OPTIONS: Array<{ value: ItemType; label: string }> = [
+  { value: "article", label: "Article" },
+  { value: "book", label: "Book" },
+  { value: "paper", label: "Paper" },
+  { value: "video", label: "Video" },
+  { value: "podcast", label: "Podcast" },
+];
+
 export type Item = {
   id: string;
   title: string;
@@ -30,4 +38,23 @@ export function itemTypeLabel(type: ItemType): string {
 
 export function itemMetaLine(item: Item): string {
   return [item.source, itemTypeLabel(item.type)].filter(Boolean).join(" · ");
+}
+
+export function createItem(input: {
+  title: string;
+  source: string | null;
+  url: string | null;
+  type: ItemType;
+}): Item {
+  return {
+    id: crypto.randomUUID(),
+    title: input.title,
+    source: input.source,
+    url: input.url,
+    type: input.type,
+    status: "inbox",
+    addedAt: new Date().toISOString(),
+    finishedAt: null,
+    note: null,
+  };
 }
