@@ -63,7 +63,7 @@ export function DeskSection({
                     <button
                       type="button"
                       className="pill-button"
-                      aria-label={`Read in Reader: ${item.title}`}
+                      aria-label={`Read in readr: ${item.title}`}
                       onClick={(event) => onRead(item, event.currentTarget)}
                     >
                       Read

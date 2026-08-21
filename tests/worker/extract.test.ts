@@ -117,7 +117,7 @@ describe("POST /api/extract", () => {
     const upstreamFetch = vi.fn();
     vi.stubGlobal("fetch", upstreamFetch);
 
-    const request = new Request("https://reader.test/api/extract", {
+    const request = new Request("https://readr.test/api/extract", {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({}),
@@ -149,7 +149,7 @@ describe("POST /api/extract", () => {
 
 async function callWorker(input: unknown): Promise<Response> {
   return runRequest(
-    new Request("https://reader.test/api/extract", {
+    new Request("https://readr.test/api/extract", {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify(input),

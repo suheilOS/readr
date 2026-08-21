@@ -158,7 +158,7 @@ async function fetchHtml(initialUrl: URL): Promise<{ html: string; sourceUrl: st
         headers: {
           Accept: "text/html,application/xhtml+xml",
           "Accept-Language": "en",
-          "User-Agent": "Reader/1.0",
+          "User-Agent": "readr/1.0",
         },
         redirect: "manual",
         signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),

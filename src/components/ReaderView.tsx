@@ -57,7 +57,7 @@ export function ReaderView({ item, onClose }: ReaderViewProps) {
           message:
             itemUrl === null
               ? "This item does not have an original URL."
-              : "Reader is only available for articles and papers.",
+              : "readr is only available for articles and papers.",
         });
         return;
       }

@@ -1,7 +1,13 @@
 {
   "$schema": "./node_modules/wrangler/config-schema.json",
-  "name": "reader",
+  "name": "readr",
   "main": "./worker/index.ts",
+  "routes": [
+    {
+      "pattern": "readr.overhawl.app",
+      "custom_domain": true
+    }
+  ],
   "compatibility_date": "2026-08-21",
   "compatibility_flags": ["global_fetch_strictly_public"],
   "assets": {

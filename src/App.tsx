@@ -385,7 +385,7 @@ export default function App() {
 
   return (
     <main className="app">
-      <h1 className="visually-hidden">Reader</h1>
+      <h1 className="visually-hidden">readr</h1>
       <p className="visually-hidden" role="status" aria-atomic="true">
         {announcement}
       </p>

@@ -1,16 +1,16 @@
-# Project brief: Reader
+# Project brief: readr
 
-Reader is an Overhawl product for intentional consumption. You capture things worth reading or watching, choose a few that deserve attention now, finish them, and keep a quiet record of what you completed. This brief defines the philosophy, the data model, the reader architecture, and the phased delivery plan.
+readr is an Overhawl product for intentional consumption. You capture things worth reading or watching, choose a few that deserve attention now, finish them, and keep a quiet record of what you completed. This brief defines the philosophy, the data model, the reader architecture, and the phased delivery plan.
 
 ## Why read-later tools fail
 
 Most read-later apps optimize for saving. You save an article, feel done, and accumulate hundreds of unread items. Saving resolves guilt instead of allocating attention, so the queue becomes a graveyard.
 
-Reader rejects that model. Capturing an item means committing future attention, not archiving a URL. Deciding something is not worth reading is a successful outcome here, not a failure.
+readr rejects that model. Capturing an item means committing future attention, not archiving a URL. Deciding something is not worth reading is a successful outcome here, not a failure.
 
 ## Product principle: the desk is the budget
 
-A physical desk holds a handful of papers. Reader copies that constraint instead of configuring around it:
+A physical desk holds a handful of papers. readr copies that constraint instead of configuring around it:
 
 - **Fixed capacity**: the desk holds 5 items, hardcoded
 - **Forced decisions**: a full desk blocks new items until you finish one, discard one, or swap one out
@@ -53,7 +53,7 @@ type Item = {
 };
 ```
 
-The type appears quietly on cards, as “Book” or “Article”. Books, podcasts, and videos stay external: Reader manages the intention, not the media.
+The type appears quietly on cards, as “Book” or “Article”. Books, podcasts, and videos stay external: readr manages the intention, not the media.
 
 Reading time is not stored. It is computed when you open an item in the reader, from extracted word count.
 
@@ -163,7 +163,7 @@ Implement in small phases, one narrow goal each. Phases 0 through 6 define Versi
 1. **Static interface**: complete single-screen layout without behavior
 2. **Core interactions**: add, decide, finish, swap-discard, search, in memory only
 3. **Persistence**: localStorage schema, field validation, migration
-4. **Reader**: extraction Worker route and distraction-free view
+4. **In-app reader**: extraction Worker route and distraction-free view
 5. **Responsive pass**: mobile refinement across screen sizes
 6. **Polish**: sounds, themes, accessibility, empty states
 7. **Browser capture**: capture the active page's title and URL into the inbox, with the same type selector as the app

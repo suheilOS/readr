@@ -1,6 +1,6 @@
-# Project Description
+# readr
 
-A minimal reading and personal library app built around intentional consumption rather than endless saving.
+readr is a minimal reading and personal library app built around intentional consumption rather than endless saving.
 
 The app gives users a small space to collect things they want to read, watch, or otherwise consume, decide what deserves their attention now, and keep a simple record of what they have finished.
 
