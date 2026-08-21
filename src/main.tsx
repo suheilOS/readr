@@ -5,6 +5,7 @@ import "@fontsource/open-runde/500.css";
 import "@fontsource/open-runde/600.css";
 import "@fontsource/open-runde/700.css";
 import "./styles.css";
+import "./reader/reader.css";
 import App from "./App";
 
 createRoot(document.getElementById("root")!).render(

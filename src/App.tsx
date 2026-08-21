@@ -9,6 +9,7 @@ import { AddItemForm } from "./components/AddItemForm";
 import { DeskSection } from "./components/DeskSection";
 import { InboxSection } from "./components/InboxSection";
 import { LibrarySection } from "./components/LibrarySection";
+import { ReaderView } from "./components/ReaderView";
 import { SearchBar } from "./components/SearchBar";
 import { loadItems, saveItems } from "./itemStorage";
 import { ThemeToggle, type Theme } from "./components/ThemeToggle";
@@ -151,8 +152,12 @@ export default function App() {
   const [lastAddedId, setLastAddedId] = useState<string | null>(null);
   const [announcement, setAnnouncement] = useState("");
   const [theme, setTheme] = useState<Theme>(getInitialTheme);
+  const [readerItemId, setReaderItemId] = useState<string | null>(() =>
+    getReaderItemId(window.location.hash),
+  );
   const addButtonRef = useRef<HTMLButtonElement>(null);
   const titleInputRef = useRef<HTMLInputElement>(null);
+  const readTriggerRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     saveItems(items);
@@ -185,6 +190,20 @@ export default function App() {
       titleInputRef.current?.focus();
     }
   }, [captureOpen]);
+
+  useEffect(() => {
+    function handleHashChange() {
+      const nextReaderItemId = getReaderItemId(window.location.hash);
+      setReaderItemId(nextReaderItemId);
+
+      if (nextReaderItemId === null) {
+        requestAnimationFrame(() => readTriggerRef.current?.focus());
+      }
+    }
+
+    window.addEventListener("hashchange", handleHashChange);
+    return () => window.removeEventListener("hashchange", handleHashChange);
+  }, []);
 
   useEffect(() => {
     if (swapCandidateId === null) {
@@ -316,6 +335,10 @@ export default function App() {
   const visibleDeskItems = deskItems.filter(matches);
   const visibleInboxItems = inboxItems.filter(matches);
   const visibleLibraryItems = libraryItems.filter(matches);
+  const readerItem =
+    readerItemId === null
+      ? null
+      : items.find((item) => item.id === readerItemId) ?? null;
   const visibleItemCount =
     visibleDeskItems.length + visibleInboxItems.length + visibleLibraryItems.length;
   const searchAnnouncement = searching
@@ -327,6 +350,26 @@ export default function App() {
     requestAnimationFrame(() => addButtonRef.current?.focus());
   }
 
+  function openReader(item: Item, trigger: HTMLButtonElement) {
+    if (item.url === null) {
+      return;
+    }
+
+    readTriggerRef.current = trigger;
+    setReaderItemId(item.id);
+    window.location.hash = `read=${encodeURIComponent(item.id)}`;
+  }
+
+  function closeReader() {
+    window.history.replaceState(
+      null,
+      "",
+      `${window.location.pathname}${window.location.search}`,
+    );
+    setReaderItemId(null);
+    requestAnimationFrame(() => readTriggerRef.current?.focus());
+  }
+
   return (
     <main className="app">
       <h1 className="visually-hidden">Reader</h1>
@@ -336,65 +379,83 @@ export default function App() {
       <p className="visually-hidden" aria-live="polite" aria-atomic="true">
         {searchAnnouncement}
       </p>
-      <div className="page">
-        <Collapsible.Root
-          className="capture-root"
-          open={captureOpen}
-          onOpenChange={(open) => setCaptureOpen(open)}
-        >
-          <div className="topbar">
-            <SearchBar query={query} onQueryChange={setQuery} />
-            <Collapsible.Trigger
-              ref={addButtonRef}
-              type="button"
-              className="add-toggle"
-              aria-label="Add to inbox"
-            >
-              <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                <path d="M12 5v14M5 12h14" />
-              </svg>
-            </Collapsible.Trigger>
-          </div>
-          <Collapsible.Panel id="capture-panel" className="capture-panel" keepMounted>
-            <div className="capture-clip">
-              <div className="capture-content">
-                <AddItemForm
-                  onAdd={handleAdd}
-                  onCancel={closeCapture}
-                  formId="capture-form"
-                  titleRef={titleInputRef}
-                />
-              </div>
+      {readerItem !== null ? (
+        <ReaderView item={readerItem} onClose={closeReader} />
+      ) : (
+        <div className="page">
+          <Collapsible.Root
+            className="capture-root"
+            open={captureOpen}
+            onOpenChange={(open) => setCaptureOpen(open)}
+          >
+            <div className="topbar">
+              <SearchBar query={query} onQueryChange={setQuery} />
+              <Collapsible.Trigger
+                ref={addButtonRef}
+                type="button"
+                className="add-toggle"
+                aria-label="Add to inbox"
+              >
+                <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                  <path d="M12 5v14M5 12h14" />
+                </svg>
+              </Collapsible.Trigger>
             </div>
-          </Collapsible.Panel>
-        </Collapsible.Root>
-        <DeskSection
-          items={visibleDeskItems}
-          swapActive={swapCandidateId !== null}
-          onFinish={finishItem}
-          onSelectSwapTarget={replaceDeskItem}
-          onCancelSwap={() => setSwapCandidateId(null)}
-        />
-        {(!searching || visibleInboxItems.length > 0) && (
-          <InboxSection
-            items={visibleInboxItems}
-            highlightId={lastAddedId}
-            onSendToDesk={sendToDesk}
-            onDiscard={discardItem}
+            <Collapsible.Panel id="capture-panel" className="capture-panel" keepMounted>
+              <div className="capture-clip">
+                <div className="capture-content">
+                  <AddItemForm
+                    onAdd={handleAdd}
+                    onCancel={closeCapture}
+                    formId="capture-form"
+                    titleRef={titleInputRef}
+                  />
+                </div>
+              </div>
+            </Collapsible.Panel>
+          </Collapsible.Root>
+          <DeskSection
+            items={visibleDeskItems}
+            swapActive={swapCandidateId !== null}
+            onFinish={finishItem}
+            onRead={openReader}
+            onSelectSwapTarget={replaceDeskItem}
+            onCancelSwap={() => setSwapCandidateId(null)}
           />
-        )}
-        {(!searching || visibleLibraryItems.length > 0) && (
-          <LibrarySection
-            items={visibleLibraryItems}
-            onSendToDesk={sendToDesk}
-            onSendToInbox={sendToInbox}
-          />
-        )}
-      </div>
+          {(!searching || visibleInboxItems.length > 0) && (
+            <InboxSection
+              items={visibleInboxItems}
+              highlightId={lastAddedId}
+              onSendToDesk={sendToDesk}
+              onDiscard={discardItem}
+            />
+          )}
+          {(!searching || visibleLibraryItems.length > 0) && (
+            <LibrarySection
+              items={visibleLibraryItems}
+              onSendToDesk={sendToDesk}
+              onSendToInbox={sendToInbox}
+            />
+          )}
+        </div>
+      )}
       <ThemeToggle
         theme={theme}
         onToggle={() => setTheme((current) => (current === "dark" ? "light" : "dark"))}
       />
     </main>
   );
+}
+
+function getReaderItemId(hash: string): string | null {
+  if (!hash.startsWith("#read=")) {
+    return null;
+  }
+
+  try {
+    const itemId = decodeURIComponent(hash.slice("#read=".length));
+    return itemId.length > 0 ? itemId : null;
+  } catch {
+    return null;
+  }
 }

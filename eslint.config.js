@@ -5,7 +5,15 @@ import reactRefresh from "eslint-plugin-react-refresh";
 import tseslint from "typescript-eslint";
 
 export default tseslint.config(
-  { ignores: ["dist", "node_modules", ".bun-install", ".bun-tmp"] },
+  {
+    ignores: [
+      "dist",
+      "node_modules",
+      ".bun-install",
+      ".bun-tmp",
+      "worker-configuration.d.ts",
+    ],
+  },
   {
     files: ["**/*.{ts,tsx}"],
     extends: [

@@ -7,6 +7,7 @@
 :root {
   color-scheme: light;
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --section-gap: 40px;
   --radius-control: 10px;
   --radius-compact: 8px;
   --radius-surface: 14px;
@@ -137,7 +138,7 @@ input {
 }
 
 .desk {
-  margin-bottom: 48px;
+  margin-bottom: var(--section-gap);
 }
 
 .desk-list {
@@ -194,7 +195,7 @@ input {
 
 .inbox,
 .library {
-  margin-bottom: 48px;
+  margin-bottom: var(--section-gap);
 }
 
 .swap-banner {
@@ -320,7 +321,8 @@ input {
 }
 
 .capture-root {
-  display: contents;
+  display: block;
+  margin-bottom: calc(var(--section-gap) - 8px);
 }
 
 .search-input {
@@ -444,7 +446,7 @@ input {
 }
 
 .capture-content {
-  padding: 0 3px 24px;
+  padding: 0 0 8px;
   opacity: 0;
   transform: translateY(-4px);
   visibility: hidden;
@@ -544,7 +546,6 @@ input {
   padding: 4px;
   background: var(--surface);
   border-radius: var(--radius-menu);
-  border: 1px solid var(--divider);
   outline: none;
   transform-origin: top center;
   transition:
@@ -627,9 +628,10 @@ input {
 }
 
 .add-form input:focus-visible,
-.add-form select:focus-visible {
+.add-form select:focus-visible,
+.type-trigger:focus-visible {
   outline: 2px solid var(--focus);
-  outline-offset: 2px;
+  outline-offset: -2px;
 }
 
 @media (max-width: 540px) {
@@ -863,4 +865,5 @@ a:focus-visible {
   .row-new {
     animation: none;
   }
+
 }

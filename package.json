@@ -5,18 +5,28 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "preview:cloudflare": "bun run build && bunx wrangler@4.110.0 dev",
-    "deploy:check": "bun run build && bunx wrangler@4.110.0 deploy --dry-run",
-    "deploy": "bunx wrangler@4.110.0 deploy"
+    "preview:cloudflare": "bun run build && wrangler dev",
+    "deploy:check": "bun run build && wrangler deploy --dry-run",
+    "deploy": "wrangler deploy",
+    "test": "vitest run --config vitest.config.ts && vitest run --config vitest.browser.config.ts",
+    "test:watch": "bun run --parallel test:watch:worker test:watch:browser",
+    "test:watch:worker": "vitest --config vitest.config.ts",
+    "test:watch:browser": "vitest --config vitest.browser.config.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.7.0",
     "@fontsource/open-runde": "^5.2.1",
+    "defuddle": "^0.19.2",
+    "dompurify": "^3.4.14",
+    "linkedom": "^0.18.13",
     "react": "^19.1.0",
     "react-dom": "^19.1.0"
   },
   "devDependencies": {
+    "@cloudflare/vite-plugin": "^1.53.1",
+    "@cloudflare/vitest-plugin": "^1.0.0",
     "@eslint/js": "^9.30.1",
+    "@types/node": "^26.2.0",
     "@types/react": "^19.1.8",
     "@types/react-dom": "^19.1.6",
     "@vitejs/plugin-react": "^4.6.0",
@@ -24,8 +34,11 @@
     "eslint-plugin-react-hooks": "^5.2.0",
     "eslint-plugin-react-refresh": "^0.4.20",
     "globals": "^16.3.0",
+    "jsdom": "^30.0.1",
     "typescript": "~5.8.3",
     "typescript-eslint": "^8.35.1",
-    "vite": "^7.0.4"
+    "vite": "^7.0.4",
+    "vitest": "^4.1.0",
+    "wrangler": "4.125.0"
   }
 }

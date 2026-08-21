@@ -1,0 +1,228 @@
+.reader-page {
+  min-height: 100dvh;
+  padding: clamp(20px, 5vh, 48px) 24px 96px;
+}
+
+.reader-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  max-width: 860px;
+  margin: 0 auto clamp(48px, 9vh, 88px);
+}
+
+.reader-back,
+.reader-original {
+  display: inline-flex;
+  min-height: 40px;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 10px;
+  border-radius: var(--radius-control);
+  font-size: 13px;
+  color: var(--muted-strong);
+}
+
+.reader-back {
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+.reader-original {
+  text-decoration: none;
+}
+
+.reader-back svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.8;
+}
+
+.reader-column {
+  max-width: 700px;
+  margin: 0 auto;
+}
+
+.reader-article {
+  min-width: 0;
+}
+
+.reader-title-block {
+  margin-bottom: 48px;
+}
+
+.reader-type {
+  margin: 0 0 12px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.reader-title {
+  max-width: 18ch;
+  margin: 0;
+  font-size: clamp(32px, 5vw, 48px);
+  font-weight: 600;
+  line-height: 1.08;
+  letter-spacing: -0.035em;
+  color: var(--heading);
+}
+
+.reader-title:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 6px;
+  border-radius: 4px;
+}
+
+.reader-meta,
+.reader-source {
+  margin: 14px 0 0;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.reader-source {
+  margin: 0 0 32px;
+  font-size: 12px;
+}
+
+.reader-source a,
+.reader-error a,
+.reader-content a {
+  color: var(--muted-strong);
+  text-decoration: underline;
+  text-decoration-color: var(--divider);
+  text-underline-offset: 3px;
+}
+
+.reader-loading,
+.reader-error {
+  padding: 18px 20px;
+  background: var(--surface);
+  border-radius: var(--radius-surface);
+  font-size: 14px;
+  color: var(--muted-strong);
+}
+
+.reader-error p {
+  margin: 0 0 10px;
+}
+
+.reader-content {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 18px;
+  line-height: 1.72;
+  color: var(--text);
+}
+
+.reader-content :where(h1, h2, h3, h4, h5, h6) {
+  margin: 2.4em 0 0.7em;
+  font-family: "Open Runde", system-ui, sans-serif;
+  font-weight: 600;
+  line-height: 1.2;
+  color: var(--heading);
+}
+
+.reader-content :where(h1, h2) {
+  font-size: 1.45em;
+}
+
+.reader-content :where(h3, h4, h5, h6) {
+  font-size: 1.18em;
+}
+
+.reader-content :where(p, ul, ol, blockquote, pre, table, figure) {
+  margin: 1.1em 0;
+}
+
+.reader-content :where(ul, ol) {
+  padding-inline-start: 1.4em;
+}
+
+.reader-content :where(blockquote) {
+  margin-inline: 0;
+  padding-inline-start: 1.1em;
+  border-inline-start: 3px solid var(--divider);
+  color: var(--muted-strong);
+}
+
+.reader-content :where(pre) {
+  overflow-x: auto;
+  padding: 16px;
+  background: var(--surface);
+  border-radius: var(--radius-compact);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.8em;
+  line-height: 1.55;
+}
+
+.reader-content :where(code) {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.88em;
+}
+
+.reader-content :where(:not(pre) > code) {
+  padding: 0.12em 0.3em;
+  background: var(--surface);
+  border-radius: 4px;
+}
+
+.reader-content :where(img) {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: 1.8em auto;
+  border-radius: var(--radius-compact);
+}
+
+.reader-content :where(hr) {
+  margin: 2.4em 0;
+  border: 0;
+  border-top: 1px solid var(--divider);
+}
+
+.reader-content :where(table) {
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+  border-collapse: collapse;
+  font-family: "Open Runde", system-ui, sans-serif;
+  font-size: 0.78em;
+  line-height: 1.4;
+}
+
+.reader-content :where(th, td) {
+  padding: 8px 12px;
+  border: 1px solid var(--divider);
+  text-align: left;
+}
+
+@media (max-width: 540px) {
+  .reader-page {
+    padding-inline: 18px;
+  }
+
+  .reader-header {
+    margin-bottom: 42px;
+  }
+
+  .reader-title {
+    font-size: clamp(30px, 10vw, 42px);
+  }
+
+  .reader-content {
+    font-size: 17px;
+    line-height: 1.68;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reader-content :where(img) {
+    margin-block: 1.2em;
+  }
+}

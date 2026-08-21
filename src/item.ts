@@ -40,6 +40,10 @@ export function itemMetaLine(item: Item): string {
   return [item.source, itemTypeLabel(item.type)].filter(Boolean).join(" · ");
 }
 
+export function canReadInApp(item: Pick<Item, "type" | "url">): boolean {
+  return item.url !== null && (item.type === "article" || item.type === "paper");
+}
+
 export function createItem(input: {
   title: string;
   source: string | null;

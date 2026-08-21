@@ -1,10 +1,11 @@
-import { DESK_CAPACITY, type Item, itemMetaLine } from "../item";
+import { canReadInApp, DESK_CAPACITY, type Item, itemMetaLine } from "../item";
 import { focusAdjacentAction } from "../focusAdjacentAction";
 
 type DeskSectionProps = {
   items: Item[];
   swapActive: boolean;
   onFinish: (item: Item) => void;
+  onRead: (item: Item, trigger: HTMLButtonElement) => void;
   onSelectSwapTarget: (item: Item) => void;
   onCancelSwap: () => void;
 };
@@ -13,6 +14,7 @@ export function DeskSection({
   items,
   swapActive,
   onFinish,
+  onRead,
   onSelectSwapTarget,
   onCancelSwap,
 }: DeskSectionProps) {
@@ -55,13 +57,25 @@ export function DeskSection({
                 <h3 className="card-title">{item.title}</h3>
                 <p className="meta-line">{itemMetaLine(item)}</p>
                 <div className="card-actions">
-                  {item.url !== null && (
+                  {canReadInApp(item) && (
+                    <button
+                      type="button"
+                      className="pill-button"
+                      aria-label={`Read in Reader: ${item.title}`}
+                      onClick={(event) => onRead(item, event.currentTarget)}
+                    >
+                      Read
+                    </button>
+                  )}
+                  {item.url !== null && !canReadInApp(item) && (
                     <a
                       className="pill-button"
                       href={item.url}
-                      aria-label={`Read: ${item.title}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      aria-label={`Open original: ${item.title}`}
                     >
-                      Read
+                      Open original
                     </a>
                   )}
                   <button
