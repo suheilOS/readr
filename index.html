@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Reader</title>
+  </head>
+  <body>
+    <script>
+      (() => {
+        let theme = "light";
+
+        try {
+          const key = "reader:theme";
+          const storedTheme = localStorage.getItem(key);
+          theme =
+            storedTheme === "light" || storedTheme === "dark"
+              ? storedTheme
+              : window.matchMedia("(prefers-color-scheme: dark)").matches
+                ? "dark"
+                : "light";
+        } catch {
+          theme = "light";
+        } finally {
+          document.documentElement.dataset.theme = theme;
+        }
+      })();
+    </script>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

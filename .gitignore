@@ -1,0 +1,10 @@
+node_modules
+dist
+dist-ssr
+.wrangler
+.bun-install
+.bun-tmp
+*.local
+.env
+.env.*
+!.env.example
