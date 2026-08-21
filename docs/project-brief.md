@@ -50,6 +50,7 @@ type Item = {
   status: ItemStatus;
   addedAt: string;
   finishedAt: string | null;
+  note: string | null;
 };
 ```
 
