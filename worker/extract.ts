@@ -1,4 +1,4 @@
-import { Defuddle } from "defuddle/node";
+import Defuddle from "defuddle";
 import { parseHTML } from "linkedom";
 import {
   parseExtractRequest,
@@ -66,9 +66,10 @@ export async function extractFromRequest(request: Request): Promise<ExtractedArt
 
   const fetchedPage = await fetchHtml(sourceUrl);
   const { document } = parseHTML(fetchedPage.html);
-  const result = await Defuddle(document, fetchedPage.sourceUrl, {
+  const result = new Defuddle(document, {
+    url: fetchedPage.sourceUrl,
     useAsync: false,
-  });
+  }).parse();
   const title = result.title.trim();
   const html = result.content.trim();
 
