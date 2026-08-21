@@ -141,7 +141,7 @@ Version 1 excludes the following unless this brief is revised first:
 - reading statistics, goals, streaks, challenges
 - recommendation feeds, social features
 - accounts, authentication, cloud sync
-- browser extension
+- browser extension for Version 1; planned as Phase 7
 - PDF upload or storage
 - per-site extraction overrides
 - configurable desk capacity, multiple desks
@@ -157,7 +157,7 @@ Interface minimalism does not demand architectural austerity. The Worker exists 
 
 ## Phased delivery
 
-Implement in small phases, one narrow goal each:
+Implement in small phases, one narrow goal each. Phases 0 through 6 define Version 1. Later phases extend the product without changing its low-decision capture model.
 
 0. **Foundation**: scaffold Vite + React, wrangler config, fonts, base styles
 1. **Static interface**: complete single-screen layout without behavior
@@ -166,6 +166,7 @@ Implement in small phases, one narrow goal each:
 4. **Reader**: extraction Worker route and distraction-free view
 5. **Responsive pass**: mobile refinement across screen sizes
 6. **Polish**: sounds, themes, accessibility, empty states
+7. **Browser capture**: capture the active page's title and URL into the inbox, with the same type selector as the app
 
 Validate each phase with `bun run build`, `bun run lint`, and manual inspection before moving on.
 
