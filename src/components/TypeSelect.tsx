@@ -20,7 +20,11 @@ export function TypeSelect({ value, onChange }: TypeSelectProps) {
         value={value}
         onValueChange={handleValueChange}
       >
-        <Select.Trigger className="type-trigger" aria-label="Type">
+        <Select.Trigger
+          className="type-trigger"
+          aria-label="Type"
+          data-cuelume-toggle=""
+        >
           <span className="type-value">
             <span className="type-prefix">Type:</span>
             <Select.Value />

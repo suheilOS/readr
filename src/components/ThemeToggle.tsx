@@ -14,6 +14,7 @@ export function ThemeToggle({ theme, onToggle }: ThemeToggleProps) {
       type="button"
       aria-label={`Switch to ${nextTheme} mode`}
       aria-pressed={theme === "dark"}
+      data-cuelume-toggle=""
       onClick={onToggle}
     >
       <svg

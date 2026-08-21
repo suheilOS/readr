@@ -16,6 +16,7 @@
   "dependencies": {
     "@base-ui/react": "^1.7.0",
     "@fontsource/open-runde": "^5.2.1",
+    "cuelume": "^0.2.2",
     "defuddle": "^0.19.2",
     "dompurify": "^3.4.14",
     "linkedom": "^0.18.13",

@@ -1,3 +1,4 @@
+import { play, setEnabled } from "cuelume";
 import { useEffect, useRef, useState } from "react";
 import { Collapsible } from "@base-ui/react/collapsible";
 import {
@@ -13,9 +14,19 @@ import { LibrarySection } from "./components/LibrarySection";
 import { ReaderView } from "./components/ReaderView";
 import { SearchBar } from "./components/SearchBar";
 import { loadItems, saveItems } from "./itemStorage";
+import { SoundToggle } from "./components/SoundToggle";
 import { ThemeToggle, type Theme } from "./components/ThemeToggle";
 
 const THEME_STORAGE_KEY = "reader:theme";
+const SOUND_STORAGE_KEY = "reader:sounds";
+
+function getInitialSoundEnabled(): boolean {
+  try {
+    return localStorage.getItem(SOUND_STORAGE_KEY) !== "off";
+  } catch {
+    return true;
+  }
+}
 
 function getInitialTheme(): Theme {
   try {
@@ -142,6 +153,7 @@ export default function App() {
   const [captureOpen, setCaptureOpen] = useState(false);
   const [lastAddedId, setLastAddedId] = useState<string | null>(null);
   const [announcement, setAnnouncement] = useState("");
+  const [soundsEnabled, setSoundsEnabled] = useState(getInitialSoundEnabled);
   const [theme, setTheme] = useState<Theme>(getInitialTheme);
   const [readerItemId, setReaderItemId] = useState<string | null>(() =>
     getReaderItemId(window.location.hash),
@@ -153,6 +165,16 @@ export default function App() {
   useEffect(() => {
     saveItems(items);
   }, [items]);
+
+  useEffect(() => {
+    setEnabled(soundsEnabled);
+
+    try {
+      localStorage.setItem(SOUND_STORAGE_KEY, soundsEnabled ? "on" : "off");
+    } catch {
+      // Keep the selected sound preference for this session if storage is unavailable.
+    }
+  }, [soundsEnabled]);
 
   useEffect(() => {
     const root = document.documentElement;
@@ -227,6 +249,7 @@ export default function App() {
     type: Item["type"];
   }) {
     const item = createItem(input);
+    play("success");
     setItems((current) => [item, ...current]);
     setLastAddedId(item.id);
     setAnnouncement(`${item.title} added to your inbox.`);
@@ -392,6 +415,7 @@ export default function App() {
                 type="button"
                 className="add-toggle"
                 aria-label={captureOpen ? "Close add form" : "Add to inbox"}
+                data-cuelume-toggle=""
               >
                 <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
                   <path d="M12 5v14M5 12h14" />
@@ -436,10 +460,16 @@ export default function App() {
           )}
         </div>
       )}
-      <ThemeToggle
-        theme={theme}
-        onToggle={() => setTheme((current) => (current === "dark" ? "light" : "dark"))}
-      />
+      <div className="utility-actions">
+        <SoundToggle
+          enabled={soundsEnabled}
+          onToggle={() => setSoundsEnabled((current) => !current)}
+        />
+        <ThemeToggle
+          theme={theme}
+          onToggle={() => setTheme((current) => (current === "dark" ? "light" : "dark"))}
+        />
+      </div>
     </main>
   );
 }

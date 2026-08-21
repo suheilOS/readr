@@ -1,3 +1,4 @@
+import { play } from "cuelume";
 import { startTransition, useEffect, useRef, useState } from "react";
 import { canReadInApp, itemMetaLine, type Item } from "../item";
 import {
@@ -71,6 +72,11 @@ export function ReaderView({ item, onClose }: ReaderViewProps) {
           html: sanitizeArticleHtml(article.html, article.sourceUrl),
         };
 
+        if (controller.signal.aborted) {
+          return;
+        }
+
+        play("ready");
         startTransition(() => {
           setState({ status: "ready", article: readyArticle });
         });
@@ -79,6 +85,7 @@ export function ReaderView({ item, onClose }: ReaderViewProps) {
           return;
         }
 
+        play("error");
         setState({
           status: "error",
           message:
@@ -100,7 +107,12 @@ export function ReaderView({ item, onClose }: ReaderViewProps) {
   return (
     <div className="reader-page">
       <header className="reader-header">
-        <button type="button" className="reader-back" onClick={onClose}>
+        <button
+          type="button"
+          className="reader-back"
+          data-cuelume-press="page"
+          onClick={onClose}
+        >
           <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
             <path d="m15 5-7 7 7 7" />
           </svg>
@@ -112,6 +124,7 @@ export function ReaderView({ item, onClose }: ReaderViewProps) {
             href={originalUrl}
             target="_blank"
             rel="noreferrer"
+            data-cuelume-press="page"
           >
             Open original
           </a>

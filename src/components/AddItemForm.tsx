@@ -1,3 +1,4 @@
+import { play } from "cuelume";
 import { useState, type FormEvent, type Ref } from "react";
 import { TypeSelect } from "./TypeSelect";
 import type { ItemType } from "../item";
@@ -27,6 +28,7 @@ export function AddItemForm({ onAdd, onCancel, formId, titleRef }: AddItemFormPr
 
     const trimmedTitle = title.trim();
     if (trimmedTitle.length === 0) {
+      play("error");
       setTitleError(true);
       const titleInput = event.currentTarget.elements.namedItem("title");
       if (titleInput instanceof HTMLInputElement) {
@@ -93,7 +95,11 @@ export function AddItemForm({ onAdd, onCancel, formId, titleRef }: AddItemFormPr
         onChange={(event) => setUrl(event.target.value)}
       />
       <TypeSelect value={type} onChange={setType} />
-      <button type="submit" className="add-submit">
+      <button
+        type="submit"
+        className="add-submit"
+        data-cuelume-press="pulse"
+      >
         Add to inbox
       </button>
     </form>

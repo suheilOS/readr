@@ -73,6 +73,7 @@ function LibraryActionsMenu({
           type="button"
           className="library-menu-trigger"
           aria-label={`More actions for ${item.title}`}
+          data-cuelume-toggle=""
         >
           <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
             <circle cx="12" cy="5" r="1.5" />
