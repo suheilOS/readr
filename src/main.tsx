@@ -1,4 +1,4 @@
-import { bind } from "cuelume";
+import { bind, setVolume } from "cuelume";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import "@fontsource/open-runde/400.css";
@@ -10,6 +10,7 @@ import "./reader/reader.css";
 import App from "./App";
 
 bind();
+setVolume(0.7);
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>

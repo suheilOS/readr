@@ -439,6 +439,7 @@ export default function App() {
             items={visibleDeskItems}
             swapActive={swapCandidateId !== null}
             onFinish={finishItem}
+            onDiscard={discardItem}
             onRead={openReader}
             onSelectSwapTarget={replaceDeskItem}
             onCancelSwap={() => setSwapCandidateId(null)}

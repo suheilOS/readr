@@ -5,6 +5,7 @@ type DeskSectionProps = {
   items: Item[];
   swapActive: boolean;
   onFinish: (item: Item) => void;
+  onDiscard: (item: Item) => void;
   onRead: (item: Item, trigger: HTMLButtonElement) => void;
   onSelectSwapTarget: (item: Item) => void;
   onCancelSwap: () => void;
@@ -14,6 +15,7 @@ export function DeskSection({
   items,
   swapActive,
   onFinish,
+  onDiscard,
   onRead,
   onSelectSwapTarget,
   onCancelSwap,
@@ -88,6 +90,17 @@ export function DeskSection({
                     }}
                   >
                     Finish
+                  </button>
+                  <button
+                    type="button"
+                    className="quiet-button discard"
+                    aria-label={`Discard: ${item.title}`}
+                    onClick={(event) => {
+                      focusAdjacentAction(event.currentTarget, "desk-heading");
+                      onDiscard(item);
+                    }}
+                  >
+                    Discard
                   </button>
                 </div>
               </article>

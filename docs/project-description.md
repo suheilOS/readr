@@ -4,7 +4,7 @@ A minimal reading and personal library app built around intentional consumption 
 
 The app gives users a small space to collect things they want to read, watch, or otherwise consume, decide what deserves their attention now, and keep a simple record of what they have finished.
 
-Short-form content such as articles, essays, blog posts, papers, and supported documents can be viewed directly inside the app through a clean, distraction-free reader. Longer-form or format-specific content such as books, films, podcasts, and videos can remain external, with the app acting as the place where the user's intention to consume them is managed.
+Articles and papers with readable URLs can be viewed directly inside the app through a clean, distraction-free reader. Books, podcasts, and videos remain external, with the app acting as the place where the user's intention to consume them is managed.
 
 At the center of the experience is a limited active reading area: a small number of items the user has deliberately chosen to focus on. New items can wait in an inbox, move onto the active desk, be discarded, or eventually enter the library once completed.
 

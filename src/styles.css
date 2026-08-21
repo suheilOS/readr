@@ -856,7 +856,7 @@ input {
   padding: 5px 12px;
   background: none;
   border: none;
-  border-radius: var(--radius-control);
+  border-radius: var(--radius-pill);
   font-size: var(--font-size-small);
   font-weight: 500;
   color: var(--muted-strong);

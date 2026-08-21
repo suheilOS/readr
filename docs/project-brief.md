@@ -53,7 +53,7 @@ type Item = {
 };
 ```
 
-The type appears quietly on cards, as “Book” or “Article”. Books, films, podcasts, and videos stay external: Reader manages the intention, not the media.
+The type appears quietly on cards, as “Book” or “Article”. Books, podcasts, and videos stay external: Reader manages the intention, not the media.
 
 Reading time is not stored. It is computed when you open an item in the reader, from extracted word count.
 
@@ -83,9 +83,9 @@ Typography is the entire reading interface: measure, line height, hierarchy. No 
 
 ## What the library shows
 
-The library stays deliberately weak. No collections, tags, ratings, reviews, highlights, streaks, or statistics will be added. Search over titles and sources handles retrieval.
+The library stays deliberately weak. No collections, tags, ratings, reviews, highlights, streaks, or statistics will be added. Search over titles and links handles retrieval.
 
-Opening a finished item shows its metadata, its finish date, and one optional note. Nothing else.
+Library rows show item metadata, the finish date, an optional note, and actions to move an item back to the desk or inbox.
 
 ## Future seams
 
@@ -102,11 +102,11 @@ On your desk                     3 / 5
 
 ┌───────────────────────────────┐
 │ Computer Systems              │
-│ Bryant & O’Hallaron · Book    │
+│ Book                          │
 └───────────────────────────────┘
 ┌───────────────────────────────┐
 │ SQLite Is Reimagined          │
-│ example.com · Article         │
+│ sqlite.org · Article          │
 └───────────────────────────────┘
 
 Inbox 7                 Library 42
@@ -116,7 +116,7 @@ Desk cards show title, link hostname when available, type, and a Read action for
 
 - **Capture fast**: focus the add control, type, press Enter
 - **Decide deliberately**: moving an item onto the full desk carries visible weight
-- **Finish satisfyingly**: completion gets a brief transition and sound, never a delay
+- **Finish satisfyingly**: completion gets a brief transition. Sound cues mark selected actions without delaying the flow.
 
 Mobile stacks the same layout with the desk first. Every control stays reachable without hover.
 
@@ -124,7 +124,7 @@ Mobile stacks the same layout with the desk first. Every control stays reachable
 
 Open Runde loads locally as the primary typeface. Prefer generous whitespace, soft neutral surfaces, minimal borders, rounded controls, calm transitions, and system-aware dark and light themes. Avoid dashboard aesthetics, dense metadata, and decoration without function.
 
-Synthesized Web Audio feedback marks add, move, finish, and discard. Sounds follow the house style established in Horizons: generated at runtime, zero audio files.
+Cuelume provides short runtime sound cues for key interactions. Sounds follow the house style established in Horizons: generated at runtime, with no audio files. Users can disable sounds, and the preference is stored locally.
 
 ## Persistence
 
@@ -151,7 +151,7 @@ Version 1 excludes the following unless this brief is revised first:
 - React 19 + TypeScript + Vite, built with Bun
 - Vanilla CSS, no framework
 - Cloudflare Workers static assets plus one function route for extraction
-- Dependencies limited to react, react-dom, @fontsource/open-runde, defuddle, linkedom, dompurify
+- Runtime dependencies: react, react-dom, @base-ui/react, @fontsource/open-runde, cuelume, defuddle, linkedom, dompurify
 
 Interface minimalism does not demand architectural austerity. The Worker exists because reading is core functionality, not complexity.
 
@@ -178,7 +178,7 @@ Version 1 is complete when:
 - valid items persist across reloads
 - articles and papers open in the reader with clean typography
 - extraction failures fall back to the original link
-- books, films, podcasts, and videos manage as intentions only
+- books, podcasts, and videos manage as intentions only
 - the flow works well on desktop and mobile
 
 It should feel finished because it does so little.
