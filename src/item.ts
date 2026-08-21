@@ -15,7 +15,6 @@ export const TYPE_OPTIONS: Array<{ value: ItemType; label: string }> = [
 export type Item = {
   id: string;
   title: string;
-  source: string | null;
   url: string | null;
   type: ItemType;
   status: ItemStatus;
@@ -36,8 +35,20 @@ export function itemTypeLabel(type: ItemType): string {
   return TYPE_LABELS[type];
 }
 
-export function itemMetaLine(item: Item): string {
-  return [item.source, itemTypeLabel(item.type)].filter(Boolean).join(" · ");
+export function itemMetaLine(item: Pick<Item, "url" | "type">): string {
+  return [itemUrlHost(item.url), itemTypeLabel(item.type)].filter(Boolean).join(" · ");
+}
+
+export function itemUrlHost(url: string | null): string | null {
+  if (url === null) {
+    return null;
+  }
+
+  try {
+    return new URL(url).hostname.replace(/^www\./, "");
+  } catch {
+    return null;
+  }
 }
 
 export function canReadInApp(item: Pick<Item, "type" | "url">): boolean {
@@ -46,14 +57,12 @@ export function canReadInApp(item: Pick<Item, "type" | "url">): boolean {
 
 export function createItem(input: {
   title: string;
-  source: string | null;
   url: string | null;
   type: ItemType;
 }): Item {
   return {
     id: crypto.randomUUID(),
     title: input.title,
-    source: input.source,
     url: input.url,
     type: input.type,
     status: "inbox",

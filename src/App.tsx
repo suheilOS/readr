@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Collapsible } from "@base-ui/react/collapsible";
 import {
+  canReadInApp,
   DESK_CAPACITY,
   createItem,
   type Item,
@@ -35,7 +36,6 @@ const sampleItems: Item[] = [
   {
     id: "cs-app",
     title: "Computer Systems: A Programmer’s Perspective",
-    source: "Bryant & O’Hallaron",
     url: null,
     type: "book",
     status: "desk",
@@ -46,7 +46,6 @@ const sampleItems: Item[] = [
   {
     id: "sqlite-25",
     title: "SQLite Is 25",
-    source: "sqlite.org",
     url: "https://sqlite.org",
     type: "article",
     status: "desk",
@@ -57,7 +56,6 @@ const sampleItems: Item[] = [
   {
     id: "ddia",
     title: "Designing Data-Intensive Applications",
-    source: "Martin Kleppmann",
     url: null,
     type: "book",
     status: "desk",
@@ -68,7 +66,6 @@ const sampleItems: Item[] = [
   {
     id: "simple-made-easy",
     title: "Simple Made Easy",
-    source: "Rich Hickey · InfoQ",
     url: null,
     type: "video",
     status: "inbox",
@@ -79,7 +76,6 @@ const sampleItems: Item[] = [
   {
     id: "attention-paper",
     title: "Attention Is All You Need",
-    source: "arxiv.org",
     url: "https://arxiv.org",
     type: "paper",
     status: "inbox",
@@ -90,7 +86,6 @@ const sampleItems: Item[] = [
   {
     id: "doet",
     title: "The Design of Everyday Things",
-    source: "Don Norman",
     url: null,
     type: "book",
     status: "inbox",
@@ -101,7 +96,6 @@ const sampleItems: Item[] = [
   {
     id: "on-writing-well",
     title: "On Writing Well",
-    source: "William Zinsser",
     url: null,
     type: "book",
     status: "inbox",
@@ -112,7 +106,6 @@ const sampleItems: Item[] = [
   {
     id: "pragprog",
     title: "The Pragmatic Programmer",
-    source: "Hunt & Thomas",
     url: null,
     type: "book",
     status: "library",
@@ -123,7 +116,6 @@ const sampleItems: Item[] = [
   {
     id: "e2e-explained",
     title: "End-to-End Encryption, Explained",
-    source: "signal.org",
     url: "https://signal.org",
     type: "article",
     status: "library",
@@ -134,7 +126,6 @@ const sampleItems: Item[] = [
   {
     id: "apsood",
     title: "A Philosophy of Software Design",
-    source: "John Ousterhout",
     url: null,
     type: "book",
     status: "library",
@@ -232,7 +223,6 @@ export default function App() {
 
   function handleAdd(input: {
     title: string;
-    source: string | null;
     url: string | null;
     type: Item["type"];
   }) {
@@ -328,7 +318,7 @@ export default function App() {
 
     return (
       item.title.toLowerCase().includes(trimmedQuery) ||
-      (item.source !== null && item.source.toLowerCase().includes(trimmedQuery))
+      (item.url !== null && item.url.toLowerCase().includes(trimmedQuery))
     );
   }
 
@@ -351,7 +341,7 @@ export default function App() {
   }
 
   function openReader(item: Item, trigger: HTMLButtonElement) {
-    if (item.url === null) {
+    if (!canReadInApp(item)) {
       return;
     }
 
@@ -388,13 +378,20 @@ export default function App() {
             open={captureOpen}
             onOpenChange={(open) => setCaptureOpen(open)}
           >
-            <div className="topbar">
-              <SearchBar query={query} onQueryChange={setQuery} />
+            <div className={`topbar${captureOpen ? " capture-open" : ""}`}>
+              <div className="topbar-slot">
+                <div className="search-slot" aria-hidden={captureOpen}>
+                  <SearchBar query={query} onQueryChange={setQuery} />
+                </div>
+                <span className="capture-title" aria-hidden={!captureOpen}>
+                  Capture
+                </span>
+              </div>
               <Collapsible.Trigger
                 ref={addButtonRef}
                 type="button"
                 className="add-toggle"
-                aria-label="Add to inbox"
+                aria-label={captureOpen ? "Close add form" : "Add to inbox"}
               >
                 <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
                   <path d="M12 5v14M5 12h14" />

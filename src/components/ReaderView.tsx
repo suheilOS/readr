@@ -1,6 +1,5 @@
 import { startTransition, useEffect, useRef, useState } from "react";
-import type { Item } from "../item";
-import { itemMetaLine } from "../item";
+import { canReadInApp, itemMetaLine, type Item } from "../item";
 import {
   ArticleExtractionError,
   extractArticle,
@@ -46,19 +45,24 @@ export function ReaderView({ item, onClose }: ReaderViewProps) {
 
   useEffect(() => {
     const controller = new AbortController();
+    const itemType = item.type;
+    const itemUrl = item.url;
     setState({ status: "loading" });
 
     async function loadArticle() {
-      if (item.url === null) {
+      if (itemUrl === null || !canReadInApp({ type: itemType, url: itemUrl })) {
         setState({
           status: "error",
-          message: "This item does not have an original URL.",
+          message:
+            itemUrl === null
+              ? "This item does not have an original URL."
+              : "Reader is only available for articles and papers.",
         });
         return;
       }
 
       try {
-        const article = await extractArticle(item.url, controller.signal);
+        const article = await extractArticle(itemUrl, controller.signal);
         const readyArticle: ReadyArticle = {
           title: article.title,
           author: article.author,
@@ -87,7 +91,7 @@ export function ReaderView({ item, onClose }: ReaderViewProps) {
 
     void loadArticle();
     return () => controller.abort();
-  }, [item.id, item.url]);
+  }, [item.id, item.type, item.url]);
 
   const originalUrl = item.url;
   const title = state.status === "ready" ? state.article.title : item.title;

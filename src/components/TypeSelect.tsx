@@ -21,7 +21,10 @@ export function TypeSelect({ value, onChange }: TypeSelectProps) {
         onValueChange={handleValueChange}
       >
         <Select.Trigger className="type-trigger" aria-label="Type">
-          <Select.Value />
+          <span className="type-value">
+            <span className="type-prefix">Type:</span>
+            <Select.Value />
+          </span>
           <Select.Icon>
             <svg
               className="type-chevron"

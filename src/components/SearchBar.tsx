@@ -20,8 +20,8 @@ export function SearchBar({ query, onQueryChange }: SearchBarProps) {
         className="search-input"
         type="search"
         name="search"
-        placeholder="Search titles and sources…"
-        aria-label="Search titles and sources"
+        placeholder="Search titles and links…"
+        aria-label="Search titles and links"
         value={query}
         onChange={(event) => onQueryChange(event.target.value)}
       />

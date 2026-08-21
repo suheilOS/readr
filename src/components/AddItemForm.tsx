@@ -4,7 +4,6 @@ import type { ItemType } from "../item";
 
 export type NewItemInput = {
   title: string;
-  source: string | null;
   url: string | null;
   type: ItemType;
 };
@@ -18,7 +17,6 @@ type AddItemFormProps = {
 
 export function AddItemForm({ onAdd, onCancel, formId, titleRef }: AddItemFormProps) {
   const [title, setTitle] = useState("");
-  const [source, setSource] = useState("");
   const [url, setUrl] = useState("");
   const [type, setType] = useState<ItemType>("article");
   const [titleError, setTitleError] = useState(false);
@@ -39,13 +37,11 @@ export function AddItemForm({ onAdd, onCancel, formId, titleRef }: AddItemFormPr
 
     onAdd({
       title: trimmedTitle,
-      source: source.trim() || null,
       url: url.trim() || null,
       type,
     });
 
     setTitle("");
-    setSource("");
     setUrl("");
     setTitleError(false);
   }
@@ -68,7 +64,7 @@ export function AddItemForm({ onAdd, onCancel, formId, titleRef }: AddItemFormPr
         className="add-title"
         type="text"
         autoComplete="off"
-        placeholder="Add to inbox…"
+        placeholder="Title"
         aria-describedby={titleError ? titleErrorId : undefined}
         aria-invalid={titleError}
         required
@@ -83,21 +79,8 @@ export function AddItemForm({ onAdd, onCancel, formId, titleRef }: AddItemFormPr
           Enter a title.
         </p>
       )}
-      <label className="visually-hidden" htmlFor="capture-source">
-        Source, optional
-      </label>
-      <input
-        id="capture-source"
-        name="source"
-        className="add-source"
-        type="text"
-        autoComplete="off"
-        placeholder="Source"
-        value={source}
-        onChange={(event) => setSource(event.target.value)}
-      />
       <label className="visually-hidden" htmlFor="capture-url">
-        URL, optional
+        Link, optional
       </label>
       <input
         id="capture-url"
@@ -105,13 +88,13 @@ export function AddItemForm({ onAdd, onCancel, formId, titleRef }: AddItemFormPr
         className="add-url"
         type="url"
         autoComplete="url"
-        placeholder="URL"
+        placeholder="Link (optional)"
         value={url}
         onChange={(event) => setUrl(event.target.value)}
       />
       <TypeSelect value={type} onChange={setType} />
       <button type="submit" className="add-submit">
-        Add
+        Add to inbox
       </button>
     </form>
   );

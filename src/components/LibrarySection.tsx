@@ -1,3 +1,5 @@
+import { useRef } from "react";
+import { Menu } from "@base-ui/react/menu";
 import type { Item } from "../item";
 import { itemMetaLine } from "../item";
 import { formatDate } from "../formatDate";
@@ -27,30 +29,11 @@ export function LibrarySection({ items, onSendToDesk, onSendToInbox }: LibrarySe
               </span>
               {item.note !== null && <p className="note-preview">{item.note}</p>}
             </div>
-            <div className="row-actions">
-              <button
-                type="button"
-                className="quiet-button"
-                aria-label={`To desk: ${item.title}`}
-                onClick={(event) => {
-                  focusAdjacentAction(event.currentTarget, "library-heading");
-                  onSendToDesk(item);
-                }}
-              >
-                To desk
-              </button>
-              <button
-                type="button"
-                className="quiet-button"
-                aria-label={`To inbox: ${item.title}`}
-                onClick={(event) => {
-                  focusAdjacentAction(event.currentTarget, "library-heading");
-                  onSendToInbox(item);
-                }}
-              >
-                To inbox
-              </button>
-            </div>
+            <LibraryActionsMenu
+              item={item}
+              onSendToDesk={onSendToDesk}
+              onSendToInbox={onSendToInbox}
+            />
           </li>
         ))}
       </ul>
@@ -58,5 +41,64 @@ export function LibrarySection({ items, onSendToDesk, onSendToInbox }: LibrarySe
         <p className="empty-note">Nothing finished yet.</p>
       )}
     </section>
+  );
+}
+
+type LibraryActionsMenuProps = {
+  item: Item;
+  onSendToDesk: (item: Item) => void;
+  onSendToInbox: (item: Item) => void;
+};
+
+function LibraryActionsMenu({
+  item,
+  onSendToDesk,
+  onSendToInbox,
+}: LibraryActionsMenuProps) {
+  const triggerRef = useRef<HTMLButtonElement>(null);
+
+  function runAction(action: (item: Item) => void) {
+    if (triggerRef.current !== null) {
+      focusAdjacentAction(triggerRef.current, "library-heading");
+    }
+
+    action(item);
+  }
+
+  return (
+    <div className="row-actions library-actions">
+      <Menu.Root>
+        <Menu.Trigger
+          ref={triggerRef}
+          type="button"
+          className="library-menu-trigger"
+          aria-label={`More actions for ${item.title}`}
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <circle cx="12" cy="5" r="1.5" />
+            <circle cx="12" cy="12" r="1.5" />
+            <circle cx="12" cy="19" r="1.5" />
+          </svg>
+        </Menu.Trigger>
+        <Menu.Portal>
+          <Menu.Positioner className="library-menu-positioner" sideOffset={4} align="end">
+            <Menu.Popup className="library-menu">
+              <Menu.Item
+                className="library-menu-item"
+                onClick={() => runAction(onSendToDesk)}
+              >
+                Move to desk
+              </Menu.Item>
+              <Menu.Item
+                className="library-menu-item"
+                onClick={() => runAction(onSendToInbox)}
+              >
+                Move to inbox
+              </Menu.Item>
+            </Menu.Popup>
+          </Menu.Positioner>
+        </Menu.Portal>
+      </Menu.Root>
+    </div>
   );
 }

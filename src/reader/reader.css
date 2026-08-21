@@ -1,6 +1,8 @@
 .reader-page {
   min-height: 100dvh;
-  padding: clamp(20px, 5vh, 48px) 24px 96px;
+  padding: max(20px, calc(env(safe-area-inset-top) + 12px))
+    clamp(16px, 4vw, 24px)
+    calc(96px + env(safe-area-inset-bottom));
 }
 
 .reader-header {
@@ -70,6 +72,7 @@
   font-weight: 600;
   line-height: 1.08;
   letter-spacing: -0.035em;
+  text-wrap: balance;
   color: var(--heading);
 }
 
@@ -89,6 +92,7 @@
 .reader-source {
   margin: 0 0 32px;
   font-size: 12px;
+  overflow-wrap: anywhere;
 }
 
 .reader-source a,
@@ -117,6 +121,8 @@
   font-family: Georgia, "Times New Roman", serif;
   font-size: 18px;
   line-height: 1.72;
+  overflow-wrap: anywhere;
+  text-wrap: pretty;
   color: var(--text);
 }
 
@@ -199,14 +205,10 @@
 .reader-content :where(th, td) {
   padding: 8px 12px;
   border: 1px solid var(--divider);
-  text-align: left;
+  text-align: start;
 }
 
 @media (max-width: 540px) {
-  .reader-page {
-    padding-inline: 18px;
-  }
-
   .reader-header {
     margin-bottom: 42px;
   }
@@ -218,6 +220,18 @@
   .reader-content {
     font-size: 17px;
     line-height: 1.68;
+  }
+}
+
+@media (max-width: 600px) {
+  .reader-header {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .reader-original {
+    align-self: flex-start;
   }
 }
 

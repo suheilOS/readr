@@ -35,7 +35,7 @@ You capture fast and decide later. Adding never blocks on a decision, and decidi
 
 ## Items and metadata
 
-Metadata entry is fully manual. Paste a URL, type a title, optionally name a source, pick a type. Capture makes zero network calls.
+Metadata entry is fully manual. Paste an optional URL, type a title, and pick a type. Capture makes zero network calls.
 
 ```ts
 type ItemType = "article" | "book" | "paper" | "video" | "podcast";
@@ -44,7 +44,6 @@ type ItemStatus = "inbox" | "desk" | "library";
 type Item = {
   id: string;
   title: string;
-  source: string | null;
   url: string | null;
   type: ItemType;
   status: ItemStatus;
@@ -65,7 +64,7 @@ Version 1 succeeds if four interactions feel satisfying:
 1. **Add**: paste a URL or type a title into the inbox
 2. **Decide**: move inbox items onto the desk, or discard them
 3. **Finish**: move desk items to the library
-4. **Retrieve**: search across title and source
+4. **Retrieve**: search across title and link
 
 If these feel flat, no amount of metadata scraping rescues the product.
 
@@ -113,7 +112,7 @@ On your desk                     3 / 5
 Inbox 7                 Library 42
 ```
 
-Desk cards show title, source, type, and a Read action for supported URLs. The inbox collapses to a count until opened. Three interaction principles apply everywhere:
+Desk cards show title, link hostname when available, type, and a Read action for supported URLs. The inbox collapses to a count until opened. Three interaction principles apply everywhere:
 
 - **Capture fast**: focus the add control, type, press Enter
 - **Decide deliberately**: moving an item onto the full desk carries visible weight

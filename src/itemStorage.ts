@@ -1,7 +1,7 @@
 import type { Item, ItemStatus, ItemType } from "./item";
 
 const STORAGE_KEY = "reader:items";
-const CURRENT_VERSION = 1;
+const CURRENT_VERSION = 2;
 
 type StoredItemData = {
   version: typeof CURRENT_VERSION;
@@ -69,8 +69,6 @@ function parseItem(value: unknown, allowLegacyFields: boolean): Item | null {
     return null;
   }
 
-  const sourceValue =
-    allowLegacyFields && value.source === undefined ? null : parseOptionalText(value.source);
   const urlValue =
     allowLegacyFields && value.url === undefined ? null : parseOptionalText(value.url);
   const finishedAtValue =
@@ -88,7 +86,6 @@ function parseItem(value: unknown, allowLegacyFields: boolean): Item | null {
     !isItemStatus(value.status) ||
     addedAtValue === null ||
     addedAtValue === undefined ||
-    sourceValue === undefined ||
     urlValue === undefined ||
     finishedAtValue === undefined ||
     noteValue === undefined
@@ -99,7 +96,6 @@ function parseItem(value: unknown, allowLegacyFields: boolean): Item | null {
   return {
     id: value.id,
     title: value.title,
-    source: sourceValue,
     url: urlValue,
     type: value.type,
     status: value.status,
@@ -137,7 +133,7 @@ function parseStoredItems(value: unknown): Item[] {
     return parseItems(value.items, false);
   }
 
-  if (value.version === undefined || value.version === 0) {
+  if (value.version === 1 || value.version === undefined || value.version === 0) {
     return parseItems(value.items, true);
   }
 
