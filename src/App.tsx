@@ -10,6 +10,7 @@ import { DeskSection } from "./components/DeskSection";
 import { InboxSection } from "./components/InboxSection";
 import { LibrarySection } from "./components/LibrarySection";
 import { SearchBar } from "./components/SearchBar";
+import { loadItems, saveItems } from "./itemStorage";
 import { ThemeToggle, type Theme } from "./components/ThemeToggle";
 
 const THEME_STORAGE_KEY = "reader:theme";
@@ -143,7 +144,7 @@ const sampleItems: Item[] = [
 ];
 
 export default function App() {
-  const [items, setItems] = useState<Item[]>(sampleItems);
+  const [items, setItems] = useState<Item[]>(() => loadItems(sampleItems));
   const [query, setQuery] = useState("");
   const [swapCandidateId, setSwapCandidateId] = useState<string | null>(null);
   const [captureOpen, setCaptureOpen] = useState(false);
@@ -152,6 +153,10 @@ export default function App() {
   const [theme, setTheme] = useState<Theme>(getInitialTheme);
   const addButtonRef = useRef<HTMLButtonElement>(null);
   const titleInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    saveItems(items);
+  }, [items]);
 
   useEffect(() => {
     const root = document.documentElement;
