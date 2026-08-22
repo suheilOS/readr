@@ -1,3 +1,5 @@
+import { useRef } from "react";
+import { Menu } from "@base-ui/react/menu";
 import { canReadInApp, DESK_CAPACITY, type Item, itemMetaLine } from "../item";
 import { focusAdjacentAction } from "../focusAdjacentAction";
 import {
@@ -5,6 +7,7 @@ import {
   CheckIcon,
   ExternalLinkIcon,
   InboxIcon,
+  MoreVerticalIcon,
   TrashIcon,
 } from "./icons";
 
@@ -105,30 +108,11 @@ export function DeskSection({
                     <CheckIcon className="button-icon" />
                     <span>Finish</span>
                   </button>
-                  <button
-                    type="button"
-                    className="pill-button"
-                    aria-label={`Move to inbox: ${item.title}`}
-                    onClick={(event) => {
-                      focusAdjacentAction(event.currentTarget, "desk-heading");
-                      onSendToInbox(item);
-                    }}
-                  >
-                    <InboxIcon className="button-icon" />
-                    <span>Move to inbox</span>
-                  </button>
-                  <button
-                    type="button"
-                    className="quiet-button discard"
-                    aria-label={`Discard: ${item.title}`}
-                    onClick={(event) => {
-                      focusAdjacentAction(event.currentTarget, "desk-heading");
-                      onDiscard(item);
-                    }}
-                  >
-                    <TrashIcon className="button-icon" />
-                    <span>Discard</span>
-                  </button>
+                  <DeskActionsMenu
+                    item={item}
+                    onSendToInbox={onSendToInbox}
+                    onDiscard={onDiscard}
+                  />
                 </div>
               </article>
             </li>
@@ -139,5 +123,61 @@ export function DeskSection({
         <p className="empty-note">Your desk is empty. Move something in from the inbox.</p>
       )}
     </section>
+  );
+}
+
+type DeskActionsMenuProps = {
+  item: Item;
+  onSendToInbox: (item: Item) => void;
+  onDiscard: (item: Item) => void;
+};
+
+function DeskActionsMenu({
+  item,
+  onSendToInbox,
+  onDiscard,
+}: DeskActionsMenuProps) {
+  const triggerRef = useRef<HTMLButtonElement>(null);
+
+  function runAction(action: (item: Item) => void) {
+    if (triggerRef.current !== null) {
+      focusAdjacentAction(triggerRef.current, "desk-heading");
+    }
+
+    action(item);
+  }
+
+  return (
+    <Menu.Root>
+      <Menu.Trigger
+        ref={triggerRef}
+        type="button"
+        className="library-menu-trigger desk-menu-trigger"
+        aria-label={`More actions for ${item.title}`}
+        data-cuelume-toggle=""
+      >
+        <MoreVerticalIcon />
+      </Menu.Trigger>
+      <Menu.Portal>
+        <Menu.Positioner className="library-menu-positioner" sideOffset={4} align="end">
+          <Menu.Popup className="library-menu">
+            <Menu.Item
+              className="library-menu-item"
+              onClick={() => runAction(onSendToInbox)}
+            >
+              <InboxIcon className="button-icon" />
+              <span>Move to inbox</span>
+            </Menu.Item>
+            <Menu.Item
+              className="library-menu-item discard-menu-item"
+              onClick={() => runAction(onDiscard)}
+            >
+              <TrashIcon className="button-icon" />
+              <span>Discard</span>
+            </Menu.Item>
+          </Menu.Popup>
+        </Menu.Positioner>
+      </Menu.Portal>
+    </Menu.Root>
   );
 }

@@ -23,7 +23,7 @@
   --muted: #707070;
   --muted-strong: #4b4b4b;
   --focus: #4a4a4a;
-  --divider: rgba(0, 0, 0, 0.12);
+  --divider: rgba(0, 0, 0, 0.08);
   --fill-strong: #e8e8e8;
   --toggle-bg: #e6e6e6;
   --type-menu-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
@@ -44,7 +44,7 @@
   --muted: #a4a4a4;
   --muted-strong: #d0d0d0;
   --focus: #d9d9d9;
-  --divider: rgba(255, 255, 255, 0.14);
+  --divider: rgba(255, 255, 255, 0.1);
   --fill-strong: #2a2a2a;
   --toggle-bg: #242424;
   --type-menu-shadow: 0 4px 12px rgba(0, 0, 0, 0.22);
@@ -171,6 +171,10 @@ input {
   padding: 18px 20px;
   background: var(--surface);
   border-radius: var(--radius-surface);
+}
+
+.desk-card:not(.swappable) {
+  padding-inline-end: 68px;
 }
 
 .card-title {
@@ -388,6 +392,11 @@ input {
   background: var(--divider);
 }
 
+.library-menu-item.discard-menu-item[data-highlighted] {
+  background: var(--danger-fill);
+  color: var(--danger);
+}
+
 .library-menu-item[data-highlighted]:focus-visible {
   outline: 2px solid var(--focus);
   outline-offset: -2px;
@@ -414,6 +423,12 @@ input {
   scale: 0.96;
 }
 
+.desk-menu-trigger {
+  position: absolute;
+  inset-block-start: 12px;
+  inset-inline-end: 12px;
+}
+
 .library-menu-trigger svg {
   display: block;
   width: 18px;
@@ -423,7 +438,7 @@ input {
 
 @keyframes row-arrive {
   from {
-    background-color: var(--fill-strong);
+    background-color: color-mix(in srgb, var(--page-bg) 78%, var(--fill-strong));
   }
   to {
     background-color: transparent;
@@ -431,7 +446,6 @@ input {
 }
 
 .row-new {
-  border-radius: var(--radius-compact);
   animation: row-arrive 600ms ease-out;
 }
 
