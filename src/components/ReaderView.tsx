@@ -1,4 +1,4 @@
-import { play } from "cuelume";
+import { playError } from "../soundCues";
 import { startTransition, useEffect, useRef, useState } from "react";
 import { canReadInApp, itemMetaLine, type Item } from "../item";
 import type { ExtractedArticle } from "../../shared/extraction";
@@ -7,6 +7,7 @@ import {
   extractArticle,
 } from "../reader/extractArticle";
 import { sanitizeArticleHtml } from "../reader/sanitizeArticle";
+import { ArrowLeftIcon } from "./icons";
 
 type ReaderViewProps = {
   item: Item;
@@ -69,7 +70,6 @@ export function ReaderView({ item, onClose }: ReaderViewProps) {
           return;
         }
 
-        play("ready");
         startTransition(() => {
           setState({ status: "ready", article: readyArticle });
         });
@@ -78,7 +78,7 @@ export function ReaderView({ item, onClose }: ReaderViewProps) {
           return;
         }
 
-        play("error");
+        playError();
         setState({
           status: "error",
           message:
@@ -103,12 +103,9 @@ export function ReaderView({ item, onClose }: ReaderViewProps) {
         <button
           type="button"
           className="reader-back"
-          data-cuelume-press="page"
           onClick={onClose}
         >
-          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-            <path d="m15 5-7 7 7 7" />
-          </svg>
+          <ArrowLeftIcon />
           <span>Back</span>
         </button>
         {originalUrl !== null && (
@@ -117,7 +114,6 @@ export function ReaderView({ item, onClose }: ReaderViewProps) {
             href={originalUrl}
             target="_blank"
             rel="noreferrer"
-            data-cuelume-press="page"
           >
             Open original
           </a>

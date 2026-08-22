@@ -1,4 +1,4 @@
-import { play, setEnabled } from "cuelume";
+import { setEnabled } from "cuelume";
 import {
   lazy,
   Suspense,
@@ -23,6 +23,13 @@ import { SearchBar } from "./components/SearchBar";
 import { loadItems, saveItems } from "./itemStorage";
 import { SoundToggle } from "./components/SoundToggle";
 import { ThemeToggle, type Theme } from "./components/ThemeToggle";
+import { ArrowLeftIcon, PlusIcon } from "./components/icons";
+import {
+  playCompletion,
+  playDismissal,
+  playPageChange,
+  playToggle,
+} from "./soundCues";
 
 const THEME_STORAGE_KEY = "reader:theme";
 const SOUND_STORAGE_KEY = "reader:sounds";
@@ -38,9 +45,7 @@ function ReaderLoadingFallback({ onClose }: { onClose: () => void }) {
     <div className="reader-page">
       <header className="reader-header">
         <button type="button" className="reader-back" onClick={onClose}>
-          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-            <path d="m15 5-7 7 7 7" />
-          </svg>
+          <ArrowLeftIcon />
           <span>Back</span>
         </button>
       </header>
@@ -213,7 +218,7 @@ export default function App() {
 
   function handleAdd(input: NewItemInput) {
     const item = createItem(input);
-    play("success");
+    playCompletion();
     setItems((current) => [item, ...current]);
     setLastAddedId(item.id);
     setAnnouncement(`${item.title} added to your inbox.`);
@@ -267,12 +272,14 @@ export default function App() {
     );
     const movedItem = items.find((candidate) => candidate.id === swapCandidateId);
     if (movedItem !== undefined) {
+      playCompletion();
       setAnnouncement(`${movedItem.title} moved to your desk.`);
     }
     setSwapCandidateId(null);
   }
 
   function discardItem(item: Item) {
+    playDismissal();
     setItems((current) => current.filter((candidate) => candidate.id !== item.id));
     setAnnouncement(`${item.title} discarded.`);
 
@@ -282,6 +289,7 @@ export default function App() {
   }
 
   function finishItem(item: Item) {
+    playCompletion();
     setItems((current) =>
       current.map((candidate) =>
         candidate.id === item.id
@@ -317,11 +325,13 @@ export default function App() {
     }
 
     readTriggerRef.current = trigger;
+    playPageChange();
     setReaderItemId(item.id);
     window.location.hash = `read=${encodeURIComponent(item.id)}`;
   }
 
   const closeReader = useCallback(() => {
+    playPageChange();
     window.history.replaceState(
       null,
       "",
@@ -330,6 +340,20 @@ export default function App() {
     setReaderItemId(null);
     requestAnimationFrame(() => readTriggerRef.current?.focus());
   }, []);
+
+  function toggleSounds() {
+    const nextEnabled = !soundsEnabled;
+
+    if (nextEnabled) {
+      setEnabled(true);
+      playToggle();
+    } else {
+      playToggle();
+      setEnabled(false);
+    }
+
+    setSoundsEnabled(nextEnabled);
+  }
 
   return (
     <main className="app">
@@ -367,9 +391,7 @@ export default function App() {
                 aria-label={captureOpen ? "Close add form" : "Add to inbox"}
                 data-cuelume-toggle=""
               >
-                <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                  <path d="M12 5v14M5 12h14" />
-                </svg>
+                <PlusIcon />
               </Collapsible.Trigger>
             </div>
             <Collapsible.Panel id="capture-panel" className="capture-panel" keepMounted>
@@ -412,10 +434,7 @@ export default function App() {
         </div>
       )}
       <div className="utility-actions">
-        <SoundToggle
-          enabled={soundsEnabled}
-          onToggle={() => setSoundsEnabled((current) => !current)}
-        />
+        <SoundToggle enabled={soundsEnabled} onToggle={toggleSounds} />
         <ThemeToggle
           theme={theme}
           onToggle={() => setTheme((current) => (current === "dark" ? "light" : "dark"))}

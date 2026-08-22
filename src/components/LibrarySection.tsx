@@ -4,6 +4,7 @@ import type { Item } from "../item";
 import { itemMetaLine } from "../item";
 import { formatDate } from "../formatDate";
 import { focusAdjacentAction } from "../focusAdjacentAction";
+import { ArrowUpIcon, InboxIcon, MoreVerticalIcon } from "./icons";
 
 type LibrarySectionProps = {
   items: Item[];
@@ -75,11 +76,7 @@ function LibraryActionsMenu({
           aria-label={`More actions for ${item.title}`}
           data-cuelume-toggle=""
         >
-          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-            <circle cx="12" cy="5" r="1.5" />
-            <circle cx="12" cy="12" r="1.5" />
-            <circle cx="12" cy="19" r="1.5" />
-          </svg>
+          <MoreVerticalIcon />
         </Menu.Trigger>
         <Menu.Portal>
           <Menu.Positioner className="library-menu-positioner" sideOffset={4} align="end">
@@ -88,13 +85,15 @@ function LibraryActionsMenu({
                 className="library-menu-item"
                 onClick={() => runAction(onSendToDesk)}
               >
-                Move to desk
+                <ArrowUpIcon className="button-icon" />
+                <span>Move to desk</span>
               </Menu.Item>
               <Menu.Item
                 className="library-menu-item"
                 onClick={() => runAction(onSendToInbox)}
               >
-                Move to inbox
+                <InboxIcon className="button-icon" />
+                <span>Move to inbox</span>
               </Menu.Item>
             </Menu.Popup>
           </Menu.Positioner>

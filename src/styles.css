@@ -27,7 +27,11 @@
   --fill-strong: #e8e8e8;
   --toggle-bg: #e6e6e6;
   --type-menu-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  --success-text: #25613c;
+  --success-fill: #dcefe2;
+  --success-fill-strong: #cfe8d7;
   --danger: #b42318;
+  --danger-fill: #f7e3e1;
   --menu-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
 }
 
@@ -44,7 +48,11 @@
   --fill-strong: #2a2a2a;
   --toggle-bg: #242424;
   --type-menu-shadow: 0 4px 12px rgba(0, 0, 0, 0.22);
+  --success-text: #9bd5ab;
+  --success-fill: #1d3525;
+  --success-fill-strong: #25442f;
   --danger: #ff8178;
+  --danger-fill: #3a2220;
   --menu-shadow: 0 8px 24px rgba(0, 0, 0, 0.36);
 }
 
@@ -184,13 +192,16 @@ input {
 .card-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 6px;
   margin-top: 12px;
 }
 
 .pill-button {
-  display: inline-block;
-  padding: 6px 14px;
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  gap: 5px;
+  padding: 5px 10px;
   background: var(--divider);
   border: none;
   border-radius: var(--radius-pill);
@@ -199,9 +210,22 @@ input {
   color: var(--text);
   cursor: pointer;
   text-decoration: none;
+  white-space: nowrap;
   transition:
     background-color 120ms var(--ease-out),
     scale 120ms var(--ease-out);
+}
+
+.button-icon {
+  display: block;
+  width: 15px;
+  height: 15px;
+  flex: 0 0 auto;
+}
+
+.finish-button {
+  background: var(--success-fill);
+  color: var(--success-text);
 }
 
 .inbox,
@@ -346,6 +370,7 @@ input {
 .library-menu-item {
   display: flex;
   align-items: center;
+  gap: 8px;
   min-height: 36px;
   padding: 8px 10px;
   border-radius: var(--radius-compact);
@@ -847,13 +872,18 @@ input {
     flex-wrap: wrap;
   }
 
+  .pill-button,
   .quiet-button {
     min-height: 40px;
   }
 }
 
 .quiet-button {
-  padding: 5px 12px;
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  gap: 5px;
+  padding: 5px 9px;
   background: none;
   border: none;
   border-radius: var(--radius-pill);
@@ -861,6 +891,8 @@ input {
   font-weight: 500;
   color: var(--muted-strong);
   cursor: pointer;
+  text-decoration: none;
+  white-space: nowrap;
   transition:
     background-color 120ms var(--ease-out),
     color 120ms ease,
@@ -872,6 +904,11 @@ input {
 .add-submit:active,
 .desk-card.swappable:active {
   scale: 0.96;
+}
+
+.quiet-button.discard:focus-visible {
+  background: var(--danger-fill);
+  color: var(--danger);
 }
 
 button:focus-visible {
@@ -999,6 +1036,10 @@ a:focus-visible {
     background: var(--fill-strong);
   }
 
+  .finish-button:hover {
+    background: var(--success-fill-strong);
+  }
+
   .desk-card.swappable:hover {
     background-color: color-mix(in srgb, var(--surface) 95%, var(--text));
   }
@@ -1008,6 +1049,7 @@ a:focus-visible {
   }
 
   .quiet-button.discard:hover {
+    background: var(--danger-fill);
     color: var(--danger);
   }
 

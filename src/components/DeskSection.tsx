@@ -1,5 +1,11 @@
 import { canReadInApp, DESK_CAPACITY, type Item, itemMetaLine } from "../item";
 import { focusAdjacentAction } from "../focusAdjacentAction";
+import {
+  BookOpenIcon,
+  CheckIcon,
+  ExternalLinkIcon,
+  TrashIcon,
+} from "./icons";
 
 type DeskSectionProps = {
   items: Item[];
@@ -68,7 +74,8 @@ export function DeskSection({
                       aria-label={`Read in readr: ${item.title}`}
                       onClick={(event) => onRead(item, event.currentTarget)}
                     >
-                      Read
+                      <BookOpenIcon className="button-icon" />
+                      <span>Read</span>
                     </button>
                   )}
                   {item.url !== null && !canReadInApp(item) && (
@@ -79,19 +86,21 @@ export function DeskSection({
                       rel="noreferrer"
                       aria-label={`Open original: ${item.title}`}
                     >
-                      Open original
+                      <ExternalLinkIcon className="button-icon" />
+                      <span>Open original</span>
                     </a>
                   )}
                   <button
                     type="button"
-                    className="pill-button"
+                    className="pill-button finish-button"
                     aria-label={`Finish: ${item.title}`}
                     onClick={(event) => {
                       focusAdjacentAction(event.currentTarget, "desk-heading");
                       onFinish(item);
                     }}
                   >
-                    Finish
+                    <CheckIcon className="button-icon" />
+                    <span>Finish</span>
                   </button>
                   <button
                     type="button"
@@ -102,7 +111,8 @@ export function DeskSection({
                       onDiscard(item);
                     }}
                   >
-                    Discard
+                    <TrashIcon className="button-icon" />
+                    <span>Discard</span>
                   </button>
                 </div>
               </article>

@@ -1,5 +1,6 @@
 import { Select } from "@base-ui/react/select";
 import { TYPE_OPTIONS, type ItemType } from "../item";
+import { CheckIcon, ChevronDownIcon } from "./icons";
 
 type TypeSelectProps = {
   value: ItemType;
@@ -30,14 +31,7 @@ export function TypeSelect({ value, onChange }: TypeSelectProps) {
             <Select.Value />
           </span>
           <Select.Icon>
-            <svg
-              className="type-chevron"
-              viewBox="0 0 24 24"
-              aria-hidden="true"
-              focusable="false"
-            >
-              <path d="m6 9 6 6 6-6" />
-            </svg>
+            <ChevronDownIcon className="type-chevron" />
           </Select.Icon>
         </Select.Trigger>
         <Select.Portal>
@@ -52,9 +46,7 @@ export function TypeSelect({ value, onChange }: TypeSelectProps) {
                   <Select.Item key={option.value} value={option.value} className="type-option">
                     <Select.ItemText>{option.label}</Select.ItemText>
                     <Select.ItemIndicator className="type-check">
-                      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                        <path d="m5 12.5 4.5 4.5L19 7.5" />
-                      </svg>
+                      <CheckIcon />
                     </Select.ItemIndicator>
                   </Select.Item>
                 ))}

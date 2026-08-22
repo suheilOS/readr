@@ -1,4 +1,5 @@
 import { useRef } from "react";
+import { XIcon } from "./icons";
 
 type SearchBarProps = {
   query: string;
@@ -27,9 +28,7 @@ export function SearchBar({ query, onQueryChange }: SearchBarProps) {
       />
       {query.length > 0 && (
         <button type="button" className="search-clear" aria-label="Clear search" onClick={clearSearch}>
-          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-            <path d="m7 7 10 10M17 7 7 17" />
-          </svg>
+          <XIcon />
         </button>
       )}
     </div>

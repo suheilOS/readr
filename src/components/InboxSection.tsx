@@ -1,6 +1,7 @@
 import type { Item } from "../item";
 import { itemMetaLine } from "../item";
 import { focusAdjacentAction } from "../focusAdjacentAction";
+import { ArrowUpIcon, TrashIcon } from "./icons";
 
 type InboxSectionProps = {
   items: Item[];
@@ -29,14 +30,15 @@ export function InboxSection({ items, highlightId, onSendToDesk, onDiscard }: In
             <div className="row-actions">
               <button
                 type="button"
-                className="quiet-button"
-                aria-label={`To desk: ${item.title}`}
+                className="pill-button"
+                aria-label={`Move to desk: ${item.title}`}
                 onClick={(event) => {
                   focusAdjacentAction(event.currentTarget, "inbox-heading");
                   onSendToDesk(item);
                 }}
               >
-                To desk
+                <ArrowUpIcon className="button-icon" />
+                <span>Move to desk</span>
               </button>
               <button
                 type="button"
@@ -47,7 +49,8 @@ export function InboxSection({ items, highlightId, onSendToDesk, onDiscard }: In
                   onDiscard(item);
                 }}
               >
-                Discard
+                <TrashIcon className="button-icon" />
+                <span>Discard</span>
               </button>
             </div>
           </li>
