@@ -10,7 +10,7 @@ export default defineConfig({
     browserName: "chromium",
   },
   webServer: {
-    command: "bun run build && bunx wrangler dev --port 4173",
+    command: "bun run build && bunx wrangler dev --config wrangler.e2e.jsonc --port 4173",
     url: "http://127.0.0.1:4173",
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,
