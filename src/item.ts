@@ -48,20 +48,3 @@ export function itemUrlHost(url: ItemUrl | null): string | null {
 export function canReadInApp(item: Pick<Item, "type" | "url">): boolean {
   return item.url !== null && (item.type === "article" || item.type === "paper");
 }
-
-export function createItem(input: {
-  title: string;
-  url: ItemUrl | null;
-  type: ItemType;
-}): Item {
-  return {
-    id: crypto.randomUUID(),
-    title: input.title,
-    url: input.url,
-    type: input.type,
-    status: "inbox",
-    addedAt: new Date().toISOString(),
-    finishedAt: null,
-    note: null,
-  };
-}

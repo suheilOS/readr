@@ -7,7 +7,7 @@
     "preview": "vite preview",
     "preview:cloudflare": "bun run build && wrangler dev",
     "deploy:check": "bun run build && wrangler deploy --dry-run",
-    "deploy": "wrangler deploy",
+    "deploy": "bun run build && wrangler deploy",
     "test": "vitest run --config vitest.config.ts && vitest run --config vitest.dom.config.ts",
     "test:e2e": "playwright test",
     "test:watch": "bun run --parallel test:watch:worker test:watch:dom",
@@ -20,6 +20,7 @@
     "cuelume": "^0.2.2",
     "defuddle": "^0.19.2",
     "dompurify": "^3.4.14",
+    "hono": "^4.13.3",
     "linkedom": "^0.18.13",
     "react": "^19.1.0",
     "react-dom": "^19.1.0"

@@ -1,67 +1,144 @@
-import { useEffect, useReducer, useRef, useState, type Dispatch } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { Item } from "./item";
-import { itemReducer, type ItemAction } from "./itemReducer";
-import { loadItems, saveItems, type LoadItemsResult } from "./itemStorage";
+import {
+  createItem,
+  discardItem,
+  fetchItems,
+  finishItem,
+  ItemApiError,
+  moveItemToDesk,
+  moveItemToInbox,
+  swapItems,
+  type NewItemInput,
+} from "./itemApi";
 
-type RecoveryState = Extract<LoadItemsResult, { kind: "corrupt" | "unsupported" }>;
+type ItemMutation = (id: string) => Promise<Item>;
 
 export type ItemLibrary = {
   items: Item[];
-  dispatch: Dispatch<ItemAction>;
-  recovery: RecoveryState | null;
-  persistenceWarning: string | null;
-  acceptRecovery: (items: Item[]) => boolean;
+  loading: boolean;
+  busy: boolean;
+  error: string | null;
+  unauthenticated: boolean;
+  retry: () => void;
+  addItem: (input: NewItemInput) => Promise<Item | null>;
+  moveToDesk: (id: string) => Promise<Item | null>;
+  moveToInbox: (id: string) => Promise<Item | null>;
+  finish: (id: string) => Promise<Item | null>;
+  discard: (id: string) => Promise<boolean>;
+  swap: (candidateId: string, displacedId: string) => Promise<Item | null>;
 };
 
 export function useItemLibrary(): ItemLibrary {
-  const initialLoad = useRef<LoadItemsResult | null>(null);
-  if (initialLoad.current === null) initialLoad.current = loadItems();
-
-  const initial = initialLoad.current;
-  const initialItems = initial.kind === "ready" ? initial.items : [];
-  const [items, dispatch] = useReducer(itemReducer, initialItems);
-  const [recovery, setRecovery] = useState<RecoveryState | null>(
-    initial.kind === "corrupt" || initial.kind === "unsupported" ? initial : null,
-  );
-  const [persistenceWarning, setPersistenceWarning] = useState<string | null>(
-    initial.kind === "unavailable"
-      ? "Browser storage is unavailable. Changes will last only for this session."
-      : null,
-  );
-  const mounted = useRef(false);
-  const skipNextSave = useRef(false);
-  const persistenceAvailable = initial.kind !== "unavailable";
+  const [items, setItems] = useState<Item[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [activeMutations, setActiveMutations] = useState(0);
+  const [error, setError] = useState<string | null>(null);
+  const [unauthenticated, setUnauthenticated] = useState(false);
+  const [reloadToken, setReloadToken] = useState(0);
+  const dataGenerationRef = useRef(0);
 
   useEffect(() => {
-    if (!mounted.current) {
-      mounted.current = true;
-      if (initial.kind !== "ready" || !initial.needsMigration) return;
-    } else if (skipNextSave.current) {
-      skipNextSave.current = false;
-      return;
-    }
+    const generation = dataGenerationRef.current + 1;
+    dataGenerationRef.current = generation;
+    const controller = new AbortController();
+    setLoading(true);
+    setError(null);
 
-    if (!persistenceAvailable || recovery !== null) return;
-    if (!saveItems(items).ok) {
-      setPersistenceWarning("Changes could not be saved. Keep this tab open to avoid losing them.");
-    } else {
-      setPersistenceWarning(null);
-    }
-  }, [initial, items, persistenceAvailable, recovery]);
+    void fetchItems(controller.signal)
+      .then((nextItems) => {
+        if (generation !== dataGenerationRef.current) return;
+        setItems(nextItems);
+        setUnauthenticated(false);
+      })
+      .catch((error: unknown) => {
+        if (controller.signal.aborted) return;
+        handleError(error, setError, setUnauthenticated);
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setLoading(false);
+      });
 
-  function acceptRecovery(nextItems: Item[]): boolean {
-    const result = saveItems(nextItems);
-    if (!result.ok) {
-      setPersistenceWarning("Recovery could not be saved. Your original data is still untouched.");
-      return false;
-    }
+    return () => controller.abort();
+  }, [reloadToken]);
 
-    skipNextSave.current = true;
-    setRecovery(null);
-    setPersistenceWarning(null);
-    dispatch({ type: "replaceAll", items: nextItems });
-    return true;
+  const runMutation = useCallback(async <T,>(operation: () => Promise<T>): Promise<T | null> => {
+    dataGenerationRef.current += 1;
+    setActiveMutations((current) => current + 1);
+    setError(null);
+    try {
+      return await operation();
+    } catch (error: unknown) {
+      handleError(error, setError, setUnauthenticated);
+      return null;
+    } finally {
+      setActiveMutations((current) => Math.max(0, current - 1));
+    }
+  }, []);
+
+  const addItem = useCallback(async (input: NewItemInput): Promise<Item | null> => {
+    const item = await runMutation(() => createItem(input));
+    if (item !== null) setItems((current) => [item, ...current]);
+    return item;
+  }, [runMutation]);
+
+  const updateItem = useCallback(async (operation: ItemMutation, id: string): Promise<Item | null> => {
+    const item = await runMutation(() => operation(id));
+    if (item !== null) {
+      setItems((current) => current.map((currentItem) => currentItem.id === item.id ? item : currentItem));
+    }
+    return item;
+  }, [runMutation]);
+
+  const moveToDesk = useCallback((id: string) => updateItem(moveItemToDesk, id), [updateItem]);
+  const moveToInbox = useCallback((id: string) => updateItem(moveItemToInbox, id), [updateItem]);
+  const finish = useCallback((id: string) => updateItem(finishItem, id), [updateItem]);
+
+  const discard = useCallback(async (id: string): Promise<boolean> => {
+    const result = await runMutation(async () => {
+      await discardItem(id);
+      return true;
+    });
+    if (result) setItems((current) => current.filter((item) => item.id !== id));
+    return result ?? false;
+  }, [runMutation]);
+
+  const swap = useCallback(async (candidateId: string, displacedId: string): Promise<Item | null> => {
+    const result = await runMutation(() => swapItems(candidateId, displacedId));
+    if (result !== null) {
+      setItems((current) => current
+        .filter((item) => item.id !== result.displacedId)
+        .map((item) => item.id === result.item.id ? result.item : item));
+    }
+    return result?.item ?? null;
+  }, [runMutation]);
+
+  return {
+    items,
+    loading,
+    busy: activeMutations > 0,
+    error,
+    unauthenticated,
+    retry: () => setReloadToken((current) => current + 1),
+    addItem,
+    moveToDesk,
+    moveToInbox,
+    finish,
+    discard,
+    swap,
+  };
+}
+
+function handleError(
+  error: unknown,
+  setError: (message: string | null) => void,
+  setUnauthenticated: (value: boolean) => void,
+): void {
+  if (error instanceof ItemApiError && error.status === 401) {
+    setUnauthenticated(true);
+    setError(null);
+    return;
   }
 
-  return { items, dispatch, recovery, persistenceWarning, acceptRecovery };
+  setError(error instanceof Error ? error.message : "Readr could not complete that request. Try again.");
 }

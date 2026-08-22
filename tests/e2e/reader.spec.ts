@@ -8,20 +8,28 @@ test("reads sanitized content under the production security policy", async ({ pa
     }
   });
 
-  await page.addInitScript(() => {
-    localStorage.setItem("reader:items", JSON.stringify({
-      version: 3,
-      items: [{
-        id: "reader-smoke",
-        title: "Stored article",
-        url: "https://example.com/story",
-        type: "article",
-        status: "desk",
-        addedAt: "2026-08-22T00:00:00.000Z",
-        finishedAt: null,
-        note: null,
-      }],
-    }));
+  await page.route("**/api/items", async (route) => {
+    if (route.request().method() !== "GET") {
+      await route.continue();
+      return;
+    }
+
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        items: [{
+          id: "reader-smoke",
+          title: "Stored article",
+          url: "https://example.com/story",
+          type: "article",
+          status: "desk",
+          addedAt: "2026-08-22T00:00:00.000Z",
+          finishedAt: null,
+          note: null,
+        }],
+      }),
+    });
   });
 
   await page.route("**/api/extract", async (route) => {

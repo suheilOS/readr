@@ -12,7 +12,6 @@ import { Collapsible } from "@base-ui/react/collapsible";
 import {
   canReadInApp,
   DESK_CAPACITY,
-  createItem,
   type Item,
 } from "./item";
 import { AddItemForm, type NewItemInput } from "./components/AddItemForm";
@@ -22,7 +21,6 @@ import { LibrarySection } from "./components/LibrarySection";
 import { SearchBar } from "./components/SearchBar";
 import { selectItemGroups } from "./itemSelectors";
 import { useItemLibrary } from "./useItemLibrary";
-import { StorageRecovery } from "./components/StorageRecovery";
 import { useReaderRoute } from "./useReaderRoute";
 import { SoundToggle } from "./components/SoundToggle";
 import { ThemeToggle, type Theme } from "./components/ThemeToggle";
@@ -85,7 +83,20 @@ function getInitialTheme(): Theme {
 }
 
 export default function App() {
-  const { items, dispatch, recovery, persistenceWarning, acceptRecovery } = useItemLibrary();
+  const {
+    items,
+    loading,
+    busy,
+    error,
+    unauthenticated,
+    retry,
+    addItem,
+    moveToDesk,
+    moveToInbox,
+    finish,
+    discard,
+    swap,
+  } = useItemLibrary();
   const [query, setQuery] = useState("");
   const [swapCandidateId, setSwapCandidateId] = useState<string | null>(null);
   const [captureOpen, setCaptureOpen] = useState(false);
@@ -164,55 +175,57 @@ export default function App() {
 
   const deskFull = deskItems.length >= DESK_CAPACITY;
 
-  function handleAdd(input: NewItemInput) {
-    const item = createItem(input);
+  async function handleAdd(input: NewItemInput) {
+    if (busy) return;
+    const item = await addItem(input);
+    if (item === null) return;
+
     playCompletion();
-    dispatch({ type: "add", item });
     setLastAddedId(item.id);
     setAnnouncement(`${item.title} added to your inbox.`);
     closeCapture();
   }
 
-  function sendToDesk(item: Item) {
+  async function sendToDesk(item: Item) {
     if (deskFull) {
       setSwapCandidateId(item.id);
       return;
     }
 
-    dispatch({ type: "moveToDesk", id: item.id });
-    setAnnouncement(`${item.title} moved to your desk.`);
-  }
-
-  function sendToInbox(item: Item) {
-    dispatch({ type: "moveToInbox", id: item.id });
-    setAnnouncement(`${item.title} returned to your inbox.`);
-
-    if (swapCandidateId === item.id) {
-      setSwapCandidateId(null);
+    const movedItem = await moveToDesk(item.id);
+    if (movedItem !== null) {
+      setAnnouncement(`${movedItem.title} moved to your desk.`);
     }
   }
 
-  function replaceDeskItem(displaced: Item) {
+  async function sendToInbox(item: Item) {
+    const movedItem = await moveToInbox(item.id);
+    if (movedItem !== null) {
+      setAnnouncement(`${movedItem.title} returned to your inbox.`);
+      if (swapCandidateId === item.id) {
+        setSwapCandidateId(null);
+      }
+    }
+  }
+
+  async function replaceDeskItem(displaced: Item) {
     if (swapCandidateId === null) {
       return;
     }
 
-    dispatch({
-      type: "swapAndDiscard",
-      candidateId: swapCandidateId,
-      displacedId: displaced.id,
-    });
-    const movedItem = items.find((candidate) => candidate.id === swapCandidateId);
-    if (movedItem !== undefined) {
+    const movedItem = await swap(swapCandidateId, displaced.id);
+    if (movedItem !== null) {
       playCompletion();
       setAnnouncement(`${movedItem.title} moved to your desk.`);
     }
     setSwapCandidateId(null);
   }
 
-  function discardItem(item: Item) {
+  async function discardItem(item: Item) {
+    const discarded = await discard(item.id);
+    if (!discarded) return;
+
     playDismissal();
-    dispatch({ type: "discard", id: item.id });
     setAnnouncement(`${item.title} discarded.`);
 
     if (swapCandidateId === item.id) {
@@ -220,10 +233,12 @@ export default function App() {
     }
   }
 
-  function finishItem(item: Item) {
-    playCompletion();
-    dispatch({ type: "finish", id: item.id, finishedAt: new Date().toISOString() });
-    setAnnouncement(`${item.title} moved to your library.`);
+  async function finishItem(item: Item) {
+    const finishedItem = await finish(item.id);
+    if (finishedItem !== null) {
+      playCompletion();
+      setAnnouncement(`${finishedItem.title} moved to your library.`);
+    }
   }
 
   const readerItem =
@@ -269,18 +284,20 @@ export default function App() {
     setSoundsEnabled(nextEnabled);
   }
 
-  if (recovery !== null) {
+  if (loading) {
     return (
-      <StorageRecovery
-        recovery={recovery}
-        error={persistenceWarning}
-        onAccept={acceptRecovery}
-      />
+      <main className="app">
+        <p className="empty-note" role="status">Loading your library…</p>
+      </main>
     );
   }
 
+  if (unauthenticated) {
+    return <SignedOutState />;
+  }
+
   return (
-    <main className="app">
+    <main className="app" aria-busy={busy}>
       <h1 className="visually-hidden">readr</h1>
       <p className="visually-hidden" role="status" aria-atomic="true">
         {announcement}
@@ -288,8 +305,11 @@ export default function App() {
       <p className="visually-hidden" aria-live="polite" aria-atomic="true">
         {searchAnnouncement}
       </p>
-      {persistenceWarning !== null && (
-        <p className="persistence-warning" role="alert">{persistenceWarning}</p>
+      {error !== null && (
+        <div className="persistence-warning" role="alert">
+          <span>{error}</span>
+          <button type="button" className="inline-link-button" onClick={retry}>Try again</button>
+        </div>
       )}
       {readerItem !== null ? (
         <Suspense fallback={<ReaderLoadingFallback onClose={closeReader} />}>
@@ -327,6 +347,7 @@ export default function App() {
                   <AddItemForm
                     onAdd={handleAdd}
                     onCancel={closeCapture}
+                    busy={busy}
                     formId="capture-form"
                     titleRef={titleInputRef}
                   />
@@ -367,6 +388,24 @@ export default function App() {
           theme={theme}
           onToggle={() => setTheme((current) => (current === "dark" ? "light" : "dark"))}
         />
+      </div>
+    </main>
+  );
+}
+
+function SignedOutState() {
+  const authUrl = import.meta.env.VITE_AUTH_ORIGIN ?? "https://auth.overhawl.app";
+  const returnTo = `${window.location.origin}${window.location.pathname}${window.location.search}${window.location.hash}`;
+  const signInUrl = `${authUrl}/?redirectTo=${encodeURIComponent(returnTo)}`;
+
+  return (
+    <main className="app">
+      <div className="page">
+        <section aria-labelledby="signed-out-heading">
+          <h1 id="signed-out-heading">Sign in to Readr</h1>
+          <p className="empty-note">Your reading list is available after you sign in.</p>
+          <a className="pill-button" href={signInUrl}>Sign in</a>
+        </section>
       </div>
     </main>
   );

@@ -1,5 +1,5 @@
 import { playError } from "../soundCues";
-import { useState, type FormEvent, type Ref } from "react";
+import { useRef, useState, type FormEvent, type Ref } from "react";
 import { TypeSelect } from "./TypeSelect";
 import type { Item, ItemType } from "../item";
 import { parseItemUrl } from "../itemUrl";
@@ -7,23 +7,28 @@ import { parseItemUrl } from "../itemUrl";
 export type NewItemInput = Pick<Item, "title" | "url" | "type">;
 
 type AddItemFormProps = {
-  onAdd: (input: NewItemInput) => void;
+  onAdd: (input: NewItemInput) => void | Promise<void>;
   onCancel: () => void;
   formId?: string;
   titleRef?: Ref<HTMLInputElement>;
+  busy?: boolean;
 };
 
-export function AddItemForm({ onAdd, onCancel, formId, titleRef }: AddItemFormProps) {
+export function AddItemForm({ onAdd, onCancel, formId, titleRef, busy = false }: AddItemFormProps) {
   const [title, setTitle] = useState("");
   const [url, setUrl] = useState("");
   const [type, setType] = useState<ItemType>("article");
   const [titleError, setTitleError] = useState(false);
   const [urlError, setUrlError] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const submittingRef = useRef(false);
   const titleErrorId = `${formId ?? "add-item"}-title-error`;
   const urlErrorId = `${formId ?? "add-item"}-url-error`;
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
+    if (busy || submittingRef.current) return;
+    setSubmitError(null);
 
     const trimmedTitle = title.trim();
     if (trimmedTitle.length === 0) {
@@ -45,16 +50,23 @@ export function AddItemForm({ onAdd, onCancel, formId, titleRef }: AddItemFormPr
       return;
     }
 
-    onAdd({
-      title: trimmedTitle,
-      url: parsedUrl,
-      type,
-    });
+    submittingRef.current = true;
+    try {
+      await onAdd({
+        title: trimmedTitle,
+        url: parsedUrl,
+        type,
+      });
 
-    setTitle("");
-    setUrl("");
-    setTitleError(false);
-    setUrlError(false);
+      setTitle("");
+      setUrl("");
+      setTitleError(false);
+      setUrlError(false);
+    } catch {
+      setSubmitError("The item could not be added. Try again.");
+    } finally {
+      submittingRef.current = false;
+    }
   }
 
   function handleKeyDown(event: React.KeyboardEvent) {
@@ -64,7 +76,7 @@ export function AddItemForm({ onAdd, onCancel, formId, titleRef }: AddItemFormPr
   }
 
   return (
-    <form className="add-form" id={formId} onSubmit={handleSubmit} onKeyDown={handleKeyDown}>
+    <form className="add-form" id={formId} onSubmit={(event) => { void handleSubmit(event); }} onKeyDown={handleKeyDown}>
       <label className="visually-hidden" htmlFor="capture-title">
         Title
       </label>
@@ -114,7 +126,8 @@ export function AddItemForm({ onAdd, onCancel, formId, titleRef }: AddItemFormPr
         </p>
       )}
       <TypeSelect value={type} onChange={setType} />
-      <button type="submit" className="add-submit">
+      {submitError !== null && <p className="form-error" role="alert">{submitError}</p>}
+      <button type="submit" className="add-submit" disabled={busy}>
         Add to inbox
       </button>
     </form>

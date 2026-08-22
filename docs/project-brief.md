@@ -35,7 +35,7 @@ You capture fast and decide later. Adding never blocks on a decision, and decidi
 
 ## Items and metadata
 
-Metadata entry is fully manual. Paste an optional URL, type a title, and pick a type. Capture makes zero network calls.
+Metadata entry is fully manual. Paste an optional URL, type a title, and pick a type. Capture submits the entered metadata to `POST /api/items`.
 
 ```ts
 type ItemType = "article" | "book" | "paper" | "video" | "podcast";
@@ -128,9 +128,9 @@ Cuelume provides short runtime sound cues for key interactions. Sounds follow th
 
 ## Persistence
 
-All data lives in browser localStorage behind a versioned schema. Parsing validates every stored field and migrates older shapes on load, following the storage pattern from Horizons. Storage access stays isolated from presentation so the persistence layer can be replaced later.
+Readr stores the item collection in its Readr D1 database, keyed by the opaque Overhawl user ID. The Worker owns IDs, timestamps, validation, ownership checks, desk capacity, lifecycle changes, and swaps. The browser treats API responses as authoritative.
 
-Data belongs to the page origin that created it. Choose the production custom domain before entering anything you intend to keep.
+The browser stores only `reader:theme` and `reader:sounds` as local preferences. Item data does not live in localStorage and follows the account across devices.
 
 ## Explicitly out of scope
 
@@ -140,7 +140,6 @@ Version 1 excludes the following unless this brief is revised first:
 - ratings, reviews, highlights, annotations
 - reading statistics, goals, streaks, challenges
 - recommendation feeds, social features
-- accounts, authentication, cloud sync
 - browser extension for Version 1; planned as Phase 7
 - PDF upload or storage
 - per-site extraction overrides
@@ -150,7 +149,7 @@ Version 1 excludes the following unless this brief is revised first:
 
 - React 19 + TypeScript + Vite, built with Bun
 - Vanilla CSS, no framework
-- Cloudflare Workers static assets plus one function route for extraction
+- Cloudflare Workers static assets plus authenticated Hono API routes
 - Runtime dependencies: react, react-dom, @base-ui/react, @fontsource/open-runde, cuelume, defuddle, linkedom, dompurify
 
 Interface minimalism does not demand architectural austerity. The Worker exists because reading is core functionality, not complexity.
@@ -161,8 +160,8 @@ Implement in small phases, one narrow goal each. Phases 0 through 6 define Versi
 
 0. **Foundation**: scaffold Vite + React, wrangler config, fonts, base styles
 1. **Static interface**: complete single-screen layout without behavior
-2. **Core interactions**: add, decide, finish, swap-discard, search, in memory only
-3. **Persistence**: localStorage schema, field validation, migration
+2. **Core interactions**: add, decide, finish, swap-discard, and search
+3. **Persistence**: Readr D1 schema, authenticated API, and server-side validation
 4. **In-app reader**: extraction Worker route and distraction-free view
 5. **Responsive pass**: mobile refinement across screen sizes
 6. **Polish**: sounds, themes, accessibility, empty states
@@ -175,8 +174,8 @@ Validate each phase with `bun run build`, `bun run lint`, and manual inspection 
 Version 1 is complete when:
 
 - the desk caps at 5 and enforces swap-discard correctly
-- capture, decide, finish, discard, and search work offline
-- valid items persist across reloads
+- capture, decide, finish, discard, and search use the authenticated API
+- valid items persist across reloads and devices
 - articles and papers open in the reader with clean typography
 - extraction failures fall back to the original link
 - books, podcasts, and videos manage as intentions only

@@ -1,29 +1,9 @@
 {
   "$schema": "./node_modules/wrangler/config-schema.json",
-  "name": "readr",
+  "name": "readr-test",
   "main": "./worker/index.ts",
-  "routes": [
-    {
-      "pattern": "readr.overhawl.app",
-      "custom_domain": true
-    }
-  ],
   "compatibility_date": "2026-08-21",
   "compatibility_flags": ["global_fetch_strictly_public", "nodejs_compat"],
-  "assets": {
-    "directory": "./dist",
-    "binding": "ASSETS",
-    "not_found_handling": "single-page-application",
-    "run_worker_first": ["/api/*"]
-  },
-  "services": [
-    {
-      "binding": "AUTH_SERVICE",
-      "service": "overhawl-auth",
-      "entrypoint": "AuthService",
-      "remote": true
-    }
-  ],
   "d1_databases": [
     {
       "binding": "READR_DB",
@@ -41,11 +21,5 @@
         "period": 60
       }
     }
-  ],
-  "observability": {
-    "enabled": true,
-    "logs": {
-      "head_sampling_rate": 1
-    }
-  }
+  ]
 }

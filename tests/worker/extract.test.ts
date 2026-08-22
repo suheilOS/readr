@@ -58,6 +58,8 @@ describe("POST /api/extract", () => {
       headers: {
         "content-type": "application/json",
         "CF-Connecting-IP": clientIp,
+        Cookie: "session=readr-test",
+        Origin: "https://readr.test",
       },
       body: JSON.stringify({ url: "https://example.com/story" }),
     });
@@ -154,7 +156,11 @@ describe("POST /api/extract", () => {
 
     const request = new Request("https://readr.test/api/extract", {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: {
+        "content-type": "application/json",
+        Cookie: "session=readr-test",
+        Origin: "https://readr.test",
+      },
       body: JSON.stringify({}),
     });
     const response = await runRequest(request);
@@ -186,7 +192,11 @@ async function callWorker(input: unknown): Promise<Response> {
   return runRequest(
     new Request("https://readr.test/api/extract", {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: {
+        "content-type": "application/json",
+        Cookie: "session=readr-test",
+        Origin: "https://readr.test",
+      },
       body: JSON.stringify(input),
     }),
   );
@@ -194,7 +204,18 @@ async function callWorker(input: unknown): Promise<Response> {
 
 async function runRequest(request: Request): Promise<Response> {
   const context = createExecutionContext();
-  const response = await worker.fetch(request, env, context);
+  const testEnv = Object.assign({}, env, {
+    AUTH_SERVICE: {
+      getSession: async (cookie: string) => cookie === "session=readr-test"
+        ? {
+          userId: "readr-test-user",
+          sessionId: "readr-test-session",
+          expiresAt: new Date(Date.now() + 60_000).toISOString(),
+        }
+        : null,
+    },
+  }) as Env;
+  const response = await worker.fetch(request, testEnv, context);
   await waitOnExecutionContext(context);
   return response;
 }
