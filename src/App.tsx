@@ -293,7 +293,7 @@ export default function App() {
   }
 
   if (unauthenticated) {
-    return <SignedOutState />;
+    return <SignedOutState theme={theme} onToggleTheme={() => setTheme((current) => (current === "dark" ? "light" : "dark"))} />;
   }
 
   return (
@@ -393,19 +393,30 @@ export default function App() {
   );
 }
 
-function SignedOutState() {
+type SignedOutStateProps = {
+  theme: Theme;
+  onToggleTheme: () => void;
+};
+
+function SignedOutState({ theme, onToggleTheme }: SignedOutStateProps) {
   const authUrl = import.meta.env.VITE_AUTH_ORIGIN ?? "https://auth.overhawl.app";
   const returnTo = `${window.location.origin}${window.location.pathname}${window.location.search}${window.location.hash}`;
   const signInUrl = `${authUrl}/?redirectTo=${encodeURIComponent(returnTo)}`;
 
   return (
-    <main className="app">
-      <div className="page">
-        <section aria-labelledby="signed-out-heading">
-          <h1 id="signed-out-heading">Sign in to Readr</h1>
-          <p className="empty-note">Your reading list is available after you sign in.</p>
-          <a className="pill-button" href={signInUrl}>Sign in</a>
+    <main className="app signed-out-app">
+      <div className="signed-out-page">
+        <section className="signed-out-state" aria-labelledby="signed-out-heading">
+          <h1 id="signed-out-heading" className="signed-out-heading">Sign in to Readr</h1>
+          <p className="signed-out-copy">Sign in to view and manage your reading list.</p>
+          <a className="signed-out-action" href={signInUrl}>Sign in</a>
         </section>
+      </div>
+      <div className="utility-actions">
+        <ThemeToggle
+          theme={theme}
+          onToggle={onToggleTheme}
+        />
       </div>
     </main>
   );

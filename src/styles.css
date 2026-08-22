@@ -160,6 +160,65 @@ input {
   min-height: 100dvh;
 }
 
+.signed-out-app {
+  display: grid;
+  min-height: 100dvh;
+}
+
+.signed-out-page {
+  display: grid;
+  min-height: 100dvh;
+  place-items: center;
+  padding: clamp(32px, 6vh, 64px) clamp(16px, 4vw, 24px)
+    calc(96px + env(safe-area-inset-bottom));
+}
+
+.signed-out-state {
+  width: min(100%, 420px);
+  text-align: center;
+}
+
+.signed-out-heading {
+  margin: 0;
+  color: var(--heading);
+  font-size: clamp(32px, 6vw, 40px);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+  text-wrap: balance;
+}
+
+.signed-out-copy {
+  max-width: 34rem;
+  margin: 12px 0 0;
+  color: var(--muted);
+  font-size: var(--font-size-body);
+  line-height: 1.5;
+  text-wrap: pretty;
+}
+
+.signed-out-action {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  margin-top: 20px;
+  padding: 9px 18px;
+  background: var(--text);
+  border-radius: var(--radius-control);
+  color: var(--page-bg);
+  font-size: var(--font-size-body);
+  font-weight: 600;
+  text-decoration: none;
+  transition:
+    opacity 120ms ease,
+    scale 120ms var(--ease-out);
+}
+
+.signed-out-action:active {
+  scale: 0.96;
+}
+
 .page {
   max-width: 680px;
   margin: 0 auto;
@@ -1104,7 +1163,8 @@ a:focus-visible {
     background-color: color-mix(in srgb, var(--surface) 95%, var(--text));
   }
 
-  .add-submit:hover {
+  .add-submit:hover,
+  .signed-out-action:hover {
     opacity: 0.85;
   }
 
@@ -1201,6 +1261,7 @@ a:focus-visible {
   .pill-button,
   .quiet-button,
   .add-submit,
+  .signed-out-action,
   .desk-card.swappable {
     scale: 1;
     transition: none;
@@ -1209,6 +1270,7 @@ a:focus-visible {
   .pill-button:active,
   .quiet-button:active,
   .add-submit:active,
+  .signed-out-action:active,
   .desk-card.swappable:active,
   .add-toggle:active {
     scale: 1;
