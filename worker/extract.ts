@@ -246,6 +246,7 @@ async function fetchHtml(initialUrl: URL): Promise<{ html: string; sourceUrl: st
         response.body,
         MAX_HTML_BYTES,
         "response_too_large",
+        parseCharset(contentType),
       ),
       sourceUrl: currentUrl.toString(),
     };
@@ -262,6 +263,7 @@ async function readBodyWithLimit(
   body: ReadableStream<Uint8Array> | null,
   maxBytes: number,
   tooLargeCode: SizeErrorCode,
+  encoding = "utf-8",
 ): Promise<string> {
   if (body === null) {
     throw new ExtractionError({
@@ -305,7 +307,16 @@ async function readBodyWithLimit(
     offset += chunk.byteLength;
   }
 
-  return new TextDecoder().decode(bytes);
+  try {
+    return new TextDecoder(encoding).decode(bytes);
+  } catch {
+    return new TextDecoder().decode(bytes);
+  }
+}
+
+function parseCharset(contentType: string): string {
+  const match = /(?:^|;)\s*charset\s*=\s*["']?([^;\s"']+)/i.exec(contentType);
+  return match?.[1] ?? "utf-8";
 }
 
 function countWords(value: string): number {

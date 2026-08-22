@@ -6,26 +6,7 @@
     <title>readr</title>
   </head>
   <body>
-    <script>
-      (() => {
-        let theme = "light";
-
-        try {
-          const key = "reader:theme";
-          const storedTheme = localStorage.getItem(key);
-          theme =
-            storedTheme === "light" || storedTheme === "dark"
-              ? storedTheme
-              : window.matchMedia("(prefers-color-scheme: dark)").matches
-                ? "dark"
-                : "light";
-        } catch {
-          theme = "light";
-        } finally {
-          document.documentElement.dataset.theme = theme;
-        }
-      })();
-    </script>
+    <script src="/theme-bootstrap.js"></script>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

@@ -25,4 +25,13 @@ describe("sanitizeArticleHtml", () => {
     expect(result).toContain('target="_blank"');
     expect(result).toContain('src="https://example.com/cover.jpg"');
   });
+
+  it("removes image requests to local and private-literal hosts", () => {
+    const result = sanitizeArticleHtml(
+      '<img src="http://127.0.0.1/one"><img src="http://[::1]/two"><img src="http://printer.local/three">',
+      "https://example.com/article",
+    );
+
+    expect(result).not.toContain("src=");
+  });
 });

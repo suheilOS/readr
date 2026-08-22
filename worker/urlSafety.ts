@@ -5,7 +5,6 @@ const TRACKING_PARAMETER_NAMES = new Set([
   "mc_cid",
   "mc_eid",
   "msclkid",
-  "ref",
   "ref_src",
   "yclid",
 ]);

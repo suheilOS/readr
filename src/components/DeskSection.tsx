@@ -17,7 +17,7 @@ type DeskSectionProps = {
   onFinish: (item: Item) => void;
   onSendToInbox: (item: Item) => void;
   onDiscard: (item: Item) => void;
-  onRead: (item: Item, trigger: HTMLButtonElement) => void;
+  onRead: (item: Item) => void;
   onSelectSwapTarget: (item: Item) => void;
   onCancelSwap: () => void;
 };
@@ -78,7 +78,8 @@ export function DeskSection({
                       type="button"
                       className="pill-button"
                       aria-label={`Read in readr: ${item.title}`}
-                      onClick={(event) => onRead(item, event.currentTarget)}
+                      data-reader-item-id={item.id}
+                      onClick={() => onRead(item)}
                     >
                       <BookOpenIcon className="button-icon" />
                       <span>Read</span>

@@ -10,18 +10,22 @@ export type ExtractedArticle = {
   wordCount: number;
 };
 
-export type ExtractErrorCode =
-  | "bad_request"
-  | "method_not_allowed"
-  | "unsupported_media_type"
-  | "request_too_large"
-  | "unsafe_url"
-  | "upstream_error"
-  | "upstream_timeout"
-  | "response_too_large"
-  | "unsupported_content"
-  | "extraction_failed"
-  | "internal_error";
+export const EXTRACT_ERROR_CODES = [
+  "bad_request",
+  "method_not_allowed",
+  "unsupported_media_type",
+  "request_too_large",
+  "rate_limited",
+  "unsafe_url",
+  "upstream_error",
+  "upstream_timeout",
+  "response_too_large",
+  "unsupported_content",
+  "extraction_failed",
+  "internal_error",
+] as const;
+
+export type ExtractErrorCode = (typeof EXTRACT_ERROR_CODES)[number];
 
 export type ExtractErrorBody = {
   error: {
@@ -87,20 +91,5 @@ export function isExtractErrorBody(value: unknown): value is ExtractErrorBody {
 }
 
 function isExtractErrorCode(value: unknown): value is ExtractErrorCode {
-  switch (value) {
-    case "bad_request":
-    case "method_not_allowed":
-    case "unsupported_media_type":
-    case "request_too_large":
-    case "unsafe_url":
-    case "upstream_error":
-    case "upstream_timeout":
-    case "response_too_large":
-    case "unsupported_content":
-    case "extraction_failed":
-    case "internal_error":
-      return true;
-    default:
-      return false;
-  }
+  return typeof value === "string" && EXTRACT_ERROR_CODES.some((code) => code === value);
 }

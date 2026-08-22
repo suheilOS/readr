@@ -16,6 +16,16 @@
     "not_found_handling": "single-page-application",
     "run_worker_first": ["/api/*"]
   },
+  "ratelimits": [
+    {
+      "name": "EXTRACT_RATE_LIMITER",
+      "namespace_id": "812734",
+      "simple": {
+        "limit": 30,
+        "period": 60
+      }
+    }
+  ],
   "observability": {
     "enabled": true,
     "logs": {

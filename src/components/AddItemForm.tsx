@@ -2,6 +2,7 @@ import { playError } from "../soundCues";
 import { useState, type FormEvent, type Ref } from "react";
 import { TypeSelect } from "./TypeSelect";
 import type { Item, ItemType } from "../item";
+import { parseItemUrl } from "../itemUrl";
 
 export type NewItemInput = Pick<Item, "title" | "url" | "type">;
 
@@ -17,7 +18,9 @@ export function AddItemForm({ onAdd, onCancel, formId, titleRef }: AddItemFormPr
   const [url, setUrl] = useState("");
   const [type, setType] = useState<ItemType>("article");
   const [titleError, setTitleError] = useState(false);
+  const [urlError, setUrlError] = useState(false);
   const titleErrorId = `${formId ?? "add-item"}-title-error`;
+  const urlErrorId = `${formId ?? "add-item"}-url-error`;
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -33,15 +36,25 @@ export function AddItemForm({ onAdd, onCancel, formId, titleRef }: AddItemFormPr
       return;
     }
 
+    const parsedUrl = url.trim().length === 0 ? null : parseItemUrl(url);
+    if (url.trim().length > 0 && parsedUrl === null) {
+      playError();
+      setUrlError(true);
+      const urlInput = event.currentTarget.elements.namedItem("url");
+      if (urlInput instanceof HTMLInputElement) urlInput.focus();
+      return;
+    }
+
     onAdd({
       title: trimmedTitle,
-      url: url.trim() || null,
+      url: parsedUrl,
       type,
     });
 
     setTitle("");
     setUrl("");
     setTitleError(false);
+    setUrlError(false);
   }
 
   function handleKeyDown(event: React.KeyboardEvent) {
@@ -87,9 +100,19 @@ export function AddItemForm({ onAdd, onCancel, formId, titleRef }: AddItemFormPr
         type="url"
         autoComplete="url"
         placeholder="Link (optional)"
+        aria-describedby={urlError ? urlErrorId : undefined}
+        aria-invalid={urlError}
         value={url}
-        onChange={(event) => setUrl(event.target.value)}
+        onChange={(event) => {
+          setUrlError(false);
+          setUrl(event.target.value);
+        }}
       />
+      {urlError && (
+        <p id={urlErrorId} className="form-error" role="alert">
+          Enter a complete http or https link without a username or password.
+        </p>
+      )}
       <TypeSelect value={type} onChange={setType} />
       <button type="submit" className="add-submit">
         Add to inbox

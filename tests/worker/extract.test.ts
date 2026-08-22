@@ -34,6 +34,11 @@ describe("normalizePublicUrl", () => {
     expect(result?.toString()).toBe("https://example.com/story?keep=1");
   });
 
+  it("preserves functional ref parameters", () => {
+    const result = normalizePublicUrl("https://example.com/story?ref=chapter-2&utm_source=mail");
+    expect(result?.toString()).toBe("https://example.com/story?ref=chapter-2");
+  });
+
   it("rejects private and non-http destinations", () => {
     expect(normalizePublicUrl("http://127.0.0.1/article")).toBeNull();
     expect(normalizePublicUrl("http://[::1]/article")).toBeNull();
@@ -42,6 +47,28 @@ describe("normalizePublicUrl", () => {
 });
 
 describe("POST /api/extract", () => {
+  it("returns a structured 429 after the extraction limit is exhausted", async () => {
+    const clientIp = "203.0.113.44";
+    for (let attempt = 0; attempt < 30; attempt += 1) {
+      await env.EXTRACT_RATE_LIMITER.limit({ key: `extract:${clientIp}` });
+    }
+
+    const request = new Request("https://readr.test/api/extract", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "CF-Connecting-IP": clientIp,
+      },
+      body: JSON.stringify({ url: "https://example.com/story" }),
+    });
+    const response = await runRequest(request);
+    const body: unknown = await response.json();
+
+    expect(response.status).toBe(429);
+    expect(response.headers.get("retry-after")).toBe("60");
+    expect(body).toMatchObject({ error: { code: "rate_limited" } });
+  });
+
   it("extracts an article and returns normalized metadata", async () => {
     vi.stubGlobal(
       "fetch",
@@ -103,6 +130,22 @@ describe("POST /api/extract", () => {
     expect(body).toMatchObject({
       error: { code: "unsupported_content" },
     });
+  });
+
+  it("decodes the charset declared by the upstream response", async () => {
+    const windows1252Html = articleHtml.replaceAll("Quiet", "Café");
+    const bytes = Uint8Array.from(windows1252Html, (character) => character.charCodeAt(0));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response(bytes, {
+        headers: { "content-type": "text/html; charset=windows-1252" },
+      })),
+    );
+
+    const response = await callWorker({ url: "https://example.com/cafe" });
+    const body: unknown = await response.json();
+    expect(response.status).toBe(200);
+    expect(body).toMatchObject({ title: "A Café Article" });
   });
 
   it("rejects malformed requests before fetching", async () => {

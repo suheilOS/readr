@@ -20,7 +20,10 @@ import { DeskSection } from "./components/DeskSection";
 import { InboxSection } from "./components/InboxSection";
 import { LibrarySection } from "./components/LibrarySection";
 import { SearchBar } from "./components/SearchBar";
-import { loadItems, saveItems } from "./itemStorage";
+import { selectItemGroups } from "./itemSelectors";
+import { useItemLibrary } from "./useItemLibrary";
+import { StorageRecovery } from "./components/StorageRecovery";
+import { useReaderRoute } from "./useReaderRoute";
 import { SoundToggle } from "./components/SoundToggle";
 import { ThemeToggle, type Theme } from "./components/ThemeToggle";
 import { ArrowLeftIcon, PlusIcon } from "./components/icons";
@@ -82,7 +85,7 @@ function getInitialTheme(): Theme {
 }
 
 export default function App() {
-  const [items, setItems] = useState<Item[]>(() => loadItems([]));
+  const { items, dispatch, recovery, persistenceWarning, acceptRecovery } = useItemLibrary();
   const [query, setQuery] = useState("");
   const [swapCandidateId, setSwapCandidateId] = useState<string | null>(null);
   const [captureOpen, setCaptureOpen] = useState(false);
@@ -90,16 +93,9 @@ export default function App() {
   const [announcement, setAnnouncement] = useState("");
   const [soundsEnabled, setSoundsEnabled] = useState(getInitialSoundEnabled);
   const [theme, setTheme] = useState<Theme>(getInitialTheme);
-  const [readerItemId, setReaderItemId] = useState<string | null>(() =>
-    getReaderItemId(window.location.hash),
-  );
+  const { readerItemId, openReaderRoute, closeReaderRoute } = useReaderRoute();
   const addButtonRef = useRef<HTMLButtonElement>(null);
   const titleInputRef = useRef<HTMLInputElement>(null);
-  const readTriggerRef = useRef<HTMLButtonElement>(null);
-
-  useEffect(() => {
-    saveItems(items);
-  }, [items]);
 
   useEffect(() => {
     setEnabled(soundsEnabled);
@@ -140,20 +136,6 @@ export default function App() {
   }, [captureOpen]);
 
   useEffect(() => {
-    function handleHashChange() {
-      const nextReaderItemId = getReaderItemId(window.location.hash);
-      setReaderItemId(nextReaderItemId);
-
-      if (nextReaderItemId === null) {
-        requestAnimationFrame(() => readTriggerRef.current?.focus());
-      }
-    }
-
-    window.addEventListener("hashchange", handleHashChange);
-    return () => window.removeEventListener("hashchange", handleHashChange);
-  }, []);
-
-  useEffect(() => {
     if (swapCandidateId === null) {
       return;
     }
@@ -178,48 +160,14 @@ export default function App() {
     visibleDeskItems,
     visibleInboxItems,
     visibleLibraryItems,
-  } = useMemo(() => {
-    const nextDeskItems: Item[] = [];
-    const nextVisibleDeskItems: Item[] = [];
-    const nextVisibleInboxItems: Item[] = [];
-    const nextVisibleLibraryItems: Item[] = [];
-
-    for (const item of items) {
-      const matches =
-        trimmedQuery.length === 0 ||
-        item.title.toLowerCase().includes(trimmedQuery) ||
-        (item.url !== null && item.url.toLowerCase().includes(trimmedQuery));
-
-      if (item.status === "desk") {
-        nextDeskItems.push(item);
-        if (matches) {
-          nextVisibleDeskItems.push(item);
-        }
-      } else if (item.status === "inbox") {
-        if (matches) {
-          nextVisibleInboxItems.push(item);
-        }
-      } else {
-        if (matches) {
-          nextVisibleLibraryItems.push(item);
-        }
-      }
-    }
-
-    return {
-      deskItems: nextDeskItems,
-      visibleDeskItems: nextVisibleDeskItems,
-      visibleInboxItems: nextVisibleInboxItems,
-      visibleLibraryItems: nextVisibleLibraryItems,
-    };
-  }, [items, trimmedQuery]);
+  } = useMemo(() => selectItemGroups(items, query), [items, query]);
 
   const deskFull = deskItems.length >= DESK_CAPACITY;
 
   function handleAdd(input: NewItemInput) {
     const item = createItem(input);
     playCompletion();
-    setItems((current) => [item, ...current]);
+    dispatch({ type: "add", item });
     setLastAddedId(item.id);
     setAnnouncement(`${item.title} added to your inbox.`);
     closeCapture();
@@ -231,24 +179,12 @@ export default function App() {
       return;
     }
 
-    setItems((current) =>
-      current.map((candidate) =>
-        candidate.id === item.id
-          ? { ...candidate, status: "desk", finishedAt: null }
-          : candidate,
-      ),
-    );
+    dispatch({ type: "moveToDesk", id: item.id });
     setAnnouncement(`${item.title} moved to your desk.`);
   }
 
   function sendToInbox(item: Item) {
-    setItems((current) =>
-      current.map((candidate) =>
-        candidate.id === item.id
-          ? { ...candidate, status: "inbox", finishedAt: null }
-          : candidate,
-      ),
-    );
+    dispatch({ type: "moveToInbox", id: item.id });
     setAnnouncement(`${item.title} returned to your inbox.`);
 
     if (swapCandidateId === item.id) {
@@ -261,15 +197,11 @@ export default function App() {
       return;
     }
 
-    setItems((current) =>
-      current
-        .filter((candidate) => candidate.id !== displaced.id)
-        .map((candidate) =>
-          candidate.id === swapCandidateId
-            ? { ...candidate, status: "desk", finishedAt: null }
-            : candidate,
-        ),
-    );
+    dispatch({
+      type: "swapAndDiscard",
+      candidateId: swapCandidateId,
+      displacedId: displaced.id,
+    });
     const movedItem = items.find((candidate) => candidate.id === swapCandidateId);
     if (movedItem !== undefined) {
       playCompletion();
@@ -280,7 +212,7 @@ export default function App() {
 
   function discardItem(item: Item) {
     playDismissal();
-    setItems((current) => current.filter((candidate) => candidate.id !== item.id));
+    dispatch({ type: "discard", id: item.id });
     setAnnouncement(`${item.title} discarded.`);
 
     if (swapCandidateId === item.id) {
@@ -290,17 +222,7 @@ export default function App() {
 
   function finishItem(item: Item) {
     playCompletion();
-    setItems((current) =>
-      current.map((candidate) =>
-        candidate.id === item.id
-          ? {
-              ...candidate,
-              status: "library",
-              finishedAt: new Date().toISOString(),
-            }
-          : candidate,
-      ),
-    );
+    dispatch({ type: "finish", id: item.id, finishedAt: new Date().toISOString() });
     setAnnouncement(`${item.title} moved to your library.`);
   }
 
@@ -319,27 +241,19 @@ export default function App() {
     requestAnimationFrame(() => addButtonRef.current?.focus());
   }
 
-  function openReader(item: Item, trigger: HTMLButtonElement) {
+  function openReader(item: Item) {
     if (!canReadInApp(item)) {
       return;
     }
 
-    readTriggerRef.current = trigger;
     playPageChange();
-    setReaderItemId(item.id);
-    window.location.hash = `read=${encodeURIComponent(item.id)}`;
+    openReaderRoute(item.id);
   }
 
   const closeReader = useCallback(() => {
     playPageChange();
-    window.history.replaceState(
-      null,
-      "",
-      `${window.location.pathname}${window.location.search}`,
-    );
-    setReaderItemId(null);
-    requestAnimationFrame(() => readTriggerRef.current?.focus());
-  }, []);
+    closeReaderRoute();
+  }, [closeReaderRoute]);
 
   function toggleSounds() {
     const nextEnabled = !soundsEnabled;
@@ -355,6 +269,16 @@ export default function App() {
     setSoundsEnabled(nextEnabled);
   }
 
+  if (recovery !== null) {
+    return (
+      <StorageRecovery
+        recovery={recovery}
+        error={persistenceWarning}
+        onAccept={acceptRecovery}
+      />
+    );
+  }
+
   return (
     <main className="app">
       <h1 className="visually-hidden">readr</h1>
@@ -364,6 +288,9 @@ export default function App() {
       <p className="visually-hidden" aria-live="polite" aria-atomic="true">
         {searchAnnouncement}
       </p>
+      {persistenceWarning !== null && (
+        <p className="persistence-warning" role="alert">{persistenceWarning}</p>
+      )}
       {readerItem !== null ? (
         <Suspense fallback={<ReaderLoadingFallback onClose={closeReader} />}>
           <ReaderView item={readerItem} onClose={closeReader} />
@@ -443,17 +370,4 @@ export default function App() {
       </div>
     </main>
   );
-}
-
-function getReaderItemId(hash: string): string | null {
-  if (!hash.startsWith("#read=")) {
-    return null;
-  }
-
-  try {
-    const itemId = decodeURIComponent(hash.slice("#read=".length));
-    return itemId.length > 0 ? itemId : null;
-  } catch {
-    return null;
-  }
 }

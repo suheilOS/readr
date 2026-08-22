@@ -4,6 +4,48 @@
   box-sizing: border-box;
 }
 
+.persistence-warning {
+  margin: 0;
+  padding: 0.75rem 1rem;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--divider);
+  border-radius: 0.75rem;
+}
+
+.recovery-page {
+  display: grid;
+  min-height: 100dvh;
+  place-items: center;
+  padding: 1.5rem;
+}
+
+.recovery-panel {
+  width: min(100%, 38rem);
+  padding: clamp(1.5rem, 5vw, 3rem);
+  background: var(--surface);
+  border: 1px solid var(--divider);
+  border-radius: 1rem;
+}
+
+.recovery-panel h1 {
+  margin-block: 0.35rem 1rem;
+}
+
+.recovery-actions,
+.recovery-confirm {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: center;
+  margin-top: 1.5rem;
+}
+
+.recovery-confirm {
+  flex-basis: 100%;
+  margin-top: 0;
+}
+
 :root {
   color-scheme: light;
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1);

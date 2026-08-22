@@ -65,6 +65,11 @@ function normalizeContentUrls(html: string, sourceUrl: string): string {
       continue;
     }
 
+    if (attribute === "src" && isPrivateImageHost(absoluteUrl.hostname)) {
+      element.removeAttribute(attribute);
+      continue;
+    }
+
     element.setAttribute(attribute, absoluteUrl.toString());
     if (attribute === "href") {
       element.setAttribute("target", "_blank");
@@ -75,4 +80,33 @@ function normalizeContentUrls(html: string, sourceUrl: string): string {
   }
 
   return template.innerHTML;
+}
+
+function isPrivateImageHost(hostname: string): boolean {
+  const host = hostname.toLowerCase().replace(/^\[|\]$/g, "").replace(/\.$/, "");
+  if (
+    host === "localhost" || host.endsWith(".localhost") ||
+    host === "local" || host.endsWith(".local")
+  ) {
+    return true;
+  }
+
+  const ipv4Parts = host.split(".");
+  if (ipv4Parts.length === 4 && ipv4Parts.every((part) => /^\d{1,3}$/.test(part))) {
+    const octets = ipv4Parts.map(Number);
+    if (octets.some((octet) => octet > 255)) return false;
+    const first = octets[0] ?? 0;
+    const second = octets[1] ?? 0;
+    return first === 0 || first === 10 || first === 127 || first >= 224 ||
+      (first === 100 && second >= 64 && second <= 127) ||
+      (first === 169 && second === 254) ||
+      (first === 172 && second >= 16 && second <= 31) ||
+      (first === 192 && (second === 0 || second === 168)) ||
+      (first === 198 && (second === 18 || second === 19 || second === 51)) ||
+      (first === 203 && second === 0);
+  }
+
+  return host === "::" || host === "::1" || host.startsWith("fc") ||
+    host.startsWith("fd") || /^fe[89ab]/.test(host) || host.startsWith("ff") ||
+    host.startsWith("2001:db8:");
 }

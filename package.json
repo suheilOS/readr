@@ -8,10 +8,11 @@
     "preview:cloudflare": "bun run build && wrangler dev",
     "deploy:check": "bun run build && wrangler deploy --dry-run",
     "deploy": "wrangler deploy",
-    "test": "vitest run --config vitest.config.ts && vitest run --config vitest.browser.config.ts",
-    "test:watch": "bun run --parallel test:watch:worker test:watch:browser",
+    "test": "vitest run --config vitest.config.ts && vitest run --config vitest.dom.config.ts",
+    "test:e2e": "playwright test",
+    "test:watch": "bun run --parallel test:watch:worker test:watch:dom",
     "test:watch:worker": "vitest --config vitest.config.ts",
-    "test:watch:browser": "vitest --config vitest.browser.config.ts"
+    "test:watch:dom": "vitest --config vitest.dom.config.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.7.0",
@@ -27,6 +28,7 @@
     "@cloudflare/vite-plugin": "^1.53.1",
     "@cloudflare/vitest-plugin": "^1.0.0",
     "@eslint/js": "^9.30.1",
+    "@playwright/test": "^1.62.1",
     "@types/node": "^26.2.0",
     "@types/react": "^19.1.8",
     "@types/react-dom": "^19.1.6",

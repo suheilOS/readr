@@ -41,6 +41,8 @@ Run the checks used by the project with:
 bun run build
 bun run lint
 bun run test
+bunx playwright install chromium
+bun run test:e2e
 ```
 
 To run the built app with the Cloudflare Worker route locally:
@@ -60,14 +62,14 @@ Content-Type: application/json
 {"url":"https://example.com/article"}
 ```
 
-The Worker accepts public HTTP(S) page URLs, removes common tracking parameters, fetches the HTML server-side, and extracts the readable content with Defuddle. The client sanitizes the returned HTML before rendering it. The endpoint rejects unsafe URLs, unsupported content, oversized requests or pages, and upstream failures with structured error responses.
+The Worker accepts public HTTP(S) page URLs, removes common tracking parameters, fetches the HTML server-side, and extracts the readable content with Defuddle. The client sanitizes the returned HTML before rendering it. The endpoint rejects unsafe URLs, unsupported content, oversized requests or pages, rate-limited clients, and upstream failures with structured error responses.
 
 ## Project structure
 
 - `src/` — React interface, local persistence, reader, themes, and sound cues.
 - `worker/` — Cloudflare Worker entry point, URL checks, and article extraction.
 - `shared/` — Types and validation shared by the client and Worker.
-- `tests/` — Worker extraction and reader sanitization tests.
+- `tests/` — Worker, storage, lifecycle, sanitization, and Chromium reader tests.
 - `docs/` — Product description, project brief, and launch notes.
 
 ## Deployment

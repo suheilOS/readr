@@ -1,21 +1,23 @@
+import type { ItemUrl } from "./itemUrl";
+
 export const DESK_CAPACITY = 5;
 
-export type ItemType = "article" | "book" | "paper" | "video" | "podcast";
-
-export type ItemStatus = "inbox" | "desk" | "library";
-
-export const TYPE_OPTIONS: Array<{ value: ItemType; label: string }> = [
+export const TYPE_OPTIONS = [
   { value: "article", label: "Article" },
   { value: "book", label: "Book" },
   { value: "paper", label: "Paper" },
   { value: "video", label: "Video" },
   { value: "podcast", label: "Podcast" },
-];
+] as const;
+
+export type ItemType = (typeof TYPE_OPTIONS)[number]["value"];
+
+export type ItemStatus = "inbox" | "desk" | "library";
 
 export type Item = {
   id: string;
   title: string;
-  url: string | null;
+  url: ItemUrl | null;
   type: ItemType;
   status: ItemStatus;
   addedAt: string;
@@ -23,23 +25,15 @@ export type Item = {
   note: string | null;
 };
 
-const TYPE_LABELS: Record<ItemType, string> = {
-  article: "Article",
-  book: "Book",
-  paper: "Paper",
-  video: "Video",
-  podcast: "Podcast",
-};
-
 export function itemTypeLabel(type: ItemType): string {
-  return TYPE_LABELS[type];
+  return TYPE_OPTIONS.find((option) => option.value === type)?.label ?? type;
 }
 
 export function itemMetaLine(item: Pick<Item, "url" | "type">): string {
   return [itemUrlHost(item.url), itemTypeLabel(item.type)].filter(Boolean).join(" · ");
 }
 
-export function itemUrlHost(url: string | null): string | null {
+export function itemUrlHost(url: ItemUrl | null): string | null {
   if (url === null) {
     return null;
   }
@@ -57,7 +51,7 @@ export function canReadInApp(item: Pick<Item, "type" | "url">): boolean {
 
 export function createItem(input: {
   title: string;
-  url: string | null;
+  url: ItemUrl | null;
   type: ItemType;
 }): Item {
   return {

@@ -18,11 +18,24 @@ export default {
       }, 405, { Allow: "POST" });
     }
 
+    const clientKey = request.headers.get("CF-Connecting-IP") ?? "unidentified";
+    const rateLimit = await env.EXTRACT_RATE_LIMITER.limit({ key: `extract:${clientKey}` });
+    if (!rateLimit.success) {
+      console.warn(JSON.stringify({ message: "extract request rate limited" }));
+      return jsonError({
+        error: {
+          code: "rate_limited",
+          message: "Too many articles were opened recently. Try again in a minute.",
+        },
+      }, 429, { "Retry-After": "60" });
+    }
+
     try {
       const article = await extractFromRequest(request);
       return Response.json(article, {
         headers: {
           "Cache-Control": "no-store",
+          "X-Content-Type-Options": "nosniff",
         },
       });
     } catch (error) {
@@ -65,6 +78,7 @@ function jsonError(
     headers: {
       ...extraHeaders,
       "Cache-Control": "no-store",
+      "X-Content-Type-Options": "nosniff",
     },
   });
 }

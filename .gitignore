@@ -4,6 +4,8 @@ dist-ssr
 .wrangler
 .bun-install
 .bun-tmp
+test-results
+playwright-report
 *.local
 .env
 .env.*
