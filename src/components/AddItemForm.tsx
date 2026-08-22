@@ -1,13 +1,9 @@
 import { play } from "cuelume";
 import { useState, type FormEvent, type Ref } from "react";
 import { TypeSelect } from "./TypeSelect";
-import type { ItemType } from "../item";
+import type { Item, ItemType } from "../item";
 
-export type NewItemInput = {
-  title: string;
-  url: string | null;
-  type: ItemType;
-};
+export type NewItemInput = Pick<Item, "title" | "url" | "type">;
 
 type AddItemFormProps = {
   onAdd: (input: NewItemInput) => void;

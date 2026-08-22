@@ -3,7 +3,7 @@ import { focusAdjacentAction } from "../focusAdjacentAction";
 
 type DeskSectionProps = {
   items: Item[];
-  swapActive: boolean;
+  mode: "normal" | "swap";
   onFinish: (item: Item) => void;
   onDiscard: (item: Item) => void;
   onRead: (item: Item, trigger: HTMLButtonElement) => void;
@@ -13,13 +13,15 @@ type DeskSectionProps = {
 
 export function DeskSection({
   items,
-  swapActive,
+  mode,
   onFinish,
   onDiscard,
   onRead,
   onSelectSwapTarget,
   onCancelSwap,
 }: DeskSectionProps) {
+  const swapActive = mode === "swap";
+
   return (
     <section className="desk" aria-labelledby="desk-heading">
       <div className="section-header">

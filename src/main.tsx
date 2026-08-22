@@ -12,7 +12,12 @@ import App from "./App";
 bind();
 setVolume(0.7);
 
-createRoot(document.getElementById("root")!).render(
+const root = document.getElementById("root");
+if (root === null) {
+  throw new Error("Missing #root element.");
+}
+
+createRoot(root).render(
   <StrictMode>
     <App />
   </StrictMode>,

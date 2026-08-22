@@ -1,6 +1,7 @@
 import { play } from "cuelume";
 import { startTransition, useEffect, useRef, useState } from "react";
 import { canReadInApp, itemMetaLine, type Item } from "../item";
+import type { ExtractedArticle } from "../../shared/extraction";
 import {
   ArticleExtractionError,
   extractArticle,
@@ -14,16 +15,8 @@ type ReaderViewProps = {
 
 type ReaderState =
   | { status: "loading" }
-  | { status: "ready"; article: ReadyArticle }
+  | { status: "ready"; article: ExtractedArticle }
   | { status: "error"; message: string };
-
-type ReadyArticle = {
-  title: string;
-  author: string | null;
-  sourceUrl: string;
-  wordCount: number;
-  html: string;
-};
 
 export function ReaderView({ item, onClose }: ReaderViewProps) {
   const [state, setState] = useState<ReaderState>({ status: "loading" });
@@ -64,7 +57,7 @@ export function ReaderView({ item, onClose }: ReaderViewProps) {
 
       try {
         const article = await extractArticle(itemUrl, controller.signal);
-        const readyArticle: ReadyArticle = {
+        const readyArticle: ExtractedArticle = {
           title: article.title,
           author: article.author,
           sourceUrl: article.sourceUrl,

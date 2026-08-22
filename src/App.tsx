@@ -1,5 +1,13 @@
 import { play, setEnabled } from "cuelume";
-import { useEffect, useRef, useState } from "react";
+import {
+  lazy,
+  Suspense,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { Collapsible } from "@base-ui/react/collapsible";
 import {
   canReadInApp,
@@ -7,11 +15,10 @@ import {
   createItem,
   type Item,
 } from "./item";
-import { AddItemForm } from "./components/AddItemForm";
+import { AddItemForm, type NewItemInput } from "./components/AddItemForm";
 import { DeskSection } from "./components/DeskSection";
 import { InboxSection } from "./components/InboxSection";
 import { LibrarySection } from "./components/LibrarySection";
-import { ReaderView } from "./components/ReaderView";
 import { SearchBar } from "./components/SearchBar";
 import { loadItems, saveItems } from "./itemStorage";
 import { SoundToggle } from "./components/SoundToggle";
@@ -19,6 +26,32 @@ import { ThemeToggle, type Theme } from "./components/ThemeToggle";
 
 const THEME_STORAGE_KEY = "reader:theme";
 const SOUND_STORAGE_KEY = "reader:sounds";
+
+const ReaderView = lazy(() =>
+  import("./components/ReaderView").then(({ ReaderView: Component }) => ({
+    default: Component,
+  })),
+);
+
+function ReaderLoadingFallback({ onClose }: { onClose: () => void }) {
+  return (
+    <div className="reader-page">
+      <header className="reader-header">
+        <button type="button" className="reader-back" onClick={onClose}>
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path d="m15 5-7 7 7 7" />
+          </svg>
+          <span>Back</span>
+        </button>
+      </header>
+      <div className="reader-column">
+        <div className="reader-loading" role="status">
+          Opening article…
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function getInitialSoundEnabled(): boolean {
   try {
@@ -133,18 +166,52 @@ export default function App() {
     };
   }, [swapCandidateId]);
 
-  const deskItems = items.filter((item) => item.status === "desk");
-  const inboxItems = items.filter((item) => item.status === "inbox");
-  const libraryItems = items.filter((item) => item.status === "library");
+  const trimmedQuery = query.trim().toLowerCase();
+  const searching = trimmedQuery.length > 0;
+  const {
+    deskItems,
+    visibleDeskItems,
+    visibleInboxItems,
+    visibleLibraryItems,
+  } = useMemo(() => {
+    const nextDeskItems: Item[] = [];
+    const nextVisibleDeskItems: Item[] = [];
+    const nextVisibleInboxItems: Item[] = [];
+    const nextVisibleLibraryItems: Item[] = [];
+
+    for (const item of items) {
+      const matches =
+        trimmedQuery.length === 0 ||
+        item.title.toLowerCase().includes(trimmedQuery) ||
+        (item.url !== null && item.url.toLowerCase().includes(trimmedQuery));
+
+      if (item.status === "desk") {
+        nextDeskItems.push(item);
+        if (matches) {
+          nextVisibleDeskItems.push(item);
+        }
+      } else if (item.status === "inbox") {
+        if (matches) {
+          nextVisibleInboxItems.push(item);
+        }
+      } else {
+        if (matches) {
+          nextVisibleLibraryItems.push(item);
+        }
+      }
+    }
+
+    return {
+      deskItems: nextDeskItems,
+      visibleDeskItems: nextVisibleDeskItems,
+      visibleInboxItems: nextVisibleInboxItems,
+      visibleLibraryItems: nextVisibleLibraryItems,
+    };
+  }, [items, trimmedQuery]);
 
   const deskFull = deskItems.length >= DESK_CAPACITY;
-  const searching = query.trim().length > 0;
 
-  function handleAdd(input: {
-    title: string;
-    url: string | null;
-    type: Item["type"];
-  }) {
+  function handleAdd(input: NewItemInput) {
     const item = createItem(input);
     play("success");
     setItems((current) => [item, ...current]);
@@ -229,22 +296,6 @@ export default function App() {
     setAnnouncement(`${item.title} moved to your library.`);
   }
 
-  const trimmedQuery = query.trim().toLowerCase();
-
-  function matches(item: Item): boolean {
-    if (!searching) {
-      return true;
-    }
-
-    return (
-      item.title.toLowerCase().includes(trimmedQuery) ||
-      (item.url !== null && item.url.toLowerCase().includes(trimmedQuery))
-    );
-  }
-
-  const visibleDeskItems = deskItems.filter(matches);
-  const visibleInboxItems = inboxItems.filter(matches);
-  const visibleLibraryItems = libraryItems.filter(matches);
   const readerItem =
     readerItemId === null
       ? null
@@ -270,7 +321,7 @@ export default function App() {
     window.location.hash = `read=${encodeURIComponent(item.id)}`;
   }
 
-  function closeReader() {
+  const closeReader = useCallback(() => {
     window.history.replaceState(
       null,
       "",
@@ -278,7 +329,7 @@ export default function App() {
     );
     setReaderItemId(null);
     requestAnimationFrame(() => readTriggerRef.current?.focus());
-  }
+  }, []);
 
   return (
     <main className="app">
@@ -290,7 +341,9 @@ export default function App() {
         {searchAnnouncement}
       </p>
       {readerItem !== null ? (
-        <ReaderView item={readerItem} onClose={closeReader} />
+        <Suspense fallback={<ReaderLoadingFallback onClose={closeReader} />}>
+          <ReaderView item={readerItem} onClose={closeReader} />
+        </Suspense>
       ) : (
         <div className="page">
           <Collapsible.Root
@@ -334,7 +387,7 @@ export default function App() {
           </Collapsible.Root>
           <DeskSection
             items={visibleDeskItems}
-            swapActive={swapCandidateId !== null}
+            mode={swapCandidateId === null ? "normal" : "swap"}
             onFinish={finishItem}
             onDiscard={discardItem}
             onRead={openReader}
