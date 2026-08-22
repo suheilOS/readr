@@ -74,7 +74,7 @@ Articles and papers open inside the app through a distraction-free view. A Worke
 
 1. `POST /api/extract` receives a URL
 2. The Worker strips tracking parameters, blocks private-network addresses, then fetches server side
-3. Defuddle (node bundle) with linkedom extracts main content, title, author, and word count
+3. Defuddle with linkedom's worker-safe DOM parser extracts main content, title, author, and word count
 4. The client sanitizes returned HTML with DOMPurify before rendering
 
 Extraction failures fall back to an Open original link. Version 1 ships no per-site selector overrides.

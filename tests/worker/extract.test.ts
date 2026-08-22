@@ -7,19 +7,11 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import worker from "../../worker/index";
 import { normalizePublicUrl } from "../../worker/urlSafety";
 
-vi.mock("defuddle/node", () => ({
-  Defuddle: vi.fn(async () => ({
-    title: "A Quiet Article",
-    author: "Reader",
-    content: "<p>This is extracted article content.</p>",
-    wordCount: 7,
-  })),
-}));
-
 const articleHtml = `<!doctype html>
 <html>
   <head><title>A Quiet Article</title></head>
   <body>
+    <canvas aria-hidden="true"></canvas>
     <nav>Skip this navigation</nav>
     <article>
       <h1>A Quiet Article</h1>

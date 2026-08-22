@@ -1,5 +1,5 @@
 import Defuddle from "defuddle";
-import { parseHTML } from "linkedom";
+import { parseHTML } from "linkedom/worker";
 import {
   parseExtractRequest,
   type ExtractErrorCode,
