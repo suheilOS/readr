@@ -4,6 +4,7 @@ import {
   BookOpenIcon,
   CheckIcon,
   ExternalLinkIcon,
+  InboxIcon,
   TrashIcon,
 } from "./icons";
 
@@ -11,6 +12,7 @@ type DeskSectionProps = {
   items: Item[];
   mode: "normal" | "swap";
   onFinish: (item: Item) => void;
+  onSendToInbox: (item: Item) => void;
   onDiscard: (item: Item) => void;
   onRead: (item: Item, trigger: HTMLButtonElement) => void;
   onSelectSwapTarget: (item: Item) => void;
@@ -21,6 +23,7 @@ export function DeskSection({
   items,
   mode,
   onFinish,
+  onSendToInbox,
   onDiscard,
   onRead,
   onSelectSwapTarget,
@@ -101,6 +104,18 @@ export function DeskSection({
                   >
                     <CheckIcon className="button-icon" />
                     <span>Finish</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="pill-button"
+                    aria-label={`Move to inbox: ${item.title}`}
+                    onClick={(event) => {
+                      focusAdjacentAction(event.currentTarget, "desk-heading");
+                      onSendToInbox(item);
+                    }}
+                  >
+                    <InboxIcon className="button-icon" />
+                    <span>Move to inbox</span>
                   </button>
                   <button
                     type="button"

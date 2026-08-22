@@ -411,6 +411,7 @@ export default function App() {
             items={visibleDeskItems}
             mode={swapCandidateId === null ? "normal" : "swap"}
             onFinish={finishItem}
+            onSendToInbox={sendToInbox}
             onDiscard={discardItem}
             onRead={openReader}
             onSelectSwapTarget={replaceDeskItem}
