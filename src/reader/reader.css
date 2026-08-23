@@ -53,6 +53,7 @@
   padding: 8px 10px;
   border-radius: var(--radius-control);
   font-size: var(--font-size-small);
+  line-height: 1;
   color: var(--muted-strong);
   white-space: nowrap;
   transition:

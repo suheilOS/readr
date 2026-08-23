@@ -121,7 +121,7 @@ export function DeskSection({
         )}
       </ul>
       {!swapActive && items.length === 0 && (
-        <p className="empty-note">Your desk is empty. Move something in from the inbox.</p>
+        <p className="empty-note">No items on your desk yet. Move one here from your inbox.</p>
       )}
     </section>
   );

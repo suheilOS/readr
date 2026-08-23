@@ -120,8 +120,8 @@ export function ReaderView({ item, onClose }: ReaderViewProps) {
         )}
       </header>
       <div className="reader-column">
-        <p className="visually-hidden" role="status" aria-live="polite">
-          {state.status === "loading" ? "Opening article." : ""}
+        <p className="visually-hidden" role="status">
+          {state.status === "loading" ? "Opening article…" : ""}
         </p>
         <article className="reader-article" aria-busy={state.status === "loading"}>
           <header className="reader-title-block">
@@ -137,7 +137,7 @@ export function ReaderView({ item, onClose }: ReaderViewProps) {
             )}
           </header>
           {state.status === "loading" && (
-            <div className="reader-loading" role="status">
+            <div className="reader-loading">
               <span>Opening article…</span>
             </div>
           )}

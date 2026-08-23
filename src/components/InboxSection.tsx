@@ -57,7 +57,7 @@ export function InboxSection({ items, highlightId, onSendToDesk, onDiscard }: In
         ))}
       </ul>
       {items.length === 0 && (
-        <p className="empty-note">Inbox is empty.</p>
+        <p className="empty-note">No items in your inbox yet. Add a title or link above.</p>
       )}
     </section>
   );

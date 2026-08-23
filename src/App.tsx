@@ -164,8 +164,8 @@ export default function App() {
     };
   }, [swapCandidateId]);
 
-  const trimmedQuery = query.trim().toLowerCase();
-  const searching = trimmedQuery.length > 0;
+  const displayQuery = query.trim();
+  const searching = displayQuery.length > 0;
   const {
     deskItems,
     visibleDeskItems,
@@ -270,6 +270,10 @@ export default function App() {
     closeReaderRoute();
   }, [closeReaderRoute]);
 
+  function toggleTheme() {
+    setTheme((current) => (current === "dark" ? "light" : "dark"));
+  }
+
   function toggleSounds() {
     const nextEnabled = !soundsEnabled;
 
@@ -286,14 +290,18 @@ export default function App() {
 
   if (loading) {
     return (
-      <main className="app">
-        <p className="empty-note" role="status">Loading your library…</p>
+      <main className="app app-state">
+        <section className="app-state__content" aria-labelledby="loading-heading">
+          <h1 className="app-state__title" id="loading-heading">Readr</h1>
+          <p className="app-state__message" role="status">Loading your library…</p>
+        </section>
+        <ThemeDock theme={theme} onToggleTheme={toggleTheme} />
       </main>
     );
   }
 
   if (unauthenticated) {
-    return <SignedOutState theme={theme} onToggleTheme={() => setTheme((current) => (current === "dark" ? "light" : "dark"))} />;
+    return <SignedOutState theme={theme} onToggleTheme={toggleTheme} />;
   }
 
   return (
@@ -355,30 +363,41 @@ export default function App() {
               </div>
             </Collapsible.Panel>
           </Collapsible.Root>
-          <DeskSection
-            items={visibleDeskItems}
-            mode={swapCandidateId === null ? "normal" : "swap"}
-            onFinish={finishItem}
-            onSendToInbox={sendToInbox}
-            onDiscard={discardItem}
-            onRead={openReader}
-            onSelectSwapTarget={replaceDeskItem}
-            onCancelSwap={() => setSwapCandidateId(null)}
-          />
-          {(!searching || visibleInboxItems.length > 0) && (
-            <InboxSection
-              items={visibleInboxItems}
-              highlightId={lastAddedId}
-              onSendToDesk={sendToDesk}
-              onDiscard={discardItem}
-            />
-          )}
-          {(!searching || visibleLibraryItems.length > 0) && (
-            <LibrarySection
-              items={visibleLibraryItems}
-              onSendToDesk={sendToDesk}
-              onSendToInbox={sendToInbox}
-            />
+          {searching && visibleItemCount === 0 && swapCandidateId === null ? (
+            <section className="search-empty" aria-labelledby="search-empty-heading">
+              <h2 id="search-empty-heading">No results</h2>
+              <p>No items match “<bdi>{displayQuery}</bdi>”. Try another search.</p>
+            </section>
+          ) : (
+            <>
+              {(!searching || visibleDeskItems.length > 0 || swapCandidateId !== null) && (
+                <DeskSection
+                  items={visibleDeskItems}
+                  mode={swapCandidateId === null ? "normal" : "swap"}
+                  onFinish={finishItem}
+                  onSendToInbox={sendToInbox}
+                  onDiscard={discardItem}
+                  onRead={openReader}
+                  onSelectSwapTarget={replaceDeskItem}
+                  onCancelSwap={() => setSwapCandidateId(null)}
+                />
+              )}
+              {(!searching || visibleInboxItems.length > 0) && (
+                <InboxSection
+                  items={visibleInboxItems}
+                  highlightId={lastAddedId}
+                  onSendToDesk={sendToDesk}
+                  onDiscard={discardItem}
+                />
+              )}
+              {(!searching || visibleLibraryItems.length > 0) && (
+                <LibrarySection
+                  items={visibleLibraryItems}
+                  onSendToDesk={sendToDesk}
+                  onSendToInbox={sendToInbox}
+                />
+              )}
+            </>
           )}
         </div>
       )}
@@ -386,37 +405,38 @@ export default function App() {
         theme={theme}
         soundEnabled={soundsEnabled}
         onToggleSound={toggleSounds}
-        onToggleTheme={() => setTheme((current) => (current === "dark" ? "light" : "dark"))}
+        onToggleTheme={toggleTheme}
       />
     </main>
   );
 }
 
-type SignedOutStateProps = {
+type ThemeDockProps = {
   theme: Theme;
   onToggleTheme: () => void;
 };
 
-function SignedOutState({ theme, onToggleTheme }: SignedOutStateProps) {
+function SignedOutState({ theme, onToggleTheme }: ThemeDockProps) {
   const authUrl = import.meta.env.VITE_AUTH_ORIGIN ?? "https://auth.overhawl.app";
   const returnTo = `${window.location.origin}${window.location.pathname}${window.location.search}${window.location.hash}`;
   const signInUrl = `${authUrl}/?redirectTo=${encodeURIComponent(returnTo)}`;
 
   return (
-    <main className="app signed-out-app">
-      <div className="signed-out-page">
-        <section className="signed-out-state" aria-labelledby="signed-out-heading">
-          <h1 id="signed-out-heading" className="signed-out-heading">Sign in to Readr</h1>
-          <p className="signed-out-copy">Sign in to view and manage your reading list.</p>
-          <a className="signed-out-action" href={signInUrl}>Sign in</a>
-        </section>
-      </div>
-      <div className="utility-dock">
-        <ThemeToggle
-          theme={theme}
-          onToggle={onToggleTheme}
-        />
-      </div>
+    <main className="app app-state">
+      <section className="app-state__content" aria-labelledby="signed-out-heading">
+        <h1 id="signed-out-heading" className="app-state__title">Sign in to Readr</h1>
+        <p className="app-state__message">Sign in to view and manage your reading list.</p>
+        <a className="app-state__action" href={signInUrl}>Sign in</a>
+      </section>
+      <ThemeDock theme={theme} onToggleTheme={onToggleTheme} />
     </main>
+  );
+}
+
+function ThemeDock({ theme, onToggleTheme }: ThemeDockProps) {
+  return (
+    <div className="utility-dock">
+      <ThemeToggle theme={theme} onToggle={onToggleTheme} />
+    </div>
   );
 }

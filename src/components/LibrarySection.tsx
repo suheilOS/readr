@@ -39,7 +39,7 @@ export function LibrarySection({ items, onSendToDesk, onSendToInbox }: LibrarySe
         ))}
       </ul>
       {items.length === 0 && (
-        <p className="empty-note">Nothing finished yet.</p>
+        <p className="empty-note">No finished items yet. Items appear here when you finish them.</p>
       )}
     </section>
   );
