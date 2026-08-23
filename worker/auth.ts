@@ -9,10 +9,15 @@ export type SessionLookup = {
 
 export type AuthServiceBinding = {
   getSession: (cookie: string) => Promise<SessionLookup | null>;
+  signOut: (cookie: string) => Promise<Response>;
+};
+
+type AppBindings = Omit<Env, "AUTH_SERVICE"> & {
+  AUTH_SERVICE: AuthServiceBinding;
 };
 
 export type AppEnv = {
-  Bindings: Env;
+  Bindings: AppBindings;
   Variables: {
     session: SessionLookup;
     userId: string;
@@ -27,7 +32,7 @@ export const requireAuth = createMiddleware<AppEnv>(async (context, next) => {
 
   let session: SessionLookup | null;
   try {
-    session = await (context.env.AUTH_SERVICE as unknown as AuthServiceBinding).getSession(cookie);
+    session = await context.env.AUTH_SERVICE.getSession(cookie);
   } catch (error) {
     console.error(JSON.stringify({
       message: "auth service lookup failed",

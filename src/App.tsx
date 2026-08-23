@@ -22,8 +22,8 @@ import { SearchBar } from "./components/SearchBar";
 import { selectItemGroups } from "./itemSelectors";
 import { useItemLibrary } from "./useItemLibrary";
 import { useReaderRoute } from "./useReaderRoute";
-import { SoundToggle } from "./components/SoundToggle";
 import { ThemeToggle, type Theme } from "./components/ThemeToggle";
+import { UtilityDock } from "./components/UtilityDock";
 import { ArrowLeftIcon, PlusIcon } from "./components/icons";
 import {
   playCompletion,
@@ -382,13 +382,12 @@ export default function App() {
           )}
         </div>
       )}
-      <div className="utility-actions">
-        <SoundToggle enabled={soundsEnabled} onToggle={toggleSounds} />
-        <ThemeToggle
-          theme={theme}
-          onToggle={() => setTheme((current) => (current === "dark" ? "light" : "dark"))}
-        />
-      </div>
+      <UtilityDock
+        theme={theme}
+        soundEnabled={soundsEnabled}
+        onToggleSound={toggleSounds}
+        onToggleTheme={() => setTheme((current) => (current === "dark" ? "light" : "dark"))}
+      />
     </main>
   );
 }
@@ -412,7 +411,7 @@ function SignedOutState({ theme, onToggleTheme }: SignedOutStateProps) {
           <a className="signed-out-action" href={signInUrl}>Sign in</a>
         </section>
       </div>
-      <div className="utility-actions">
+      <div className="utility-dock">
         <ThemeToggle
           theme={theme}
           onToggle={onToggleTheme}

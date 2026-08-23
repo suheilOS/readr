@@ -4,10 +4,20 @@ import { extractFromRequest, ExtractionError } from "./extract";
 import { requireAuth, type AppEnv } from "./auth";
 import { itemRoutes } from "./items";
 import { requireSameOrigin } from "./csrf";
+import { jsonError } from "./http";
+import { handleSignOut } from "./sign-out";
 
 export const app = new Hono<AppEnv>();
 
 app.get("/health", (context) => context.json({ status: "ok" }));
+
+app.post("/api/auth/sign-out", requireSameOrigin, handleSignOut);
+app.all("/api/auth/sign-out", () => jsonError({
+  error: {
+    code: "method_not_allowed",
+    message: "Use POST to sign out.",
+  },
+}, 405, { Allow: "POST" }));
 
 app.route("/api", itemRoutes);
 
@@ -95,19 +105,4 @@ async function handleExtraction(context: Context<AppEnv>): Promise<Response> {
       },
     }, 500);
   }
-}
-
-function jsonError(
-  body: { error: { code: string; message: string } },
-  status: number,
-  extraHeaders: HeadersInit = {},
-): Response {
-  return Response.json(body, {
-    status,
-    headers: {
-      ...extraHeaders,
-      "Cache-Control": "no-store",
-      "X-Content-Type-Options": "nosniff",
-    },
-  });
 }

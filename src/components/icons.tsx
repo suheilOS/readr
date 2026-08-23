@@ -104,6 +104,17 @@ export function PlusIcon(props: IconProps) {
   );
 }
 
+export function SlidersIcon(props: IconProps) {
+  return (
+    <BaseIcon {...props}>
+      <path d="M4 5h12M4 10h12M4 15h12" />
+      <circle cx="7" cy="5" r="1.5" fill="var(--toggle-bg)" />
+      <circle cx="13" cy="10" r="1.5" fill="var(--toggle-bg)" />
+      <circle cx="8.5" cy="15" r="1.5" fill="var(--toggle-bg)" />
+    </BaseIcon>
+  );
+}
+
 export function SoundIcon(props: IconProps) {
   return (
     <BaseIcon {...props}>
@@ -123,6 +134,15 @@ export function ThemeIcon(props: IconProps) {
         d="M10 2v1.5M10 16.5V18M18 10h-1.5M3.5 10H2m13.66-5.66-1.07 1.07M5.41 14.59l-1.07 1.07m11.32 0-1.07-1.07M5.41 5.41 4.34 4.34"
       />
       <path className="theme-toggle__moon" d="M16.75 12.25A6.75 6.75 0 0 1 7.75 3.25a7.25 7.25 0 1 0 9 9Z" />
+    </BaseIcon>
+  );
+}
+
+export function UserIcon(props: IconProps) {
+  return (
+    <BaseIcon {...props}>
+      <circle cx="10" cy="6.5" r="3" />
+      <path d="M4.5 17a5.5 5.5 0 0 1 11 0" />
     </BaseIcon>
   );
 }

@@ -213,6 +213,7 @@ async function runRequest(request: Request): Promise<Response> {
           expiresAt: new Date(Date.now() + 60_000).toISOString(),
         }
         : null,
+      signOut: async () => Response.json({ success: true }),
     },
   }) as Env;
   const response = await worker.fetch(request, testEnv, context);

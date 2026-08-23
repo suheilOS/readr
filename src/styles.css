@@ -1040,14 +1040,19 @@ a:focus-visible {
   outline-offset: 2px;
 }
 
-.utility-actions {
+.utility-dock {
   position: fixed;
-  right: max(16px, calc(env(safe-area-inset-right) + 8px));
-  bottom: max(16px, calc(env(safe-area-inset-bottom) + 8px));
+  inset-inline-end: max(16px, calc(env(safe-area-inset-right) + 8px));
+  inset-block-end: max(16px, calc(env(safe-area-inset-bottom) + 8px));
   z-index: 10;
   display: flex;
+  align-items: flex-end;
   flex-direction: column;
   gap: 8px;
+}
+
+:dir(rtl) .utility-dock {
+  inset-inline-end: max(16px, calc(env(safe-area-inset-left) + 8px));
 }
 
 .utility-toggle {

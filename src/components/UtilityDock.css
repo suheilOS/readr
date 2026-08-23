@@ -1,0 +1,111 @@
+.utility-options-positioner,
+.account-popover-positioner {
+  z-index: 20;
+}
+
+.utility-options {
+  display: flex;
+  gap: 8px;
+  outline: none;
+  transform-origin: var(--transform-origin);
+  transition:
+    opacity 140ms ease,
+    transform 140ms var(--ease-out);
+}
+
+.utility-options[data-starting-style],
+.utility-options[data-ending-style] {
+  opacity: 0;
+  transform: scale(0.97);
+}
+
+.account-popover {
+  width: min(248px, var(--available-width));
+  padding: 16px;
+  border: 1px solid var(--divider);
+  border-radius: var(--radius-surface);
+  background: var(--surface);
+  box-shadow: var(--menu-shadow);
+  color: var(--text);
+  outline: none;
+  transform-origin: var(--transform-origin);
+  transition:
+    opacity 140ms ease,
+    transform 140ms var(--ease-out);
+}
+
+.account-popover[data-starting-style],
+.account-popover[data-ending-style] {
+  opacity: 0;
+  transform: scale(0.97);
+}
+
+.account-popover__title {
+  margin: 0;
+  color: var(--heading);
+  font-size: var(--font-size-body);
+  font-weight: 600;
+}
+
+.account-popover__description,
+.account-popover__error {
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: var(--font-size-small);
+  line-height: 1.45;
+  text-wrap: pretty;
+}
+
+.account-popover__error {
+  color: var(--muted-strong);
+}
+
+.account-popover__action {
+  width: 100%;
+  min-height: 40px;
+  margin-top: 14px;
+  padding: 8px 12px;
+  border: 0;
+  border-radius: var(--radius-control);
+  background: var(--text);
+  color: var(--page-bg);
+  cursor: pointer;
+  font-size: var(--font-size-small);
+  font-weight: 600;
+  transition:
+    opacity 120ms ease,
+    scale 120ms var(--ease-out);
+}
+
+.account-popover__action:active {
+  scale: 0.98;
+}
+
+.account-popover__action:disabled {
+  cursor: wait;
+  opacity: 0.6;
+}
+
+.account-popover__action:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .account-popover__action:not(:disabled):hover {
+    opacity: 0.85;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .utility-options,
+  .account-popover {
+    transform: none;
+    transition: opacity 100ms ease;
+  }
+
+  .account-popover__action,
+  .account-popover__action:active {
+    scale: 1;
+  }
+}
