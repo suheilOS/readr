@@ -121,6 +121,16 @@
     scale 120ms var(--ease-out);
 }
 
+.desk-card-pending {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+  color: var(--muted-strong);
+  font-size: var(--font-size-small);
+  font-weight: 600;
+}
+
 .empty-note {
   margin: 4px 0 0;
   padding: 8px 2px;

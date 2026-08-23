@@ -22,6 +22,10 @@ import { SearchBar } from "./components/SearchBar";
 import { selectItemGroups } from "./itemSelectors";
 import { useItemLibrary } from "./useItemLibrary";
 import { useReaderRoute } from "./useReaderRoute";
+import {
+  pendingItemActionLabel,
+  type PendingItemAction,
+} from "./pendingItemAction";
 import { ThemeToggle, type Theme } from "./components/ThemeToggle";
 import { UtilityDock } from "./components/UtilityDock";
 import { TwinOrbit } from "./components/TwinOrbit";
@@ -104,11 +108,13 @@ export default function App() {
   const [captureOpen, setCaptureOpen] = useState(false);
   const [lastAddedId, setLastAddedId] = useState<string | null>(null);
   const [announcement, setAnnouncement] = useState("");
+  const [pendingItemAction, setPendingItemAction] = useState<PendingItemAction | null>(null);
   const [soundsEnabled, setSoundsEnabled] = useState(getInitialSoundEnabled);
   const [theme, setTheme] = useState<Theme>(getInitialTheme);
   const { readerItemId, openReaderRoute, closeReaderRoute } = useReaderRoute();
   const addButtonRef = useRef<HTMLButtonElement>(null);
   const titleInputRef = useRef<HTMLInputElement>(null);
+  const pendingItemActionRef = useRef<PendingItemAction | null>(null);
 
   useEffect(() => {
     setEnabled(soundsEnabled);
@@ -177,15 +183,32 @@ export default function App() {
 
   const deskFull = deskItems.length >= DESK_CAPACITY;
 
-  async function handleAdd(input: NewItemInput) {
-    if (busy) return;
+  async function handleAdd(input: NewItemInput): Promise<boolean> {
+    if (busy) return false;
     const item = await addItem(input);
-    if (item === null) return;
+    if (item === null) return false;
 
     playCompletion();
     setLastAddedId(item.id);
     setAnnouncement(`${item.title} added to your inbox.`);
     closeCapture();
+    return true;
+  }
+
+  async function runPendingItemAction<T>(
+    action: PendingItemAction,
+    operation: () => Promise<T>,
+  ): Promise<T | null> {
+    if (pendingItemActionRef.current !== null) return null;
+
+    pendingItemActionRef.current = action;
+    setPendingItemAction(action);
+    try {
+      return await operation();
+    } finally {
+      pendingItemActionRef.current = null;
+      setPendingItemAction(null);
+    }
   }
 
   async function sendToDesk(item: Item) {
@@ -194,14 +217,20 @@ export default function App() {
       return;
     }
 
-    const movedItem = await moveToDesk(item.id);
+    const movedItem = await runPendingItemAction(
+      { kind: "move-to-desk", itemId: item.id },
+      () => moveToDesk(item.id),
+    );
     if (movedItem !== null) {
       setAnnouncement(`${movedItem.title} moved to your desk.`);
     }
   }
 
   async function sendToInbox(item: Item) {
-    const movedItem = await moveToInbox(item.id);
+    const movedItem = await runPendingItemAction(
+      { kind: "move-to-inbox", itemId: item.id },
+      () => moveToInbox(item.id),
+    );
     if (movedItem !== null) {
       setAnnouncement(`${movedItem.title} returned to your inbox.`);
       if (swapCandidateId === item.id) {
@@ -215,7 +244,10 @@ export default function App() {
       return;
     }
 
-    const movedItem = await swap(swapCandidateId, displaced.id);
+    const movedItem = await runPendingItemAction(
+      { kind: "replace", itemId: displaced.id },
+      () => swap(swapCandidateId, displaced.id),
+    );
     if (movedItem !== null) {
       playCompletion();
       setAnnouncement(`${movedItem.title} moved to your desk.`);
@@ -224,7 +256,10 @@ export default function App() {
   }
 
   async function discardItem(item: Item) {
-    const discarded = await discard(item.id);
+    const discarded = await runPendingItemAction(
+      { kind: "discard", itemId: item.id },
+      () => discard(item.id),
+    );
     if (!discarded) return;
 
     playDismissal();
@@ -236,7 +271,10 @@ export default function App() {
   }
 
   async function finishItem(item: Item) {
-    const finishedItem = await finish(item.id);
+    const finishedItem = await runPendingItemAction(
+      { kind: "finish", itemId: item.id },
+      () => finish(item.id),
+    );
     if (finishedItem !== null) {
       playCompletion();
       setAnnouncement(`${finishedItem.title} moved to your library.`);
@@ -315,6 +353,9 @@ export default function App() {
       <p className="visually-hidden" role="status" aria-atomic="true">
         {announcement}
       </p>
+      <p className="visually-hidden" role="status" aria-atomic="true">
+        {pendingItemActionLabel(pendingItemAction)}
+      </p>
       <p className="visually-hidden" aria-live="polite" aria-atomic="true">
         {searchAnnouncement}
       </p>
@@ -385,6 +426,8 @@ export default function App() {
                   onRead={openReader}
                   onSelectSwapTarget={replaceDeskItem}
                   onCancelSwap={() => setSwapCandidateId(null)}
+                  busy={busy}
+                  pendingAction={pendingItemAction}
                 />
               )}
               {(!searching || visibleInboxItems.length > 0) && (
@@ -393,6 +436,8 @@ export default function App() {
                   highlightId={lastAddedId}
                   onSendToDesk={sendToDesk}
                   onDiscard={discardItem}
+                  busy={busy}
+                  pendingAction={pendingItemAction}
                 />
               )}
               {(!searching || visibleLibraryItems.length > 0) && (
@@ -400,6 +445,8 @@ export default function App() {
                   items={visibleLibraryItems}
                   onSendToDesk={sendToDesk}
                   onSendToInbox={sendToInbox}
+                  busy={busy}
+                  pendingAction={pendingItemAction}
                 />
               )}
             </>

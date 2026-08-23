@@ -26,6 +26,36 @@
   scale: 0.96;
 }
 
+.pill-button:disabled,
+.quiet-button:disabled,
+.library-menu-trigger:disabled,
+.desk-card.swappable:disabled,
+.inline-link-button:disabled {
+  cursor: wait;
+  opacity: 0.62;
+}
+
+.button-spinner {
+  width: 14px;
+  height: 14px;
+  flex: 0 0 auto;
+  border: 2px solid color-mix(in srgb, currentColor 35%, transparent);
+  border-top-color: currentColor;
+  border-radius: var(--radius-pill);
+}
+
+@keyframes button-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .button-spinner {
+    animation: button-spin 700ms linear infinite;
+  }
+}
+
 .quiet-button.discard:focus-visible {
   background: var(--danger-fill);
   color: var(--danger);

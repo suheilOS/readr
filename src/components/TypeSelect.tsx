@@ -5,9 +5,10 @@ import { CheckIcon, ChevronDownIcon } from "./icons";
 type TypeSelectProps = {
   value: ItemType;
   onChange: (type: ItemType) => void;
+  disabled?: boolean;
 };
 
-export function TypeSelect({ value, onChange }: TypeSelectProps) {
+export function TypeSelect({ value, onChange, disabled = false }: TypeSelectProps) {
   function handleValueChange(nextValue: ItemType | null) {
     if (nextValue !== null) {
       onChange(nextValue);
@@ -20,6 +21,7 @@ export function TypeSelect({ value, onChange }: TypeSelectProps) {
         items={TYPE_OPTIONS}
         value={value}
         onValueChange={handleValueChange}
+        disabled={disabled}
       >
         <Select.Trigger
           className="type-trigger"

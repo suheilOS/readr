@@ -2,6 +2,7 @@ import { useRef } from "react";
 import { Menu } from "@base-ui/react/menu";
 import { canReadInApp, DESK_CAPACITY, type Item, itemMetaLine } from "../item";
 import { focusAdjacentAction } from "../focusAdjacentAction";
+import { isPendingItemAction, type PendingItemAction } from "../pendingItemAction";
 import {
   BookOpenIcon,
   CheckIcon,
@@ -20,6 +21,8 @@ type DeskSectionProps = {
   onRead: (item: Item) => void;
   onSelectSwapTarget: (item: Item) => void;
   onCancelSwap: () => void;
+  busy: boolean;
+  pendingAction: PendingItemAction | null;
 };
 
 export function DeskSection({
@@ -31,6 +34,8 @@ export function DeskSection({
   onRead,
   onSelectSwapTarget,
   onCancelSwap,
+  busy,
+  pendingAction,
 }: DeskSectionProps) {
   const swapActive = mode === "swap";
 
@@ -45,7 +50,7 @@ export function DeskSection({
       {swapActive && (
         <p role="status" className="swap-banner">
           Desk is full. Choose a card to replace, or{" "}
-          <button type="button" className="inline-link-button" onClick={onCancelSwap}>
+          <button type="button" className="inline-link-button" onClick={onCancelSwap} disabled={busy}>
             cancel
           </button>
         </p>
@@ -58,11 +63,19 @@ export function DeskSection({
                 type="button"
                 className="desk-card swappable"
                 aria-label={`Replace ${item.title}`}
+                aria-busy={isPendingItemAction(pendingAction, item.id, "replace")}
+                disabled={busy}
                 onClick={(event) => {
                   focusAdjacentAction(event.currentTarget, "desk-heading");
                   onSelectSwapTarget(item);
                 }}
               >
+                {isPendingItemAction(pendingAction, item.id, "replace") && (
+                  <span className="desk-card-pending">
+                    <span className="button-spinner" aria-hidden="true" />
+                    <span>Replacing…</span>
+                  </span>
+                )}
                 <span className="card-title">{item.title}</span>
                 <span className="meta-line">{itemMetaLine(item)}</span>
               </button>
@@ -101,18 +114,31 @@ export function DeskSection({
                     type="button"
                     className="pill-button finish-button"
                     aria-label={`Finish: ${item.title}`}
+                    aria-busy={isPendingItemAction(pendingAction, item.id, "finish")}
+                    disabled={busy}
                     onClick={(event) => {
                       focusAdjacentAction(event.currentTarget, "desk-heading");
                       onFinish(item);
                     }}
                   >
-                    <CheckIcon className="button-icon" />
-                    <span>Finish</span>
+                    {isPendingItemAction(pendingAction, item.id, "finish") ? (
+                      <>
+                        <span className="button-spinner" aria-hidden="true" />
+                        <span>Finishing…</span>
+                      </>
+                    ) : (
+                      <>
+                        <CheckIcon className="button-icon" />
+                        <span>Finish</span>
+                      </>
+                    )}
                   </button>
                   <DeskActionsMenu
                     item={item}
                     onSendToInbox={onSendToInbox}
                     onDiscard={onDiscard}
+                    busy={busy}
+                    pendingAction={pendingAction}
                   />
                 </div>
               </article>
@@ -131,12 +157,16 @@ type DeskActionsMenuProps = {
   item: Item;
   onSendToInbox: (item: Item) => void;
   onDiscard: (item: Item) => void;
+  busy: boolean;
+  pendingAction: PendingItemAction | null;
 };
 
 function DeskActionsMenu({
   item,
   onSendToInbox,
   onDiscard,
+  busy,
+  pendingAction,
 }: DeskActionsMenuProps) {
   const triggerRef = useRef<HTMLButtonElement>(null);
 
@@ -154,16 +184,23 @@ function DeskActionsMenu({
         ref={triggerRef}
         type="button"
         className="library-menu-trigger desk-menu-trigger"
-        aria-label={`More actions for ${item.title}`}
+        aria-label={isPendingItemAction(pendingAction, item.id)
+          ? `Updating ${item.title}`
+          : `More actions for ${item.title}`}
+        aria-busy={isPendingItemAction(pendingAction, item.id)}
+        disabled={busy}
         data-cuelume-toggle=""
       >
-        <MoreVerticalIcon />
+        {isPendingItemAction(pendingAction, item.id)
+          ? <span className="button-spinner" aria-hidden="true" />
+          : <MoreVerticalIcon />}
       </Menu.Trigger>
       <Menu.Portal>
         <Menu.Positioner className="library-menu-positioner" sideOffset={4} align="end">
           <Menu.Popup className="library-menu">
             <Menu.Item
               className="library-menu-item"
+              disabled={busy}
               onClick={() => runAction(onSendToInbox)}
             >
               <InboxIcon className="button-icon" />
@@ -171,6 +208,7 @@ function DeskActionsMenu({
             </Menu.Item>
             <Menu.Item
               className="library-menu-item discard-menu-item"
+              disabled={busy}
               onClick={() => runAction(onDiscard)}
             >
               <TrashIcon className="button-icon" />
