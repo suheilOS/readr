@@ -1,0 +1,167 @@
+@supports (corner-shape: squircle) {
+  .recovery-panel,
+  .desk-card,
+  .swap-banner,
+  .library-menu,
+  .library-menu-item,
+  .search-input,
+  .search-clear,
+  .add-form input,
+  .type-trigger,
+  .type-menu,
+  .type-option,
+  .add-submit {
+    corner-shape: squircle;
+  }
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .search-clear:hover {
+    background: var(--divider);
+    color: var(--muted-strong);
+  }
+
+  .pill-button:hover,
+  .quiet-button:hover {
+    background: var(--fill-strong);
+  }
+
+  .finish-button:hover {
+    background: var(--success-fill-strong);
+  }
+
+  .desk-card.swappable:hover {
+    background-color: color-mix(in srgb, var(--surface) 95%, var(--text));
+  }
+
+  .add-submit:hover,
+  .app-state__action:hover {
+    opacity: 0.85;
+  }
+
+  .quiet-button.discard:hover {
+    background: var(--danger-fill);
+    color: var(--danger);
+  }
+
+  .utility-toggle:hover {
+    color: var(--muted-strong);
+  }
+
+  .library-menu-trigger:hover {
+    background: var(--fill-strong);
+    color: var(--text);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .search-clear {
+    scale: 1;
+    transition: none;
+  }
+
+  .search-clear:active {
+    scale: 1;
+  }
+
+  .utility-toggle,
+  .theme-toggle__sun,
+  .theme-toggle__moon,
+  .sound-toggle__enabled,
+  .sound-toggle__muted {
+    scale: 1;
+  }
+
+  .utility-toggle:active {
+    scale: 1;
+  }
+
+  .theme-toggle__sun,
+  .theme-toggle__moon,
+  .sound-toggle__enabled,
+  .sound-toggle__muted {
+    filter: none;
+    transition: opacity 100ms ease;
+  }
+
+  .capture-panel {
+    transition: none;
+  }
+
+  .search-slot,
+  .capture-title,
+  .topbar.capture-open .search-slot,
+  .topbar.capture-open .capture-title {
+    transform: none;
+    transition:
+      opacity 100ms ease,
+      visibility 0s linear 100ms;
+  }
+
+  .capture-content,
+  .capture-panel[data-open] .capture-content {
+    transform: none;
+    transition: opacity 100ms ease;
+  }
+
+  .capture-panel[data-open] .capture-content {
+    transition-delay: 0s;
+  }
+
+  .type-menu,
+  .library-menu {
+    transform: none;
+    transition: none;
+  }
+
+  .type-menu[data-starting-style],
+  .type-menu[data-ending-style],
+  .library-menu[data-starting-style],
+  .library-menu[data-ending-style] {
+    transform: none;
+  }
+
+  .type-chevron {
+    transition: none;
+  }
+
+  .add-toggle {
+    transition: color 120ms ease;
+  }
+
+  .pill-button,
+  .quiet-button,
+  .add-submit,
+  .app-state__action,
+  .desk-card.swappable {
+    scale: 1;
+    transition: none;
+  }
+
+  .pill-button:active,
+  .quiet-button:active,
+  .add-submit:active,
+  .app-state__action:active,
+  .desk-card.swappable:active,
+  .add-toggle:active {
+    scale: 1;
+  }
+
+  .library-menu-trigger {
+    scale: 1;
+    transition: none;
+  }
+
+  .library-menu-trigger:active {
+    scale: 1;
+  }
+
+  .add-toggle[data-panel-open] {
+    transform: none;
+  }
+
+  .row-new {
+    animation: none;
+  }
+
+}

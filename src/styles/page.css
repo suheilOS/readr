@@ -1,0 +1,35 @@
+.page {
+  max-width: 680px;
+  margin: 0 auto;
+  padding: clamp(32px, 6vh, 64px) clamp(16px, 4vw, 24px)
+    calc(96px + env(safe-area-inset-bottom));
+}
+
+.section-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.section-header h2 {
+  margin: 0;
+  font-size: var(--font-size-small);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--muted-strong);
+}
+
+.section-header h2:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 4px;
+  border-radius: 4px;
+}
+
+.counter {
+  font-size: var(--font-size-small);
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+}
+

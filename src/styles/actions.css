@@ -1,0 +1,43 @@
+.quiet-button {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  gap: 5px;
+  padding: 5px 9px;
+  background: none;
+  border: none;
+  border-radius: var(--radius-pill);
+  font-size: var(--font-size-small);
+  font-weight: 500;
+  color: var(--muted-strong);
+  cursor: pointer;
+  text-decoration: none;
+  white-space: nowrap;
+  transition:
+    background-color 120ms var(--ease-out),
+    color 120ms ease,
+    scale 120ms var(--ease-out);
+}
+
+.pill-button:active,
+.quiet-button:active,
+.add-submit:active,
+.desk-card.swappable:active {
+  scale: 0.96;
+}
+
+.quiet-button.discard:focus-visible {
+  background: var(--danger-fill);
+  color: var(--danger);
+}
+
+button:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+a:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+

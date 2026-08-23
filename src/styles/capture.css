@@ -1,0 +1,228 @@
+.add-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: stretch;
+  gap: 8px;
+}
+
+.add-form input,
+.add-form select {
+  min-width: 0;
+  padding: 9px 12px;
+  background: var(--surface);
+  border: none;
+  border-radius: var(--radius-control);
+  font-size: var(--font-size-body);
+  color: var(--text);
+}
+
+.add-form input::placeholder {
+  color: var(--muted);
+}
+
+.add-title {
+  grid-column: 1 / -1;
+}
+
+.form-error {
+  grid-column: 1 / -1;
+  margin: -2px 0 0;
+  font-size: var(--font-size-small);
+  color: var(--danger);
+}
+
+.type-select {
+  position: relative;
+  display: flex;
+  min-width: 8.5rem;
+}
+
+.type-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  padding: 9px 12px;
+  background: var(--surface);
+  border: none;
+  border-radius: var(--radius-control);
+  font-size: var(--font-size-body);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.type-trigger[data-popup-open] .type-chevron {
+  transform: rotate(180deg);
+}
+
+.type-value {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: 4px;
+}
+
+.type-prefix {
+  color: var(--muted);
+}
+
+.type-chevron {
+  width: 12px;
+  height: 12px;
+  flex-shrink: 0;
+  fill: none;
+  stroke: var(--muted);
+  stroke-width: 2.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transition: transform 160ms var(--ease-out);
+}
+
+.type-positioner {
+  z-index: 20;
+}
+
+.type-menu {
+  min-width: var(--anchor-width);
+  margin: 0;
+  padding: 4px;
+  background: var(--surface);
+  border: 0;
+  border-radius: var(--radius-menu);
+  box-shadow: var(--type-menu-shadow);
+  outline: none;
+  transform-origin: top center;
+  transition:
+    opacity 140ms ease,
+    transform 140ms var(--ease-out);
+}
+
+.type-menu[data-starting-style],
+.type-menu[data-ending-style] {
+  opacity: 0;
+  transform: scale(0.97) translateY(-2px);
+}
+
+.type-list {
+  max-height: min(300px, var(--available-height, 300px));
+  overflow-y: auto;
+}
+
+.type-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 8px 10px;
+  border-radius: var(--radius-compact);
+  font-size: var(--font-size-body);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.type-option:focus:not(:focus-visible) {
+  outline: none;
+}
+
+.type-option[data-highlighted] {
+  background: var(--divider);
+}
+
+.type-option[data-highlighted]:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: -2px;
+}
+
+.type-option[data-selected] {
+  font-weight: 600;
+}
+
+.type-check {
+  display: grid;
+  place-items: center;
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+}
+
+.type-check svg {
+  display: block;
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.add-submit {
+  min-width: 0;
+  padding: 9px 18px;
+  background: var(--text);
+  color: var(--page-bg);
+  border: none;
+  border-radius: var(--radius-control);
+  font-size: var(--font-size-body);
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    opacity 120ms ease,
+    scale 120ms var(--ease-out);
+}
+
+.add-form input:focus-visible,
+.add-form select:focus-visible,
+.type-trigger:focus-visible {
+  outline: 0;
+  box-shadow: inset 0 0 0 2px var(--field-focus);
+}
+
+@media (max-width: 540px) {
+  /* iOS Safari zooms the page when a focused input is smaller than 16px. */
+  .search-input,
+  .add-form input {
+    font-size: 16px;
+  }
+
+  .type-trigger {
+    font-size: var(--font-size-body);
+  }
+
+  .add-form {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+
+  .add-title,
+  .add-url {
+    grid-column: 1 / -1;
+  }
+
+  .type-select {
+    min-width: 0;
+  }
+
+  .add-submit {
+    min-height: 40px;
+  }
+}
+
+@media (max-width: 600px) {
+  .row {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .row-actions {
+    align-self: stretch;
+    flex-wrap: wrap;
+  }
+
+  .pill-button,
+  .quiet-button {
+    min-height: 40px;
+  }
+}
+

@@ -1,0 +1,170 @@
+.row-list {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 2px;
+  border-bottom: 1px solid var(--divider);
+}
+
+.row:last-child {
+  border-bottom: none;
+}
+
+.row.finished {
+  position: relative;
+  padding-inline-end: 52px;
+}
+
+.row-text {
+  width: 100%;
+  min-width: 0;
+}
+
+.row-title {
+  display: block;
+  overflow-wrap: anywhere;
+  font-size: var(--font-size-body);
+  font-weight: 500;
+  line-height: 1.4;
+  text-wrap: pretty;
+  color: var(--text);
+}
+
+.row .meta-line {
+  margin-top: 2px;
+  font-size: var(--font-size-small);
+}
+
+.note-preview {
+  margin: 6px 0 0;
+  overflow-wrap: anywhere;
+  font-size: var(--font-size-small);
+  line-height: 1.5;
+  text-wrap: pretty;
+  color: var(--muted-strong);
+}
+
+.row-actions {
+  display: flex;
+  flex-shrink: 0;
+  gap: 8px;
+}
+
+.library-actions {
+  position: absolute;
+  inset-block-start: 12px;
+  inset-inline-end: 2px;
+}
+
+.library-menu-positioner {
+  z-index: 20;
+}
+
+.library-menu {
+  min-width: 9rem;
+  margin: 0;
+  padding: 4px;
+  background: var(--surface);
+  border: 0;
+  border-radius: var(--radius-menu);
+  box-shadow: var(--menu-shadow);
+  outline: none;
+  transform-origin: var(--transform-origin);
+  transition:
+    opacity 140ms ease,
+    transform 140ms var(--ease-out);
+}
+
+.library-menu[data-starting-style],
+.library-menu[data-ending-style] {
+  opacity: 0;
+  transform: scale(0.97) translateY(-2px);
+}
+
+.library-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
+  padding: 8px 10px;
+  border-radius: var(--radius-compact);
+  font-size: var(--font-size-small);
+  color: var(--text);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.library-menu-item:focus:not(:focus-visible) {
+  outline: none;
+}
+
+.library-menu-item[data-highlighted] {
+  background: var(--divider);
+}
+
+.library-menu-item.discard-menu-item[data-highlighted] {
+  background: var(--danger-fill);
+  color: var(--danger);
+}
+
+.library-menu-item[data-highlighted]:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: -2px;
+}
+
+.library-menu-trigger {
+  display: grid;
+  width: 40px;
+  height: 40px;
+  place-items: center;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-control);
+  background: transparent;
+  color: var(--muted-strong);
+  cursor: pointer;
+  transition:
+    background-color 120ms var(--ease-out),
+    color 120ms ease,
+    scale 120ms var(--ease-out);
+}
+
+.library-menu-trigger:active {
+  scale: 0.96;
+}
+
+.desk-menu-trigger {
+  position: absolute;
+  inset-block-start: 12px;
+  inset-inline-end: 12px;
+}
+
+.library-menu-trigger svg {
+  display: block;
+  width: 18px;
+  height: 18px;
+  fill: currentColor;
+}
+
+@keyframes row-arrive {
+  from {
+    background-color: color-mix(in srgb, var(--page-bg) 78%, var(--fill-strong));
+  }
+  to {
+    background-color: transparent;
+  }
+}
+
+.row-new {
+  animation: row-arrive 600ms ease-out;
+}
+

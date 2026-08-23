@@ -1,0 +1,220 @@
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 calc(-1 * clamp(16px, 4vw, 24px));
+  padding: max(12px, env(safe-area-inset-top))
+    clamp(16px, 4vw, 24px) 8px;
+  background: color-mix(in srgb, var(--page-bg) 82%, transparent);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+
+.capture-root {
+  display: block;
+  margin-bottom: calc(var(--section-gap) - 8px);
+}
+
+.search-input {
+  width: 100%;
+  min-width: 0;
+  padding-block: 9px;
+  padding-inline: 14px 42px;
+  background: var(--surface);
+  border: none;
+  border-radius: var(--radius-control);
+  font-size: var(--font-size-body);
+  color: var(--text);
+}
+
+.topbar-slot {
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 40px;
+}
+
+.search-slot,
+.capture-title {
+  position: absolute;
+  inset: 0;
+}
+
+.search-slot {
+  display: flex;
+  align-items: center;
+  visibility: visible;
+  transition:
+    opacity 160ms var(--ease-out),
+    transform 160ms var(--ease-out),
+    visibility 0s linear;
+}
+
+.capture-title {
+  display: flex;
+  align-items: center;
+  font-size: var(--font-size-body);
+  font-weight: 600;
+  color: var(--heading);
+  opacity: 0;
+  transform: translateY(6px);
+  visibility: hidden;
+  transition:
+    opacity 160ms var(--ease-out),
+    transform 160ms var(--ease-out),
+    visibility 0s linear 160ms;
+}
+
+.topbar.capture-open .search-slot {
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-6px);
+  visibility: hidden;
+  transition:
+    opacity 160ms var(--ease-out),
+    transform 160ms var(--ease-out),
+    visibility 0s linear 160ms;
+}
+
+.topbar.capture-open .capture-title {
+  opacity: 1;
+  transform: none;
+  visibility: visible;
+  transition:
+    opacity 160ms var(--ease-out),
+    transform 160ms var(--ease-out),
+    visibility 0s linear;
+}
+
+.search-bar {
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.search-input::-webkit-search-cancel-button {
+  display: none;
+  appearance: none;
+}
+
+.search-clear {
+  position: absolute;
+  top: 50%;
+  inset-inline-end: 4px;
+  display: grid;
+  width: 32px;
+  height: 32px;
+  place-items: center;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-compact);
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  transform: translateY(-50%);
+  transition:
+    background-color 120ms var(--ease-out),
+    color 120ms ease,
+    scale 120ms var(--ease-out);
+}
+
+.search-clear:active {
+  scale: 0.96;
+}
+
+.search-clear svg {
+  display: block;
+  width: 15px;
+  height: 15px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-width: 2;
+}
+
+.search-input::placeholder {
+  color: var(--muted);
+}
+
+.search-input:focus-visible {
+  outline: 2px solid var(--field-focus);
+  outline-offset: 2px;
+}
+
+.add-toggle {
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-pill);
+  background: var(--toggle-bg);
+  color: var(--heading);
+  cursor: pointer;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  transition:
+    transform 160ms var(--ease-out),
+    color 120ms ease,
+    scale 120ms var(--ease-out);
+}
+
+.add-toggle[data-panel-open] {
+  transform: rotate(45deg);
+}
+
+.add-toggle:active {
+  scale: 0.96;
+}
+
+.add-toggle svg {
+  display: block;
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+
+.capture-panel {
+  height: 0;
+  overflow: hidden;
+  transition: height 200ms var(--ease-out);
+}
+
+.capture-panel[data-open] {
+  height: var(--collapsible-panel-height);
+}
+
+.capture-clip {
+  min-height: 0;
+  overflow: hidden;
+}
+
+.capture-content {
+  padding: 0 0 8px;
+  opacity: 0;
+  transform: translateY(-4px);
+  visibility: hidden;
+  transition:
+    opacity 140ms ease,
+    transform 140ms var(--ease-out),
+    visibility 0s linear 200ms;
+}
+
+.capture-panel[data-open] .capture-content {
+  opacity: 1;
+  transform: none;
+  visibility: visible;
+  transition:
+    opacity 140ms ease 60ms,
+    transform 140ms var(--ease-out) 60ms,
+    visibility 0s;
+}
+
