@@ -1,6 +1,6 @@
 import { playError } from "../soundCues";
 import { startTransition, useEffect, useRef, useState } from "react";
-import { canReadInApp, itemMetaLine, type Item } from "../item";
+import { canReadInApp, itemMetaLine, type Item } from "../../shared/item";
 import type { ExtractedArticle } from "../../shared/extraction";
 import {
   ArticleExtractionError,

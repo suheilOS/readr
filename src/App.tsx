@@ -13,7 +13,7 @@ import {
   canReadInApp,
   DESK_CAPACITY,
   type Item,
-} from "./item";
+} from "../shared/item";
 import {
   AddItemForm,
   type AddItemFormState,

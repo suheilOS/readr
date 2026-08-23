@@ -1,8 +1,12 @@
 import { playError } from "../soundCues";
 import { useState, type FormEvent, type Ref } from "react";
 import { TypeSelect } from "./TypeSelect";
-import type { Item, ItemType } from "../item";
-import { parseItemUrl } from "../itemUrl";
+import {
+  DEFAULT_ITEM_TYPE,
+  parseItemUrl,
+  type Item,
+  type ItemType,
+} from "../../shared/item";
 
 export type NewItemInput = Pick<Item, "title" | "url" | "type">;
 
@@ -19,7 +23,7 @@ type AddItemFormProps = {
 export function AddItemForm({ onAdd, onCancel, state, formId, titleRef }: AddItemFormProps) {
   const [title, setTitle] = useState("");
   const [url, setUrl] = useState("");
-  const [type, setType] = useState<ItemType>("article");
+  const [type, setType] = useState<ItemType>(DEFAULT_ITEM_TYPE);
   const [titleError, setTitleError] = useState(false);
   const [urlError, setUrlError] = useState(false);
   const submitting = state === "submitting";

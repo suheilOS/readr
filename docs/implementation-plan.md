@@ -50,10 +50,9 @@ The repositories will remain siblings rather than becoming one monorepo:
 
 The existing repository has these relevant boundaries:
 
-- `src/item.ts` defines the item model and presentation helpers.
-- `src/itemApi.ts` owns the same-origin Readr API calls and response validation.
+- `shared/item.ts` defines the item model, item options, URL validation, and presentation helpers.
+- `src/itemApi.ts` owns the same-origin Readr API calls and applies the shared response parser.
 - `src/useItemLibrary.ts` loads and mutates server-backed item state.
-- `src/itemReducer.ts` remains as a pure lifecycle helper for domain tests.
 - `worker/index.ts` serves static assets and exposes authenticated Hono API routes, including `POST /api/extract`.
 - `wrangler.jsonc` has Readr D1, the Auth Service Binding, static assets, and the extraction rate limiter.
 - Theme and sound preferences already use separate localStorage keys and will remain local.
@@ -178,7 +177,7 @@ POST   /api/extract
 
 Every endpoint requires an authenticated session. Every query includes the authenticated `user_id`, including lookups, updates, deletes, and swap operations. A client cannot read or modify another user's item by changing an ID in the URL.
 
-The server, not the React reducer, enforces the product rules:
+The server, not browser state updates, enforces the product rules:
 
 - A user's desk cannot contain more than five items.
 - Only valid item types and statuses are accepted.
@@ -186,7 +185,7 @@ The server, not the React reducer, enforces the product rules:
 - Finishing an item sets `status = library` and records `finished_at`.
 - Swapping moves the candidate to the desk and deletes the displaced desk item as one atomic operation.
 
-Use conditional SQL and D1 atomic batches where a rule depends on more than one write. The client may keep pure lifecycle helpers for display and tests, but it must treat the API response as authoritative.
+Use conditional SQL and D1 atomic batches where a rule depends on more than one write. The client treats the API response as authoritative.
 
 `POST /api/extract` keeps its existing URL safety, response-size, timeout, and rate-limit protections. It becomes authenticated because Readr no longer supports anonymous product usage.
 
@@ -314,7 +313,7 @@ This is acceptable only because every current and planned subdomain is controlle
 
 ### Client rules drift from server rules
 
-Keep the reducer and selectors as UI helpers only. Write API tests for every rule that protects data or enforces the desk capacity.
+Keep client selectors limited to display concerns. Write API tests for every rule that protects data or enforces the desk capacity.
 
 ### Password recovery depends on email delivery
 

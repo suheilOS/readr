@@ -1,7 +1,7 @@
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { Item } from "../../src/item";
+import type { Item } from "../../shared/item";
 import { useItemLibrary, type ItemLibrary } from "../../src/useItemLibrary";
 
 const api = vi.hoisted(() => ({

@@ -1,7 +1,6 @@
 import { useRef } from "react";
 import { Menu } from "@base-ui/react/menu";
-import type { Item } from "../item";
-import { itemMetaLine } from "../item";
+import { itemMetaLine, type Item } from "../../shared/item";
 import { formatDate } from "../formatDate";
 import { focusAdjacentAction } from "../focusAdjacentAction";
 import { isPendingItemAction, type PendingItemAction } from "../pendingItemAction";

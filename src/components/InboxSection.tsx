@@ -1,5 +1,4 @@
-import type { Item } from "../item";
-import { itemMetaLine } from "../item";
+import { itemMetaLine, type Item } from "../../shared/item";
 import { focusAdjacentAction } from "../focusAdjacentAction";
 import { ArrowUpIcon, TrashIcon } from "./icons";
 import { isPendingItemAction, type PendingItemAction } from "../pendingItemAction";

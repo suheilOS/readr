@@ -1,5 +1,5 @@
 import { Select } from "@base-ui/react/select";
-import { TYPE_OPTIONS, type ItemType } from "../item";
+import { TYPE_OPTIONS, type ItemType } from "../../shared/item";
 import { CheckIcon, ChevronDownIcon } from "./icons";
 
 type TypeSelectProps = {

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { Item } from "./item";
+import type { Item } from "../shared/item";
 import type { PendingItemAction } from "./pendingItemAction";
 import {
   createItem,

@@ -1,5 +1,9 @@
-import type { Item, ItemType } from "./item";
-import { parseItemUrl, type ItemUrl } from "./itemUrl";
+import {
+  parseItem,
+  type Item,
+  type ItemType,
+  type ItemUrl,
+} from "../shared/item";
 
 export type NewItemInput = {
   title: string;
@@ -68,10 +72,11 @@ export async function swapItems(candidateId: string, displacedId: string): Promi
     body: JSON.stringify({ displacedId }),
   });
   const body: unknown = response.body;
-  if (!isRecord(body) || !isItem(body.item) || typeof body.displacedId !== "string") {
+  const item = isRecord(body) ? parseItem(body.item) : null;
+  if (item === null || !isRecord(body) || typeof body.displacedId !== "string") {
     throw new ItemApiError("The server returned an invalid item.", 502, "invalid_response");
   }
-  return { item: body.item, displacedId: body.displacedId };
+  return { item, displacedId: body.displacedId };
 }
 
 async function request(path: string, init: RequestInit = {}): Promise<{ body: unknown }> {
@@ -108,39 +113,27 @@ async function request(path: string, init: RequestInit = {}): Promise<{ body: un
 }
 
 function readItemsResponse(response: { body: unknown }): ItemsResponse {
-  if (!isRecord(response.body) || !Array.isArray(response.body.items) || !response.body.items.every(isItem)) {
+  if (!isRecord(response.body) || !Array.isArray(response.body.items)) {
     throw new ItemApiError("The server returned invalid items.", 502, "invalid_response");
   }
-  return { items: response.body.items };
+
+  const items: Item[] = [];
+  for (const value of response.body.items) {
+    const item = parseItem(value);
+    if (item === null) {
+      throw new ItemApiError("The server returned invalid items.", 502, "invalid_response");
+    }
+    items.push(item);
+  }
+  return { items };
 }
 
 function readItemResponse(response: { body: unknown }): ItemResponse {
-  if (!isRecord(response.body) || !isItem(response.body.item)) {
+  const item = isRecord(response.body) ? parseItem(response.body.item) : null;
+  if (item === null) {
     throw new ItemApiError("The server returned an invalid item.", 502, "invalid_response");
   }
-  return { item: response.body.item };
-}
-
-function isItem(value: unknown): value is Item {
-  if (!isRecord(value)) return false;
-  return (
-    typeof value.id === "string" &&
-    typeof value.title === "string" &&
-    (value.url === null || parseItemUrl(value.url) !== null) &&
-    isItemType(value.type) &&
-    isItemStatus(value.status) &&
-    typeof value.addedAt === "string" &&
-    (value.finishedAt === null || typeof value.finishedAt === "string") &&
-    (value.note === null || typeof value.note === "string")
-  );
-}
-
-function isItemType(value: unknown): value is ItemType {
-  return value === "article" || value === "book" || value === "paper" || value === "video" || value === "podcast";
-}
-
-function isItemStatus(value: unknown): value is Item["status"] {
-  return value === "inbox" || value === "desk" || value === "library";
+  return { item };
 }
 
 function readErrorMessage(value: unknown): string | null {

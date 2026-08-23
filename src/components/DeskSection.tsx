@@ -1,6 +1,6 @@
 import { useRef } from "react";
 import { Menu } from "@base-ui/react/menu";
-import { canReadInApp, DESK_CAPACITY, type Item, itemMetaLine } from "../item";
+import { canReadInApp, DESK_CAPACITY, type Item, itemMetaLine } from "../../shared/item";
 import { focusAdjacentAction } from "../focusAdjacentAction";
 import { isPendingItemAction, type PendingItemAction } from "../pendingItemAction";
 import {

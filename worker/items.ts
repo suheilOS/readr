@@ -1,7 +1,14 @@
 import type { Context } from "hono";
 import { Hono } from "hono";
-import { DESK_CAPACITY, TYPE_OPTIONS, type Item, type ItemStatus, type ItemType } from "../src/item";
-import type { ItemUrl } from "../src/itemUrl";
+import {
+  DESK_CAPACITY,
+  isItemType,
+  parseItem,
+  parseItemUrl,
+  type Item,
+  type ItemUrl,
+  type ItemType,
+} from "../shared/item";
 import { requireAuth, type AppEnv } from "./auth";
 import { requireSameOrigin } from "./csrf";
 
@@ -211,7 +218,7 @@ async function readCreateInput(context: Context<AppEnv>): Promise<CreateItemInpu
 
   const title = typeof body.title === "string" ? body.title.trim() : "";
   const type = body.type;
-  const url = parseUrl(body.url);
+  const url = parseItemUrl(body.url);
 
   if (
     title.length === 0 || title.length > 500 ||
@@ -241,38 +248,20 @@ async function findItem(db: D1Database, userId: string, id: string): Promise<Ite
 }
 
 function toItem(row: ItemRow): Item {
-  return {
+  const item = parseItem({
     id: row.id,
     title: row.title,
-    url: row.url === null ? null : row.url as ItemUrl,
+    url: row.url,
     type: row.type,
     status: row.status,
     addedAt: row.added_at,
     finishedAt: row.finished_at,
     note: row.note,
-  };
-}
-
-function parseUrl(value: unknown): ItemUrl | null {
-  if (value === null || value === undefined || value === "") return null;
-  if (typeof value !== "string" || value.trim().length === 0) return null;
-
-  try {
-    const url = new URL(value.trim());
-    if (
-      (url.protocol !== "http:" && url.protocol !== "https:") ||
-      url.username.length > 0 || url.password.length > 0
-    ) {
-      return null;
-    }
-    return url.toString() as ItemUrl;
-  } catch {
-    return null;
+  });
+  if (item === null) {
+    throw new Error(`Invalid item row: ${row.id}`);
   }
-}
-
-function isItemType(value: unknown): value is ItemType {
-  return typeof value === "string" && TYPE_OPTIONS.some((option) => option.value === value);
+  return item;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -299,8 +288,8 @@ type ItemRow = {
   user_id: string;
   title: string;
   url: string | null;
-  type: ItemType;
-  status: ItemStatus;
+  type: string;
+  status: string;
   added_at: string;
   finished_at: string | null;
   note: string | null;
