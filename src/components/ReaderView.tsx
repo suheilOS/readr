@@ -8,6 +8,7 @@ import {
 } from "../reader/extractArticle";
 import { sanitizeArticleHtml } from "../reader/sanitizeArticle";
 import { ArrowLeftIcon } from "./icons";
+import { TwinOrbit } from "./TwinOrbit";
 
 type ReaderViewProps = {
   item: Item;
@@ -120,9 +121,6 @@ export function ReaderView({ item, onClose }: ReaderViewProps) {
         )}
       </header>
       <div className="reader-column">
-        <p className="visually-hidden" role="status">
-          {state.status === "loading" ? "Opening article…" : ""}
-        </p>
         <article className="reader-article" aria-busy={state.status === "loading"}>
           <header className="reader-title-block">
             <p className="reader-type">{itemMetaLine(item)}</p>
@@ -138,7 +136,8 @@ export function ReaderView({ item, onClose }: ReaderViewProps) {
           </header>
           {state.status === "loading" && (
             <div className="reader-loading">
-              <span>Opening article…</span>
+              <TwinOrbit label="Opening article" />
+              <span aria-hidden="true">Opening article…</span>
             </div>
           )}
           {state.status === "error" && (

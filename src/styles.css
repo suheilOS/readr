@@ -192,6 +192,61 @@ button {
   border: 0;
 }
 
+.twin-orbit {
+  display: inline-grid;
+  width: 32px;
+  aspect-ratio: 1;
+  flex: 0 0 auto;
+  place-items: center;
+  color: var(--muted-strong);
+}
+
+.twin-orbit__dot {
+  position: relative;
+  width: 25%;
+  aspect-ratio: 1;
+  border-radius: var(--radius-pill);
+  background: currentColor;
+}
+
+.twin-orbit__dot::before,
+.twin-orbit__dot::after {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: currentColor;
+  content: "";
+}
+
+.twin-orbit__dot::before {
+  transform: rotate(0deg) translate(155%);
+}
+
+.twin-orbit__dot::after {
+  transform: rotate(180deg) translate(155%);
+}
+
+@keyframes twin-orbit-rotate {
+  from {
+    transform: rotate(0deg) translate(155%);
+  }
+
+  to {
+    transform: rotate(360deg) translate(155%);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .twin-orbit__dot::before,
+  .twin-orbit__dot::after {
+    animation: twin-orbit-rotate var(--duration, 1s) linear infinite;
+  }
+
+  .twin-orbit__dot::after {
+    animation-delay: calc(var(--duration, 1s) / -2);
+  }
+}
+
 .app {
   min-height: 100dvh;
 }
@@ -216,6 +271,12 @@ button {
   letter-spacing: -0.02em;
   line-height: 1.1;
   text-wrap: balance;
+}
+
+.app-loading {
+  display: grid;
+  justify-items: center;
+  margin-top: 24px;
 }
 
 .app-state__message {

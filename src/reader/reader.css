@@ -183,6 +183,16 @@
   color: var(--muted-strong);
 }
 
+.reader-loading {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.reader-loading .twin-orbit {
+  width: 22px;
+}
+
 .reader-error p {
   margin: 0 0 10px;
 }

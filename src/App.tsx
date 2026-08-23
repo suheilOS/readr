@@ -24,6 +24,7 @@ import { useItemLibrary } from "./useItemLibrary";
 import { useReaderRoute } from "./useReaderRoute";
 import { ThemeToggle, type Theme } from "./components/ThemeToggle";
 import { UtilityDock } from "./components/UtilityDock";
+import { TwinOrbit } from "./components/TwinOrbit";
 import { ArrowLeftIcon, PlusIcon } from "./components/icons";
 import {
   playCompletion,
@@ -51,8 +52,9 @@ function ReaderLoadingFallback({ onClose }: { onClose: () => void }) {
         </button>
       </header>
       <div className="reader-column">
-        <div className="reader-loading" role="status">
-          Opening article…
+        <div className="reader-loading">
+          <TwinOrbit label="Opening article" />
+          <span aria-hidden="true">Opening article…</span>
         </div>
       </div>
     </div>
@@ -293,7 +295,10 @@ export default function App() {
       <main className="app app-state">
         <section className="app-state__content" aria-labelledby="loading-heading">
           <h1 className="app-state__title" id="loading-heading">Readr</h1>
-          <p className="app-state__message" role="status">Loading your library…</p>
+          <div className="app-loading">
+            <TwinOrbit label="Loading your library" />
+            <p className="app-state__message" aria-hidden="true">Loading your library…</p>
+          </div>
         </section>
         <ThemeDock theme={theme} onToggleTheme={toggleTheme} />
       </main>
