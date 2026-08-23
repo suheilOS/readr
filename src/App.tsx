@@ -416,8 +416,22 @@ type ThemeDockProps = {
   onToggleTheme: () => void;
 };
 
+function getAuthOrigin(): string {
+  const configuredOrigin = import.meta.env.VITE_AUTH_ORIGIN;
+  if (configuredOrigin !== undefined) {
+    return configuredOrigin;
+  }
+
+  const host = window.location.hostname;
+  if (import.meta.env.DEV || host === "localhost" || host === "127.0.0.1") {
+    return `http://${host}:8788`;
+  }
+
+  return "https://auth.overhawl.app";
+}
+
 function SignedOutState({ theme, onToggleTheme }: ThemeDockProps) {
-  const authUrl = import.meta.env.VITE_AUTH_ORIGIN ?? "https://auth.overhawl.app";
+  const authUrl = getAuthOrigin();
   const returnTo = `${window.location.origin}${window.location.pathname}${window.location.search}${window.location.hash}`;
   const signInUrl = `${authUrl}/?redirectTo=${encodeURIComponent(returnTo)}`;
 

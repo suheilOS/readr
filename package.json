@@ -6,6 +6,7 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "preview:cloudflare": "bun run build && wrangler dev",
+    "migrate:local": "wrangler d1 migrations apply readr --config wrangler.local.jsonc --local",
     "deploy:check": "bun run build && wrangler deploy --dry-run",
     "deploy": "bun run build && wrangler deploy",
     "test": "vitest run --config vitest.config.ts && vitest run --config vitest.dom.config.ts",

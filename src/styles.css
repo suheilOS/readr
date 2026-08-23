@@ -16,7 +16,7 @@
   justify-content: space-between;
   gap: 12px;
   padding: 10px 12px 10px 16px;
-  border: 1px solid var(--divider);
+  border: 0;
   border-radius: var(--radius-pill);
   background: var(--surface);
   box-shadow: var(--menu-shadow);
@@ -50,8 +50,9 @@
   width: min(100%, 38rem);
   padding: clamp(1.5rem, 5vw, 3rem);
   background: var(--surface);
-  border: 1px solid var(--divider);
-  border-radius: 1rem;
+  border: 0;
+  border-radius: var(--radius-panel);
+  box-shadow: var(--surface-shadow);
 }
 
 .recovery-panel h1 {
@@ -79,10 +80,11 @@
   --font-size-small: 14px;
   --font-size-body: 15px;
   --font-size-emphasis: 17px;
-  --radius-control: 10px;
+  --radius-control: 12px;
   --radius-compact: 8px;
-  --radius-surface: 14px;
-  --radius-menu: 12px;
+  --radius-menu: 16px;
+  --radius-surface: 20px;
+  --radius-panel: 28px;
   --radius-pill: 999px;
   --page-bg: #f7f7f7;
   --surface: #ffffff;
@@ -91,9 +93,10 @@
   --muted: #707070;
   --muted-strong: #4b4b4b;
   --focus: #4a4a4a;
-  --field-focus: #7a7a7a;
+  --field-focus: #4a4a4a;
   --divider: rgba(0, 0, 0, 0.08);
   --fill-strong: #e8e8e8;
+  --surface-shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 8px 24px rgba(0, 0, 0, 0.04);
   --toggle-bg: #e6e6e6;
   --type-menu-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
   --success-text: #25613c;
@@ -113,9 +116,10 @@
   --muted: #a4a4a4;
   --muted-strong: #d0d0d0;
   --focus: #d9d9d9;
-  --field-focus: #969696;
+  --field-focus: #d9d9d9;
   --divider: rgba(255, 255, 255, 0.1);
   --fill-strong: #2a2a2a;
+  --surface-shadow: 0 1px 3px rgba(0, 0, 0, 0.24), 0 10px 28px rgba(0, 0, 0, 0.2);
   --toggle-bg: #242424;
   --type-menu-shadow: 0 4px 12px rgba(0, 0, 0, 0.22);
   --success-text: #9bd5ab;
@@ -304,8 +308,10 @@ button {
 .desk-card {
   position: relative;
   padding: 18px 20px;
+  border: 0;
   background: var(--surface);
   border-radius: var(--radius-surface);
+  box-shadow: var(--surface-shadow);
 }
 
 .desk-card:not(.swappable) {
@@ -517,6 +523,7 @@ button {
   margin: 0;
   padding: 4px;
   background: var(--surface);
+  border: 0;
   border-radius: var(--radius-menu);
   box-shadow: var(--menu-shadow);
   outline: none;
@@ -753,7 +760,7 @@ button {
 
 .search-input:focus-visible {
   outline: 2px solid var(--field-focus);
-  outline-offset: 1px;
+  outline-offset: 2px;
 }
 
 .add-toggle {
@@ -920,6 +927,7 @@ button {
   margin: 0;
   padding: 4px;
   background: var(--surface);
+  border: 0;
   border-radius: var(--radius-menu);
   box-shadow: var(--type-menu-shadow);
   outline: none;
@@ -1006,8 +1014,8 @@ button {
 .add-form input:focus-visible,
 .add-form select:focus-visible,
 .type-trigger:focus-visible {
-  outline: 2px solid var(--field-focus);
-  outline-offset: -1px;
+  outline: 0;
+  box-shadow: inset 0 0 0 2px var(--field-focus);
 }
 
 @media (max-width: 540px) {
@@ -1207,6 +1215,23 @@ a:focus-visible {
   opacity: 0;
   scale: 0.25;
   filter: blur(4px);
+}
+
+@supports (corner-shape: squircle) {
+  .recovery-panel,
+  .desk-card,
+  .swap-banner,
+  .library-menu,
+  .library-menu-item,
+  .search-input,
+  .search-clear,
+  .add-form input,
+  .type-trigger,
+  .type-menu,
+  .type-option,
+  .add-submit {
+    corner-shape: squircle;
+  }
 }
 
 @media (hover: hover) and (pointer: fine) {

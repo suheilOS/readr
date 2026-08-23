@@ -22,7 +22,7 @@
 .account-popover {
   width: min(248px, var(--available-width));
   padding: 16px;
-  border: 1px solid var(--divider);
+  border: 0;
   border-radius: var(--radius-surface);
   background: var(--surface);
   box-shadow: var(--menu-shadow);
@@ -89,6 +89,13 @@
 .account-popover__action:focus-visible {
   outline: 2px solid var(--focus);
   outline-offset: 2px;
+}
+
+@supports (corner-shape: squircle) {
+  .account-popover,
+  .account-popover__action {
+    corner-shape: squircle;
+  }
 }
 
 @media (hover: hover) and (pointer: fine) {

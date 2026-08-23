@@ -1,0 +1,37 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "readr-development",
+  "main": "./worker/index.ts",
+  "compatibility_date": "2026-08-21",
+  "compatibility_flags": ["global_fetch_strictly_public", "nodejs_compat"],
+  "assets": {
+    "directory": "./dist/client",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*"]
+  },
+  "services": [
+    {
+      "binding": "AUTH_SERVICE",
+      "service": "overhawl-auth-development",
+      "entrypoint": "AuthService"
+    }
+  ],
+  "d1_databases": [
+    {
+      "binding": "READR_DB",
+      "database_name": "readr",
+      "migrations_dir": "./migrations"
+    }
+  ],
+  "ratelimits": [
+    {
+      "name": "EXTRACT_RATE_LIMITER",
+      "namespace_id": "812734",
+      "simple": {
+        "limit": 30,
+        "period": 60
+      }
+    }
+  ]
+}

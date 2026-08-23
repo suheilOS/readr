@@ -95,6 +95,16 @@
   background: var(--fill-strong);
 }
 
+@supports (corner-shape: squircle) {
+  .reader-back,
+  .reader-original,
+  .reader-loading,
+  .reader-error,
+  .reader-content :where(pre, img) {
+    corner-shape: squircle;
+  }
+}
+
 @media (hover: hover) and (pointer: fine) {
   .reader-back:hover {
     background: var(--fill-strong);
