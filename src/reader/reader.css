@@ -26,7 +26,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  max-width: 860px;
+  max-width: 680px;
   margin: 0 auto clamp(48px, 9vh, 88px);
   padding-block: 8px;
   isolation: isolate;
@@ -117,7 +117,7 @@
 }
 
 .reader-column {
-  max-width: 700px;
+  max-width: 680px;
   margin: 0 auto;
 }
 

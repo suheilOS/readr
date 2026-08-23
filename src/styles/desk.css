@@ -52,7 +52,7 @@
   align-items: center;
   min-height: 32px;
   gap: 5px;
-  padding: 5px 10px;
+  padding: 5px 12px;
   background: var(--divider);
   border: none;
   border-radius: var(--radius-pill);
@@ -73,6 +73,7 @@
   width: 15px;
   height: 15px;
   flex: 0 0 auto;
+  transform: translateY(-1px);
 }
 
 .finish-button {
