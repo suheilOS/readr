@@ -20,50 +20,13 @@
   color: var(--muted);
 }
 
+.add-form input:read-only {
+  cursor: wait;
+  opacity: 0.72;
+}
+
 .add-title {
   grid-column: 1 / -1;
-}
-
-@keyframes title-invalid-wiggle-0 {
-  0%,
-  100% {
-    transform: translateX(0);
-  }
-  25% {
-    transform: translateX(-3px);
-  }
-  50% {
-    transform: translateX(3px);
-  }
-  75% {
-    transform: translateX(-2px);
-  }
-}
-
-@keyframes title-invalid-wiggle-1 {
-  0%,
-  100% {
-    transform: translateX(0);
-  }
-  25% {
-    transform: translateX(3px);
-  }
-  50% {
-    transform: translateX(-3px);
-  }
-  75% {
-    transform: translateX(2px);
-  }
-}
-
-@media (prefers-reduced-motion: no-preference) {
-  .add-title-wiggle-0 {
-    animation: title-invalid-wiggle-0 220ms var(--ease-out);
-  }
-
-  .add-title-wiggle-1 {
-    animation: title-invalid-wiggle-1 220ms var(--ease-out);
-  }
 }
 
 .form-error {

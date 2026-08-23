@@ -1,20 +1,25 @@
-export type PendingItemAction = {
-  kind: "move-to-desk" | "move-to-inbox" | "finish" | "discard" | "replace";
-  itemId: string;
-};
+export type PendingItemAction =
+  | { kind: "add" }
+  | {
+      kind: "move-to-desk" | "move-to-inbox" | "finish" | "discard" | "replace";
+      itemId: string;
+    };
 
 export function isPendingItemAction(
   action: PendingItemAction | null,
   itemId: string,
-  kind?: PendingItemAction["kind"],
+  kind?: Exclude<PendingItemAction["kind"], "add">,
 ): boolean {
-  return action?.itemId === itemId && (kind === undefined || action.kind === kind);
+  if (action === null || action.kind === "add") return false;
+  return action.itemId === itemId && (kind === undefined || action.kind === kind);
 }
 
 export function pendingItemActionLabel(action: PendingItemAction | null): string {
   if (action === null) return "";
 
   switch (action.kind) {
+    case "add":
+      return "Adding to inbox.";
     case "move-to-desk":
     case "move-to-inbox":
       return "Moving item.";

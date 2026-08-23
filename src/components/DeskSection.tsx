@@ -21,7 +21,6 @@ type DeskSectionProps = {
   onRead: (item: Item) => void;
   onSelectSwapTarget: (item: Item) => void;
   onCancelSwap: () => void;
-  busy: boolean;
   pendingAction: PendingItemAction | null;
 };
 
@@ -34,10 +33,10 @@ export function DeskSection({
   onRead,
   onSelectSwapTarget,
   onCancelSwap,
-  busy,
   pendingAction,
 }: DeskSectionProps) {
   const swapActive = mode === "swap";
+  const busy = pendingAction !== null;
 
   return (
     <section className="desk" aria-labelledby="desk-heading">
@@ -137,7 +136,6 @@ export function DeskSection({
                     item={item}
                     onSendToInbox={onSendToInbox}
                     onDiscard={onDiscard}
-                    busy={busy}
                     pendingAction={pendingAction}
                   />
                 </div>
@@ -157,7 +155,6 @@ type DeskActionsMenuProps = {
   item: Item;
   onSendToInbox: (item: Item) => void;
   onDiscard: (item: Item) => void;
-  busy: boolean;
   pendingAction: PendingItemAction | null;
 };
 
@@ -165,10 +162,10 @@ function DeskActionsMenu({
   item,
   onSendToInbox,
   onDiscard,
-  busy,
   pendingAction,
 }: DeskActionsMenuProps) {
   const triggerRef = useRef<HTMLButtonElement>(null);
+  const busy = pendingAction !== null;
 
   function runAction(action: (item: Item) => void) {
     if (triggerRef.current !== null) {

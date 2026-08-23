@@ -9,7 +9,6 @@ type InboxSectionProps = {
   highlightId?: string | null;
   onSendToDesk: (item: Item) => void;
   onDiscard: (item: Item) => void;
-  busy: boolean;
   pendingAction: PendingItemAction | null;
 };
 
@@ -18,9 +17,10 @@ export function InboxSection({
   highlightId,
   onSendToDesk,
   onDiscard,
-  busy,
   pendingAction,
 }: InboxSectionProps) {
+  const busy = pendingAction !== null;
+
   return (
     <section className="inbox" aria-labelledby="inbox-heading">
       <div className="section-header">

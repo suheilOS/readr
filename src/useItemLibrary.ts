@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Item } from "./item";
+import type { PendingItemAction } from "./pendingItemAction";
 import {
   createItem,
   discardItem,
@@ -17,7 +18,7 @@ type ItemMutation = (id: string) => Promise<Item>;
 export type ItemLibrary = {
   items: Item[];
   loading: boolean;
-  busy: boolean;
+  pendingAction: PendingItemAction | null;
   error: string | null;
   unauthenticated: boolean;
   retry: () => void;
@@ -32,11 +33,12 @@ export type ItemLibrary = {
 export function useItemLibrary(): ItemLibrary {
   const [items, setItems] = useState<Item[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeMutations, setActiveMutations] = useState(0);
+  const [pendingAction, setPendingAction] = useState<PendingItemAction | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [unauthenticated, setUnauthenticated] = useState(false);
   const [reloadToken, setReloadToken] = useState(0);
   const dataGenerationRef = useRef(0);
+  const pendingActionRef = useRef<PendingItemAction | null>(null);
 
   useEffect(() => {
     const generation = dataGenerationRef.current + 1;
@@ -62,9 +64,15 @@ export function useItemLibrary(): ItemLibrary {
     return () => controller.abort();
   }, [reloadToken]);
 
-  const runMutation = useCallback(async <T,>(operation: () => Promise<T>): Promise<T | null> => {
+  const runMutation = useCallback(async <T,>(
+    action: PendingItemAction,
+    operation: () => Promise<T>,
+  ): Promise<T | null> => {
+    if (pendingActionRef.current !== null) return null;
+
+    pendingActionRef.current = action;
+    setPendingAction(action);
     dataGenerationRef.current += 1;
-    setActiveMutations((current) => current + 1);
     setError(null);
     try {
       return await operation();
@@ -72,30 +80,44 @@ export function useItemLibrary(): ItemLibrary {
       handleError(error, setError, setUnauthenticated);
       return null;
     } finally {
-      setActiveMutations((current) => Math.max(0, current - 1));
+      pendingActionRef.current = null;
+      setPendingAction(null);
     }
   }, []);
 
   const addItem = useCallback(async (input: NewItemInput): Promise<Item | null> => {
-    const item = await runMutation(() => createItem(input));
+    const item = await runMutation({ kind: "add" }, () => createItem(input));
     if (item !== null) setItems((current) => [item, ...current]);
     return item;
   }, [runMutation]);
 
-  const updateItem = useCallback(async (operation: ItemMutation, id: string): Promise<Item | null> => {
-    const item = await runMutation(() => operation(id));
+  const updateItem = useCallback(async (
+    kind: "move-to-desk" | "move-to-inbox" | "finish",
+    operation: ItemMutation,
+    id: string,
+  ): Promise<Item | null> => {
+    const item = await runMutation({ kind, itemId: id }, () => operation(id));
     if (item !== null) {
       setItems((current) => current.map((currentItem) => currentItem.id === item.id ? item : currentItem));
     }
     return item;
   }, [runMutation]);
 
-  const moveToDesk = useCallback((id: string) => updateItem(moveItemToDesk, id), [updateItem]);
-  const moveToInbox = useCallback((id: string) => updateItem(moveItemToInbox, id), [updateItem]);
-  const finish = useCallback((id: string) => updateItem(finishItem, id), [updateItem]);
+  const moveToDesk = useCallback(
+    (id: string) => updateItem("move-to-desk", moveItemToDesk, id),
+    [updateItem],
+  );
+  const moveToInbox = useCallback(
+    (id: string) => updateItem("move-to-inbox", moveItemToInbox, id),
+    [updateItem],
+  );
+  const finish = useCallback(
+    (id: string) => updateItem("finish", finishItem, id),
+    [updateItem],
+  );
 
   const discard = useCallback(async (id: string): Promise<boolean> => {
-    const result = await runMutation(async () => {
+    const result = await runMutation({ kind: "discard", itemId: id }, async () => {
       await discardItem(id);
       return true;
     });
@@ -104,7 +126,10 @@ export function useItemLibrary(): ItemLibrary {
   }, [runMutation]);
 
   const swap = useCallback(async (candidateId: string, displacedId: string): Promise<Item | null> => {
-    const result = await runMutation(() => swapItems(candidateId, displacedId));
+    const result = await runMutation(
+      { kind: "replace", itemId: displacedId },
+      () => swapItems(candidateId, displacedId),
+    );
     if (result !== null) {
       setItems((current) => current
         .filter((item) => item.id !== result.displacedId)
@@ -116,7 +141,7 @@ export function useItemLibrary(): ItemLibrary {
   return {
     items,
     loading,
-    busy: activeMutations > 0,
+    pendingAction,
     error,
     unauthenticated,
     retry: () => setReloadToken((current) => current + 1),

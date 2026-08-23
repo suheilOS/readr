@@ -11,6 +11,7 @@ export default tseslint.config(
       "node_modules",
       ".bun-install",
       ".bun-tmp",
+      ".wrangler",
       "worker-configuration.d.ts",
     ],
   },

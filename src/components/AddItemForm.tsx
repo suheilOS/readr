@@ -1,42 +1,39 @@
 import { playError } from "../soundCues";
-import { useRef, useState, type FormEvent, type Ref } from "react";
+import { useState, type FormEvent, type Ref } from "react";
 import { TypeSelect } from "./TypeSelect";
 import type { Item, ItemType } from "../item";
 import { parseItemUrl } from "../itemUrl";
 
 export type NewItemInput = Pick<Item, "title" | "url" | "type">;
 
+export type AddItemFormState = "idle" | "blocked" | "submitting";
+
 type AddItemFormProps = {
-  onAdd: (input: NewItemInput) => boolean | Promise<boolean>;
+  onAdd: (input: NewItemInput) => Promise<boolean>;
   onCancel: () => void;
+  state: AddItemFormState;
   formId?: string;
   titleRef?: Ref<HTMLInputElement>;
-  busy?: boolean;
 };
 
-export function AddItemForm({ onAdd, onCancel, formId, titleRef, busy = false }: AddItemFormProps) {
+export function AddItemForm({ onAdd, onCancel, state, formId, titleRef }: AddItemFormProps) {
   const [title, setTitle] = useState("");
   const [url, setUrl] = useState("");
   const [type, setType] = useState<ItemType>("article");
   const [titleError, setTitleError] = useState(false);
-  const [titleErrorAttempt, setTitleErrorAttempt] = useState(0);
   const [urlError, setUrlError] = useState(false);
-  const [submitError, setSubmitError] = useState<string | null>(null);
-  const [submitting, setSubmitting] = useState(false);
-  const submittingRef = useRef(false);
+  const submitting = state === "submitting";
   const titleErrorId = `${formId ?? "add-item"}-title-error`;
   const urlErrorId = `${formId ?? "add-item"}-url-error`;
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
-    if (busy || submittingRef.current) return;
-    setSubmitError(null);
+    if (state !== "idle") return;
 
     const trimmedTitle = title.trim();
     if (trimmedTitle.length === 0) {
       playError();
       setTitleError(true);
-      setTitleErrorAttempt((current) => current + 1);
       const titleInput = event.currentTarget.elements.namedItem("title");
       if (titleInput instanceof HTMLInputElement) {
         titleInput.focus();
@@ -53,30 +50,21 @@ export function AddItemForm({ onAdd, onCancel, formId, titleRef, busy = false }:
       return;
     }
 
-    submittingRef.current = true;
-    setSubmitting(true);
-    try {
-      const added = await onAdd({
-        title: trimmedTitle,
-        url: parsedUrl,
-        type,
-      });
-      if (!added) return;
+    const added = await onAdd({
+      title: trimmedTitle,
+      url: parsedUrl,
+      type,
+    });
+    if (!added) return;
 
-      setTitle("");
-      setUrl("");
-      setTitleError(false);
-      setUrlError(false);
-    } catch {
-      setSubmitError("The item could not be added. Try again.");
-    } finally {
-      submittingRef.current = false;
-      setSubmitting(false);
-    }
+    setTitle("");
+    setUrl("");
+    setTitleError(false);
+    setUrlError(false);
   }
 
   function handleKeyDown(event: React.KeyboardEvent) {
-    if (event.key === "Escape" && !submitting) {
+    if (event.key === "Escape" && state !== "submitting") {
       onCancel();
     }
   }
@@ -96,14 +84,14 @@ export function AddItemForm({ onAdd, onCancel, formId, titleRef, busy = false }:
         ref={titleRef}
         id="capture-title"
         name="title"
-        className={`add-title${titleError ? ` add-title-wiggle-${titleErrorAttempt % 2}` : ""}`}
+        className="add-title"
         type="text"
         autoComplete="off"
         placeholder="Title"
         aria-describedby={titleError ? titleErrorId : undefined}
         aria-invalid={titleError}
         required
-        disabled={submitting}
+        readOnly={submitting}
         value={title}
         onChange={(event) => {
           setTitleError(false);
@@ -127,7 +115,7 @@ export function AddItemForm({ onAdd, onCancel, formId, titleRef, busy = false }:
         placeholder="Link (optional)"
         aria-describedby={urlError ? urlErrorId : undefined}
         aria-invalid={urlError}
-        disabled={submitting}
+        readOnly={submitting}
         value={url}
         onChange={(event) => {
           setUrlError(false);
@@ -140,14 +128,13 @@ export function AddItemForm({ onAdd, onCancel, formId, titleRef, busy = false }:
         </p>
       )}
       <TypeSelect value={type} onChange={setType} disabled={submitting} />
-      {submitError !== null && <p className="form-error" role="alert">{submitError}</p>}
       <span className="visually-hidden" role="status" aria-atomic="true">
         {submitting ? "Adding to inbox." : ""}
       </span>
       <button
         type="submit"
         className="add-submit"
-        disabled={busy || submitting}
+        disabled={state !== "idle"}
         aria-busy={submitting}
       >
         {submitting && <span className="button-spinner" aria-hidden="true" />}

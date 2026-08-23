@@ -11,7 +11,6 @@ type LibrarySectionProps = {
   items: Item[];
   onSendToDesk: (item: Item) => void;
   onSendToInbox: (item: Item) => void;
-  busy: boolean;
   pendingAction: PendingItemAction | null;
 };
 
@@ -19,7 +18,6 @@ export function LibrarySection({
   items,
   onSendToDesk,
   onSendToInbox,
-  busy,
   pendingAction,
 }: LibrarySectionProps) {
   return (
@@ -43,7 +41,6 @@ export function LibrarySection({
               item={item}
               onSendToDesk={onSendToDesk}
               onSendToInbox={onSendToInbox}
-              busy={busy}
               pendingAction={pendingAction}
             />
           </li>
@@ -60,7 +57,6 @@ type LibraryActionsMenuProps = {
   item: Item;
   onSendToDesk: (item: Item) => void;
   onSendToInbox: (item: Item) => void;
-  busy: boolean;
   pendingAction: PendingItemAction | null;
 };
 
@@ -68,10 +64,10 @@ function LibraryActionsMenu({
   item,
   onSendToDesk,
   onSendToInbox,
-  busy,
   pendingAction,
 }: LibraryActionsMenuProps) {
   const triggerRef = useRef<HTMLButtonElement>(null);
+  const busy = pendingAction !== null;
 
   function runAction(action: (item: Item) => void) {
     if (triggerRef.current !== null) {

@@ -9,6 +9,11 @@ const memoryStorage = {
   setItem(key: string, value: string) { values.set(key, value); },
 };
 
+Object.defineProperty(globalThis, "IS_REACT_ACT_ENVIRONMENT", {
+  configurable: true,
+  value: true,
+});
+
 Object.defineProperty(globalThis, "localStorage", {
   configurable: true,
   value: memoryStorage,
