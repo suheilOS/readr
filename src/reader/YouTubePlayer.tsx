@@ -8,6 +8,7 @@ import {
   loadYouTubeApi,
   type YouTubePlayerInstance,
 } from "./youtubeIframeApi";
+import { playingStateForYouTubePlayerState } from "./youtubePlayerState";
 
 export type YouTubePlayerHandle = {
   pause: () => void;
@@ -24,8 +25,6 @@ type YouTubePlayerProps = {
   onPlayingChange: (playing: boolean) => void;
   onTimeChange: (seconds: number) => void;
 };
-
-const PLAYER_STATE_PLAYING = 1;
 
 export const YouTubePlayer = forwardRef<YouTubePlayerHandle, YouTubePlayerProps>(
   function YouTubePlayer({
@@ -80,13 +79,16 @@ export const YouTubePlayer = forwardRef<YouTubePlayerHandle, YouTubePlayerProps>
             },
             onStateChange: ({ data, target }) => {
               if (disposed) return;
-              const playing = data === PLAYER_STATE_PLAYING;
-              onPlayingChange(playing);
+              const playing = playingStateForYouTubePlayerState(data);
+              if (playing !== null) onPlayingChange(playing);
               onTimeChange(target.getCurrentTime());
-              if (timer !== null) window.clearInterval(timer);
-              timer = playing
-                ? window.setInterval(() => onTimeChange(target.getCurrentTime()), 350)
-                : null;
+              if (playing === true) {
+                if (timer !== null) window.clearInterval(timer);
+                timer = window.setInterval(() => onTimeChange(target.getCurrentTime()), 350);
+              } else if (playing === false && timer !== null) {
+                window.clearInterval(timer);
+                timer = null;
+              }
             },
             onError: () => {
               setState("error");

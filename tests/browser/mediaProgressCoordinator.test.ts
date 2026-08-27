@@ -87,6 +87,30 @@ describe("MediaProgressCoordinator", () => {
     expect([firstWrites[0].revision, secondWrites[0].revision].sort()).toHaveLength(2);
   });
 
+  it("sends the latest queued snapshot with keepalive during page teardown", async () => {
+    const first = deferred<MediaProgress>();
+    const writes: Array<{ input: SaveMediaProgressInput; keepalive: boolean }> = [];
+    const coordinator = new MediaProgressCoordinator((input, keepalive) => {
+      writes.push({ input, keepalive });
+      return writes.length === 1 ? first.promise : Promise.resolve(progressFor(input));
+    });
+    coordinator.recordDuration(300);
+    coordinator.recordPlaying(true);
+    coordinator.recordTime(20);
+    coordinator.recordTime(40);
+    await Promise.resolve();
+
+    coordinator.flush();
+    coordinator.flush();
+
+    expect(writes).toHaveLength(2);
+    expect(writes[1]).toMatchObject({
+      input: { positionSeconds: 40, durationSeconds: 300 },
+      keepalive: true,
+    });
+    first.resolve(progressFor(writes[0].input));
+  });
+
   it("makes a superseded local snapshot dirty so it can retry", async () => {
     const writes: SaveMediaProgressInput[] = [];
     const winningRevision = "9999999999998-ffffffffffffffffffffffffffffffff-9999999999";

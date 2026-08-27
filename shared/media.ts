@@ -86,7 +86,7 @@ export function parseYouTubeUrl(value: unknown): YouTubeUrl | null {
     candidate = url.pathname.split("/").filter(Boolean)[0] ?? null;
   } else if (YOUTUBE_HOSTS.has(hostname)) {
     const parts = url.pathname.split("/").filter(Boolean);
-    if (url.pathname === "/watch") {
+    if (parts.length === 1 && parts[0] === "watch") {
       candidate = url.searchParams.get("v");
     } else if (["shorts", "embed", "live"].includes(parts[0] ?? "")) {
       candidate = parts[1] ?? null;

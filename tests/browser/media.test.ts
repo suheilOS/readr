@@ -10,6 +10,7 @@ import { activeTimedEntryIndex, formatPlaybackTime } from "../../src/reader/tran
 describe("YouTube media boundaries", () => {
   it.each([
     "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+    "https://www.youtube.com/watch/?v=dQw4w9WgXcQ",
     "https://youtu.be/dQw4w9WgXcQ?t=12",
     "https://m.youtube.com/shorts/dQw4w9WgXcQ",
     "https://www.youtube.com/embed/dQw4w9WgXcQ",

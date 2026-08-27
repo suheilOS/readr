@@ -107,6 +107,8 @@ The app is configured for Cloudflare Workers static assets, Readr D1, and an Aut
 bun run deploy
 ```
 
+The deploy command builds the app, applies pending migrations to the remote `readr` D1 database, and then deploys the Worker. If a migration fails, deployment stops before the Worker is updated.
+
 ## License
 
 MIT. See [LICENSE](LICENSE).

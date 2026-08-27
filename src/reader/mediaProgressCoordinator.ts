@@ -10,6 +10,9 @@ export class MediaProgressCoordinator {
   private duration = 0;
   private playing = false;
   private lastQueuedSnapshot: ProgressSnapshot | null = null;
+  private lastQueuedInput: SaveMediaProgressInput | null = null;
+  private lastCommittedSnapshot: ProgressSnapshot | null = null;
+  private lastKeepaliveRevision: string | null = null;
   private readonly revisionClock = new ProgressRevisionClock();
   private writeQueue: Promise<void> = Promise.resolve();
   private readonly write: ProgressWriter;
@@ -24,6 +27,7 @@ export class MediaProgressCoordinator {
     this.currentTime = progress.positionSeconds;
     this.duration = progress.durationSeconds;
     this.lastQueuedSnapshot = snapshotFor(progress.positionSeconds, progress.durationSeconds);
+    this.lastCommittedSnapshot = this.lastQueuedSnapshot;
     return progress.durationSeconds - progress.positionSeconds > 10
       ? progress.positionSeconds
       : 0;
@@ -57,24 +61,39 @@ export class MediaProgressCoordinator {
     if (this.duration <= 0) return;
     const positionSeconds = Math.min(this.currentTime, this.duration);
     const snapshot = snapshotFor(positionSeconds, this.duration);
+
+    if (keepalive) {
+      if (sameSnapshot(snapshot, this.lastCommittedSnapshot) && this.lastQueuedInput === null) {
+        return;
+      }
+      const input = sameSnapshot(snapshot, this.lastQueuedSnapshot) && this.lastQueuedInput !== null
+        ? this.lastQueuedInput
+        : this.queueSnapshot(snapshot);
+      if (this.lastKeepaliveRevision === input.revision) return;
+      this.lastKeepaliveRevision = input.revision;
+      void this.write(input, true)
+        .then((progress) => this.accept(progress, input, snapshot))
+        .catch(() => this.restoreDirtySnapshot(snapshot, input.revision));
+      return;
+    }
+
     if (sameSnapshot(snapshot, this.lastQueuedSnapshot)) return;
+    const input = this.queueSnapshot(snapshot);
+
+    this.writeQueue = this.writeQueue
+      .then(() => this.write(input, false))
+      .then((progress) => this.accept(progress, input, snapshot))
+      .catch(() => this.restoreDirtySnapshot(snapshot, input.revision));
+  }
+
+  private queueSnapshot(snapshot: ProgressSnapshot): SaveMediaProgressInput {
     this.lastQueuedSnapshot = snapshot;
     const input: SaveMediaProgressInput = {
       ...snapshot,
       revision: this.revisionClock.next(),
     };
-
-    if (keepalive) {
-      void this.write(input, true)
-        .then((progress) => this.accept(progress, input, snapshot))
-        .catch(() => this.restoreDirtySnapshot(snapshot));
-      return;
-    }
-
-    this.writeQueue = this.writeQueue
-      .then(() => this.write(input, false))
-      .then((progress) => this.accept(progress, input, snapshot))
-      .catch(() => this.restoreDirtySnapshot(snapshot));
+    this.lastQueuedInput = input;
+    return input;
   }
 
   private accept(
@@ -85,12 +104,30 @@ export class MediaProgressCoordinator {
     this.revisionClock.observe(progress.revision);
     const committed = progress.revision === attempted.revision &&
       sameSnapshot(progress, snapshot);
-    if (!committed) this.restoreDirtySnapshot(snapshot);
+    if (committed) {
+      this.lastCommittedSnapshot = snapshot;
+      if (this.lastQueuedInput?.revision === attempted.revision) {
+        this.lastQueuedInput = null;
+        this.lastQueuedSnapshot = snapshot;
+      }
+      if (this.lastKeepaliveRevision === attempted.revision) {
+        this.lastKeepaliveRevision = null;
+      }
+    } else {
+      this.restoreDirtySnapshot(snapshot, attempted.revision);
+    }
   }
 
-  private restoreDirtySnapshot(failedSnapshot: ProgressSnapshot): void {
-    if (sameSnapshot(this.lastQueuedSnapshot, failedSnapshot)) {
+  private restoreDirtySnapshot(failedSnapshot: ProgressSnapshot, failedRevision: string): void {
+    if (
+      sameSnapshot(this.lastQueuedSnapshot, failedSnapshot) &&
+      this.lastQueuedInput?.revision === failedRevision
+    ) {
       this.lastQueuedSnapshot = null;
+      this.lastQueuedInput = null;
+    }
+    if (this.lastKeepaliveRevision === failedRevision) {
+      this.lastKeepaliveRevision = null;
     }
   }
 }

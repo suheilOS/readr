@@ -49,6 +49,7 @@ test("reads sanitized content under the production security policy", async ({ pa
   const response = await page.goto("/");
   expect(response?.headers()["content-security-policy"]).toContain("script-src 'self'");
   expect(response?.headers()["x-content-type-options"]).toBe("nosniff");
+  expect(response?.headers()["referrer-policy"]).toBe("strict-origin-when-cross-origin");
 
   const readButton = page.getByRole("button", { name: "Open in readr: Stored article" });
   await readButton.click();
