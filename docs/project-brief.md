@@ -140,7 +140,7 @@ Version 1 excludes the following unless this brief is revised first:
 - ratings, reviews, highlights, annotations
 - reading statistics, goals, streaks, challenges
 - recommendation feeds, social features
-- browser extension for Version 1; planned as Phase 7
+- browser extension for Version 1; planned as Phase 12
 - PDF upload or storage
 - per-site extraction overrides
 - configurable desk capacity, multiple desks
@@ -156,16 +156,21 @@ Interface minimalism does not demand architectural austerity. The Worker exists 
 
 ## Phased delivery
 
-Implement in small phases, one narrow goal each. Phases 0 through 6 define Version 1. Later phases extend the product without changing its low-decision capture model.
+Implement in small phases, one narrow goal each. Phases 0 through 11 define the expanded Version 1. Phase 12 extends the product without changing its low-decision capture model.
 
-0. **Foundation**: scaffold Vite + React, wrangler config, fonts, base styles
-1. **Static interface**: complete single-screen layout without behavior
-2. **Core interactions**: add, decide, finish, swap-discard, and search
-3. **Persistence**: Readr D1 schema, authenticated API, and server-side validation
-4. **In-app reader**: extraction Worker route and distraction-free view
-5. **Responsive pass**: mobile refinement across screen sizes
-6. **Polish**: sounds, themes, accessibility, empty states
-7. **Browser capture**: capture the active page's title and URL into the inbox, with the same type selector as the app
+0. **Foundation**
+1. **Static interface**
+2. **Core interactions**
+3. **Authenticated persistence**
+4. **In-app article reader**
+5. **Responsive refinement**
+6. **Product polish**
+7. **Media capability foundation**
+8. **Visual desk cards and thumbnails**
+9. **YouTube player view**
+10. **YouTube transcripts and chapters**
+11. **Media completion and resume**
+12. **Browser capture**
 
 Validate each phase with `bun run build`, `bun run lint`, and manual inspection before moving on.
 

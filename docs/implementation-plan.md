@@ -2,7 +2,7 @@
 
 ## Status
 
-In progress. Overhawl Auth is deployed, its D1 schema is applied, and Email Sending is enabled for `overhawl.app`. Readr now has its own D1 schema, Auth Service Binding, authenticated Hono API, and server-backed client. Production Readr deployment and end-to-end smoke testing remain.
+Complete for the current launch. Overhawl Auth is deployed, its D1 schema is applied, and Email Sending is enabled for `overhawl.app`. Readr is deployed with its own D1 schema, Auth Service Binding, authenticated Hono API, and server-backed client. The production app is live and in use.
 
 No user data exists, so this is a clean launch. There is no account migration, item migration, localStorage recovery flow, or anonymous-data merge to support.
 
@@ -222,72 +222,19 @@ Unauthenticated users can see a sign-in path, but they cannot create or access R
 
 ## Implementation phases
 
-### Phase 0: Freeze the contracts
-
-- Create the Auth repository and record its Worker name, D1 name, and environments.
-- Define the internal session lookup contract between product Workers and Auth.
-- Define the Readr API response and error shapes.
-- Confirm the Email Sending domain, sender address, and SPF/DKIM/DMARC records.
-- Define production and development hostnames before testing cookie sharing.
-
-### Phase 1: Build Overhawl Auth
-
-- Add Hono, the Better Auth Hono integration, and the D1 schema.
-- Configure email/password signup, login, logout, verification, and password reset.
-- Add the Cloudflare `send_email` binding and transactional email templates.
-- Configure the shared cookie and exact trusted origins.
-- Add the Auth Worker `getSession(cookie)` RPC method for Service Binding callers.
-- Add tests for signup, login, session lookup, logout, expiry, and revoked sessions.
-- Deploy Auth before any product Worker that binds to it.
-
-### Phase 2: Add Readr's backend
-
-Implemented locally and in the Readr D1 database. The production Worker still needs its first deployment.
-
-- Add the Readr D1 binding and SQL migrations to `wrangler.jsonc`.
-- Add the Auth Service Binding and regenerate Worker types with Wrangler.
-- Add Hono routing and authenticated session middleware.
-- Add the item table and item API endpoints.
-- Move desk capacity, ownership checks, validation, timestamps, and swap behavior to the Worker.
-- Protect `/api/extract` with the same session check.
-
-### Phase 3: Convert the React app
-
-Implemented locally. The app loads item state from the API and keeps only theme and sound preferences in localStorage.
-
-- Add the Auth redirect and session loading state.
-- Replace `useItemLibrary` storage calls with API calls.
-- Remove item migration and recovery code.
-- Keep theme and sound preferences in localStorage.
-- Add request, empty, unauthorized, and API error states.
-- Update item creation so the server owns IDs and timestamps.
-
-### Phase 4: Test the complete flow
-
-- Test unauthenticated API requests return `401`.
-- Test two users cannot see or modify each other's items.
-- Test the desk cap with concurrent or repeated requests.
-- Test swap, finish, move-to-inbox, delete, and extraction behavior through the API.
-- Test login on Auth, then opening Readr with the shared session cookie.
-
-Keep the existing checks and add the backend checks to the same validation path:
-
-```text
-bun run build
-bun run lint
-bun run test
-bun run test:e2e
-bun run deploy:check
-```
-
-### Phase 5: Update documentation and launch
-
-- Update `docs/project-brief.md` to replace localStorage persistence with server persistence.
-- Update `README.md` for signup, login, API-backed item data, and the new local development flow.
-- Document the Auth and Readr deployment order.
-- Create fresh production D1 databases and apply migrations.
-- Run a production smoke test with a test account.
-- Remove or revise the old local-only persistence language before launch.
+0. **Foundation**
+1. **Static interface**
+2. **Core interactions**
+3. **Authenticated persistence**
+4. **In-app article reader**
+5. **Responsive refinement**
+6. **Product polish**
+7. **Media capability foundation**
+8. **Visual desk cards and thumbnails**
+9. **YouTube player view**
+10. **YouTube transcripts and chapters**
+11. **Media completion and resume**
+12. **Browser capture**
 
 ## Acceptance criteria
 
