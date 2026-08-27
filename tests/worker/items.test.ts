@@ -1,5 +1,10 @@
 import { env } from "cloudflare:workers";
-import { createExecutionContext, waitOnExecutionContext } from "cloudflare:test";
+import {
+  applyD1Migrations,
+  createExecutionContext,
+  type D1Migration,
+  waitOnExecutionContext,
+} from "cloudflare:test";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import worker from "../../worker/index";
 
@@ -8,30 +13,32 @@ const passwordlessSession = {
   expiresAt: new Date(Date.now() + 60_000).toISOString(),
 };
 
+const REVISION_1 = "1756339200000-00000000000000000000000000000001-0000000001";
+const REVISION_2 = "1756339200001-00000000000000000000000000000001-0000000001";
+
 beforeAll(async () => {
-  await env.READR_DB.prepare(`
-    CREATE TABLE IF NOT EXISTS items (
-      id TEXT PRIMARY KEY NOT NULL,
-      user_id TEXT NOT NULL,
-      title TEXT NOT NULL,
-      url TEXT,
-      type TEXT NOT NULL,
-      status TEXT NOT NULL,
-      added_at TEXT NOT NULL,
-      finished_at TEXT,
-      note TEXT,
-      updated_at TEXT NOT NULL
-    )
-  `).run();
-  await env.READR_DB.prepare("CREATE INDEX IF NOT EXISTS items_user_status_idx ON items (user_id, status)").run();
-  await env.READR_DB.prepare("CREATE INDEX IF NOT EXISTS items_user_updated_idx ON items (user_id, updated_at)").run();
+  await applyD1Migrations(env.READR_DB, env.TEST_MIGRATIONS);
 });
+
+declare global {
+  interface Env {
+    TEST_MIGRATIONS: D1Migration[];
+  }
+}
 
 afterAll(() => {
   vi.restoreAllMocks();
 });
 
 describe("Readr item API", () => {
+  it("uses the migrated media progress schema", async () => {
+    const columns = await env.READR_DB.prepare("PRAGMA table_info(media_progress)")
+      .all<{ name: string }>();
+    const names = columns.results.map((column) => column.name);
+    expect(names).toContain("revision");
+    expect(names).not.toContain("user_id");
+  });
+
   it("keeps item data isolated by authenticated user", async () => {
     const ownerId = `owner-${crypto.randomUUID()}`;
     const otherUserId = `other-${crypto.randomUUID()}`;
@@ -148,6 +155,69 @@ describe("Readr item API", () => {
     const response = await request(null, "/api/items");
     expect(response.status).toBe(401);
     expect(await response.json()).toMatchObject({ error: { code: "unauthorized" } });
+  });
+
+  it("stores media progress separately and isolates it by user", async () => {
+    const ownerId = `progress-${crypto.randomUUID()}`;
+    const created = await request(ownerId, "/api/items", {
+      method: "POST",
+      body: JSON.stringify({
+        title: "A long video",
+        url: "https://youtu.be/dQw4w9WgXcQ",
+        type: "video",
+      }),
+    });
+    const body = await created.json() as { item: { id: string } };
+    const path = `/api/items/${body.item.id}/media-progress`;
+
+    const saved = await request(ownerId, path, {
+      method: "PUT",
+      body: JSON.stringify({ positionSeconds: 125.5, durationSeconds: 600, revision: REVISION_1 }),
+    });
+    expect(saved.status).toBe(200);
+    expect(await saved.json()).toMatchObject({
+      progress: { positionSeconds: 125.5, durationSeconds: 600, revision: REVISION_1 },
+    });
+
+    const loaded = await request(ownerId, path);
+    expect(await loaded.json()).toMatchObject({
+      progress: { positionSeconds: 125.5, durationSeconds: 600, revision: REVISION_1 },
+    });
+
+    const otherUser = await request(`other-${crypto.randomUUID()}`, path);
+    expect(await otherUser.json()).toEqual({ progress: null });
+  });
+
+  it("rejects stale media progress revisions", async () => {
+    const userId = `revision-${crypto.randomUUID()}`;
+    const created = await request(userId, "/api/items", {
+      method: "POST",
+      body: JSON.stringify({ title: "Video", url: "https://youtu.be/dQw4w9WgXcQ", type: "video" }),
+    });
+    const body = await created.json() as { item: { id: string } };
+    const path = `/api/items/${body.item.id}/media-progress`;
+
+    await request(userId, path, {
+      method: "PUT",
+      body: JSON.stringify({ positionSeconds: 80, durationSeconds: 300, revision: REVISION_2 }),
+    });
+    const stale = await request(userId, path, {
+      method: "PUT",
+      body: JSON.stringify({ positionSeconds: 20, durationSeconds: 300, revision: REVISION_1 }),
+    });
+
+    expect(stale.status).toBe(200);
+    expect(await stale.json()).toMatchObject({
+      progress: { positionSeconds: 80, durationSeconds: 300, revision: REVISION_2 },
+    });
+
+    const equalRevision = await request(userId, path, {
+      method: "PUT",
+      body: JSON.stringify({ positionSeconds: 120, durationSeconds: 300, revision: REVISION_2 }),
+    });
+    expect(await equalRevision.json()).toMatchObject({
+      progress: { positionSeconds: 80, durationSeconds: 300, revision: REVISION_2 },
+    });
   });
 });
 

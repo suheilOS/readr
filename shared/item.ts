@@ -1,3 +1,5 @@
+import { parseYouTubeUrl } from "./media";
+
 declare const itemUrlBrand: unique symbol;
 
 export type ItemUrl = string & { readonly [itemUrlBrand]: true };
@@ -111,7 +113,15 @@ export function itemUrlHost(url: ItemUrl | null): string | null {
 }
 
 export function canReadInApp(item: Pick<Item, "type" | "url">): boolean {
-  return item.url !== null && (item.type === "article" || item.type === "paper");
+  return readerKindFor(item) !== null;
+}
+
+export type ReaderKind = "article" | "youtube";
+
+export function readerKindFor(item: Pick<Item, "type" | "url">): ReaderKind | null {
+  if (item.url === null) return null;
+  if (parseYouTubeUrl(item.url) !== null) return "youtube";
+  return item.type === "article" || item.type === "paper" ? "article" : null;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

@@ -89,12 +89,12 @@ export function DeskSection({
                     <button
                       type="button"
                       className="pill-button"
-                      aria-label={`Read in readr: ${item.title}`}
+                      aria-label={`Open in readr: ${item.title}`}
                       data-reader-item-id={item.id}
                       onClick={() => onRead(item)}
                     >
                       <BookOpenIcon className="button-icon" />
-                      <span>Read</span>
+                      <span>{item.type === "video" ? "Watch" : "Read"}</span>
                     </button>
                   )}
                   {item.url !== null && !canReadInApp(item) && (

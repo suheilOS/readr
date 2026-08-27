@@ -1,6 +1,6 @@
 import { playError } from "../soundCues";
 import { startTransition, useEffect, useRef, useState } from "react";
-import { canReadInApp, itemMetaLine, type Item } from "../../shared/item";
+import { canReadInApp, itemMetaLine, readerKindFor, type Item } from "../../shared/item";
 import type { ExtractedArticle } from "../../shared/extraction";
 import {
   ArticleExtractionError,
@@ -9,6 +9,7 @@ import {
 import { sanitizeArticleHtml } from "../reader/sanitizeArticle";
 import { ArrowLeftIcon } from "./icons";
 import { TwinOrbit } from "./TwinOrbit";
+import { YouTubeReader } from "../reader/YouTubeReader";
 
 type ReaderViewProps = {
   item: Item;
@@ -21,23 +22,35 @@ type ReaderState =
   | { status: "error"; message: string };
 
 export function ReaderView({ item, onClose }: ReaderViewProps) {
+  useEffect(() => {
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") onClose();
+    }
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [onClose]);
+
+  if (readerKindFor(item) === "youtube") {
+    return (
+      <div className="reader-page media-reader-page">
+        <ReaderHeader item={item} onClose={onClose} />
+        <div className="media-reader-column">
+          <YouTubeReader item={item} />
+        </div>
+      </div>
+    );
+  }
+
+  return <ArticleReader item={item} onClose={onClose} />;
+}
+
+function ArticleReader({ item, onClose }: ReaderViewProps) {
   const [state, setState] = useState<ReaderState>({ status: "loading" });
   const headingRef = useRef<HTMLHeadingElement>(null);
 
   useEffect(() => {
     headingRef.current?.focus();
   }, [item.id]);
-
-  useEffect(() => {
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") {
-        onClose();
-      }
-    }
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [onClose]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -100,26 +113,7 @@ export function ReaderView({ item, onClose }: ReaderViewProps) {
 
   return (
     <div className="reader-page">
-      <header className="reader-header">
-        <button
-          type="button"
-          className="reader-back"
-          onClick={onClose}
-        >
-          <ArrowLeftIcon />
-          <span>Back</span>
-        </button>
-        {originalUrl !== null && (
-          <a
-            className="reader-original"
-            href={originalUrl}
-            target="_blank"
-            rel="noreferrer"
-          >
-            Open original
-          </a>
-        )}
-      </header>
+      <ReaderHeader item={item} onClose={onClose} />
       <div className="reader-column">
         <article className="reader-article" aria-busy={state.status === "loading"}>
           <header className="reader-title-block">
@@ -164,6 +158,22 @@ export function ReaderView({ item, onClose }: ReaderViewProps) {
         </article>
       </div>
     </div>
+  );
+}
+
+function ReaderHeader({ item, onClose }: ReaderViewProps) {
+  return (
+    <header className="reader-header">
+      <button type="button" className="reader-back" onClick={onClose}>
+        <ArrowLeftIcon />
+        <span>Back</span>
+      </button>
+      {item.url !== null && (
+        <a className="reader-original" href={item.url} target="_blank" rel="noreferrer">
+          Open original
+        </a>
+      )}
+    </header>
   );
 }
 
