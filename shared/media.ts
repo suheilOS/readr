@@ -199,7 +199,7 @@ export function isYouTubeCapturedContent(value: unknown): value is YouTubeCaptur
     !isBoundedNonEmptyString(value.title, YOUTUBE_CAPTURE_LIMITS.title) ||
     !isNullableBoundedString(value.author, YOUTUBE_CAPTURE_LIMITS.author) ||
     !isNullableBoundedString(value.description, YOUTUBE_CAPTURE_LIMITS.description) ||
-    (value.thumbnailUrl !== null && !isHttpsUrl(value.thumbnailUrl)) ||
+    (value.thumbnailUrl !== null && !isYouTubeImageUrl(value.thumbnailUrl)) ||
     !isCapturedTranscript(value.transcript)
   ) {
     return false;
@@ -277,6 +277,16 @@ function isHttpsUrl(value: unknown): value is string {
 
 function isNonEmptyString(value: unknown): value is string {
   return typeof value === "string" && value.trim().length > 0;
+}
+
+function isYouTubeImageUrl(value: unknown): value is string {
+  if (!isHttpsUrl(value)) return false;
+  try {
+    const hostname = new URL(value).hostname.toLowerCase();
+    return hostname === "ytimg.com" || hostname.endsWith(".ytimg.com");
+  } catch {
+    return false;
+  }
 }
 
 function isBoundedNonEmptyString(value: unknown, maxLength: number): value is string {

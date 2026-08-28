@@ -31,6 +31,10 @@ export async function captureYouTubeContent(context: Context<AppEnv>): Promise<R
     if (!isYouTubeCapturedContent(body)) {
       return mediaContentError(context, "bad_request", "The captured video data is invalid.", 400);
     }
+    const sourceUrl = parseYouTubeUrl(body.sourceUrl);
+    if (sourceUrl === null) {
+      return mediaContentError(context, "bad_request", "The captured video data is invalid.", 400);
+    }
 
     const now = new Date().toISOString();
     let existing = await findYouTubeItem(context.env.READR_DB, userId, body.videoId);
@@ -41,7 +45,7 @@ export async function captureYouTubeContent(context: Context<AppEnv>): Promise<R
         INSERT OR IGNORE INTO items (
           id, user_id, title, url, youtube_video_id, type, status, added_at, finished_at, note, updated_at
         ) VALUES (?, ?, ?, ?, ?, 'video', 'inbox', ?, NULL, NULL, ?)
-      `).bind(itemId, userId, body.title, body.sourceUrl, body.videoId, now, now).run();
+      `).bind(itemId, userId, body.title, sourceUrl.canonicalUrl, body.videoId, now, now).run();
       created = insertResult.meta.changes === 1;
       existing = await findYouTubeItem(context.env.READR_DB, userId, body.videoId);
     }

@@ -179,6 +179,8 @@ POST   /api/extract
 POST   /api/media/youtube/metadata
 POST   /api/media/youtube/transcript
 POST   /api/media/youtube       (legacy compatibility)
+POST   /api/media/youtube/capture
+GET    /api/items/:id/media-content
 GET    /api/items/:id/media-progress
 PUT    /api/items/:id/media-progress
 ```

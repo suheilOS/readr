@@ -33,6 +33,33 @@ describe("Readr extension service worker", () => {
 
     expect(result).toEqual({ ok: false, error: "Sign in to use Readr." });
   });
+
+  it("opens Readr when no matching tab is available", async () => {
+    const sentMessages: Array<{ tabId: number; message: Record<string, unknown> }> = [];
+    const result = await runServiceWorker({
+      sentMessages,
+      readrTabs: [],
+      captureResult: { ok: true },
+    });
+
+    expect(result).toEqual({ ok: true });
+    expect(sentMessages).toContainEqual({ tabId: 2, message: { type: "readr-ping" } });
+    expect(sentMessages.at(-1)).toMatchObject({
+      tabId: 2,
+      message: { type: "readr-capture", captureId: "capture-1" },
+    });
+  });
+
+  it("surfaces a failure when the newly opened Readr tab cannot be read", async () => {
+    const result = await runServiceWorker({
+      sentMessages: [],
+      readrTabs: [],
+      captureResult: { ok: true },
+      tabLoadError: true,
+    });
+
+    expect(result).toEqual({ ok: false, error: "Readr could not be opened." });
+  });
 });
 
 type Tab = { id: number; windowId: number; lastAccessed: number; status?: string };
@@ -40,6 +67,7 @@ type ServiceWorkerOptions = {
   sentMessages: Array<{ tabId: number; message: Record<string, unknown> }>;
   readrTabs: Tab[];
   captureResult: { ok: boolean; error?: string };
+  tabLoadError?: boolean;
 };
 
 async function runServiceWorker(options: ServiceWorkerOptions): Promise<unknown> {
@@ -59,7 +87,10 @@ async function runServiceWorker(options: ServiceWorkerOptions): Promise<unknown>
       return options.captureResult;
     },
     create: async () => ({ id: 2, windowId: activeTab.windowId, lastAccessed: 0, status: "complete" }),
-    get: async () => ({ status: "complete" }),
+    get: async () => {
+      if (options.tabLoadError) throw new Error("tab unavailable");
+      return { status: "complete" };
+    },
     onUpdated: { addListener: () => undefined, removeListener: () => undefined },
   };
   const chrome = {

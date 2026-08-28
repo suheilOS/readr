@@ -81,7 +81,7 @@ The YouTube reader first requests stored media content. A stored capture supplie
 - No OAuth/OIDC or product-scoped session redesign.
 - No raw cookie access or wildcard CORS.
 - No InnerTube retry policy change before browser-capture evidence is collected.
-- No multi-language transcript store; the captured transcript’s language is retained as part of the structured value.
+- No multi-language transcript store; browser captures leave the language unset because the rendered page does not expose a reliable track language.
 - No remote extension code, analytics, transcript logging, or background polling.
 
 ## Acceptance criteria for the first vertical slice

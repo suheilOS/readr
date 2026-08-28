@@ -104,6 +104,19 @@ describe("YouTube media boundaries", () => {
       transcript: { kind: "available", language: "en", segments: [], chapters: [] },
     })).toBe(false);
   });
+
+  it("accepts only YouTube-hosted thumbnails in captured content", () => {
+    expect(isYouTubeCapturedContent({
+      kind: "youtube_capture",
+      videoId: "dQw4w9WgXcQ",
+      sourceUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+      title: "A video",
+      author: null,
+      description: null,
+      thumbnailUrl: "https://example.com/thumbnail.jpg",
+      transcript: { kind: "unavailable" },
+    })).toBe(false);
+  });
 });
 
 describe("transcript synchronization", () => {

@@ -356,7 +356,7 @@ describe("Readr item API", () => {
       body: JSON.stringify({
         kind: "youtube_capture",
         videoId: "dQw4w9WgXcQ",
-        sourceUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+        sourceUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ&feature=shared",
         title: "New captured video",
         author: null,
         description: null,
@@ -369,6 +369,10 @@ describe("Readr item API", () => {
     expect(await response.json()).toMatchObject({
       created: true,
       item: { title: "New captured video", type: "video", status: "inbox" },
+    });
+    const items = await request(userId, "/api/items");
+    expect(await items.json()).toMatchObject({
+      items: [{ url: "https://www.youtube.com/watch?v=dQw4w9WgXcQ" }],
     });
   });
 
