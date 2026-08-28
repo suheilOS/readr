@@ -164,6 +164,49 @@ describe("YouTube media extraction", () => {
     expect(upstreamFetch).not.toHaveBeenCalledWith(canonicalUrl, expect.anything());
   });
 
+  it("logs caption discovery diagnostics for each player client", async () => {
+    const playerLogs: Array<Record<string, unknown>> = [];
+    vi.spyOn(console, "log").mockImplementation((...args: unknown[]) => {
+      const [message] = args;
+      if (typeof message !== "string") return;
+      const entry = JSON.parse(message) as Record<string, unknown>;
+      if (entry.stage === "player_data") playerLogs.push(entry);
+    });
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes("youtubei/v1/player")) {
+        return Response.json({
+          playabilityStatus: { status: "OK" },
+          videoDetails: { videoId },
+          captions: { playerCaptionsTracklistRenderer: { captionTracks: [] } },
+        });
+      }
+      if (url.includes("youtubei/v1/next")) return Response.json({});
+      return new Response("", { status: 404 });
+    }));
+
+    const response = await callWorker("transcript", { url: canonicalUrl, language: "en" });
+
+    expect(response.status).toBe(200);
+    expect(playerLogs).toHaveLength(3);
+    expect(playerLogs).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        clientName: "IOS",
+        status: 200,
+        result: "no_caption_tracks",
+        playabilityStatus: "OK",
+        playabilityReason: null,
+        videoIdMatches: true,
+        captionTrackCount: 0,
+        usableCaptionTrackCount: 0,
+        manualCaptionTrackCount: 0,
+        asrCaptionTrackCount: 0,
+      }),
+      expect.objectContaining({ clientName: "ANDROID" }),
+      expect.objectContaining({ clientName: "WEB" }),
+    ]));
+  });
+
   it("rejects non-YouTube URLs before any upstream request", async () => {
     const upstreamFetch = vi.fn();
     vi.stubGlobal("fetch", upstreamFetch);

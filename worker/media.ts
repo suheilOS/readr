@@ -301,18 +301,39 @@ function createYouTubeTranscriptFetch(
     const stage = youtubeFetchStage(input);
     const signals = [deadline];
     if (init?.signal !== undefined && init.signal !== null) signals.push(init.signal);
+    const clientName = stage === "player_data" ? youtubePlayerClientName(init?.body) : null;
 
     try {
       const response = await fetch(input, { ...init, signal: AbortSignal.any(signals) });
+      let result = response.ok ? "ok" : "upstream_error";
+      let playerDiagnostics: YouTubePlayerDiagnostics | null = null;
       if (stage === "player_data" && response.ok) {
-        const playerData: unknown = await response.clone().json().catch(() => null);
-        const description = playerDescriptionFrom(playerData, videoId);
-        if (description !== null) playerDetails.description = description;
+        const playerData: unknown = await response.clone().json().catch(() => undefined);
+        if (playerData === undefined) {
+          result = "invalid_json";
+          playerDiagnostics = emptyPlayerDiagnostics(clientName);
+        } else {
+          playerDiagnostics = inspectPlayerResponse(playerData, videoId, clientName);
+          const description = playerDescriptionFrom(playerData, videoId);
+          if (description !== null) playerDetails.description = description;
+          result = playerDiagnostics.captionTrackCount === 0
+            ? "no_caption_tracks"
+            : playerDiagnostics.usableCaptionTrackCount === 0
+              ? "no_usable_caption_tracks"
+              : "ok";
+        }
       }
-      logYouTubeStage(videoId, stage, startedAt, response.ok ? "ok" : "upstream_error", response.status);
+      logYouTubeStage(videoId, stage, startedAt, result, response.status, playerDiagnostics);
       return response;
     } catch (error) {
-      logYouTubeStage(videoId, stage, startedAt, isTimeoutError(error) ? "timeout" : "network_error");
+      logYouTubeStage(
+        videoId,
+        stage,
+        startedAt,
+        isTimeoutError(error) ? "timeout" : "network_error",
+        undefined,
+        stage === "player_data" ? emptyPlayerDiagnostics(clientName) : null,
+      );
       throw error;
     }
   };
@@ -337,12 +358,93 @@ function youtubeFetchStage(input: RequestInfo | URL): string {
   return "transcript_upstream";
 }
 
+type YouTubePlayerDiagnostics = {
+  clientName: string | null;
+  playabilityStatus: string | null;
+  playabilityReason: string | null;
+  videoIdMatches: boolean;
+  captionTrackCount: number;
+  usableCaptionTrackCount: number;
+  manualCaptionTrackCount: number;
+  asrCaptionTrackCount: number;
+};
+
+function youtubePlayerClientName(body: BodyInit | null | undefined): string | null {
+  if (typeof body !== "string") return null;
+
+  try {
+    const payload: unknown = JSON.parse(body);
+    if (!isRecord(payload) || !isRecord(payload.context) || !isRecord(payload.context.client)) return null;
+    return typeof payload.context.client.clientName === "string"
+      ? payload.context.client.clientName
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+function inspectPlayerResponse(
+  value: unknown,
+  videoId: string,
+  clientName: string | null,
+): YouTubePlayerDiagnostics {
+  const record = isRecord(value) ? value : null;
+  const playability = record !== null && isRecord(record.playabilityStatus)
+    ? record.playabilityStatus
+    : null;
+  const details = record !== null && isRecord(record.videoDetails) ? record.videoDetails : null;
+  const captionTracks = record !== null && isRecord(record.captions) &&
+      isRecord(record.captions.playerCaptionsTracklistRenderer) &&
+      Array.isArray(record.captions.playerCaptionsTracklistRenderer.captionTracks)
+    ? record.captions.playerCaptionsTracklistRenderer.captionTracks
+    : [];
+  const validTracks = captionTracks.filter(isRecord);
+  const usableTracks = validTracks.filter((track) => (
+    typeof track.baseUrl === "string" && track.baseUrl.trim().length > 0
+  ));
+  const asrCaptionTrackCount = validTracks.filter((track) => track.kind === "asr").length;
+
+  return {
+    clientName,
+    playabilityStatus: playability !== null && typeof playability.status === "string"
+      ? playability.status
+      : null,
+    playabilityReason: playability !== null && typeof playability.reason === "string"
+      ? truncateDiagnostic(playability.reason)
+      : null,
+    videoIdMatches: details !== null && details.videoId === videoId,
+    captionTrackCount: captionTracks.length,
+    usableCaptionTrackCount: usableTracks.length,
+    manualCaptionTrackCount: validTracks.length - asrCaptionTrackCount,
+    asrCaptionTrackCount,
+  };
+}
+
+function emptyPlayerDiagnostics(clientName: string | null): YouTubePlayerDiagnostics {
+  return {
+    clientName,
+    playabilityStatus: null,
+    playabilityReason: null,
+    videoIdMatches: false,
+    captionTrackCount: 0,
+    usableCaptionTrackCount: 0,
+    manualCaptionTrackCount: 0,
+    asrCaptionTrackCount: 0,
+  };
+}
+
+function truncateDiagnostic(value: string): string {
+  const cleaned = cleanText(value);
+  return cleaned.length > 200 ? `${cleaned.slice(0, 197)}...` : cleaned;
+}
+
 function logYouTubeStage(
   videoId: string,
   stage: string,
   startedAt: number,
   result: string,
   status?: number,
+  details?: YouTubePlayerDiagnostics | null,
 ): void {
   console.log(JSON.stringify({
     message: "YouTube extraction stage",
@@ -351,6 +453,7 @@ function logYouTubeStage(
     elapsedMs: Math.round(performance.now() - startedAt),
     result,
     ...(status === undefined ? {} : { status }),
+    ...(details === null || details === undefined ? {} : details),
   }));
 }
 
