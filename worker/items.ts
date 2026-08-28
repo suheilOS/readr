@@ -263,7 +263,8 @@ itemRoutes.put("/items/:id/media-progress", async (context) => {
     : apiError(context, "internal_error", "Playback progress could not be saved.", 500);
 });
 
-export { itemRoutes };
+export { findItem, itemRoutes, toItem };
+export type { ItemRow };
 
 async function readCreateInput(context: Context<AppEnv>): Promise<CreateItemInput | null> {
   const body = await readJson(context);

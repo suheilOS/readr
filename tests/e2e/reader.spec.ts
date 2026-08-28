@@ -235,6 +235,77 @@ test("keeps a YouTube video usable when metadata and transcript are unavailable"
   await expect(page.getByRole("heading", { name: "- YouTube" })).toHaveCount(0);
 });
 
+test("uses a stored browser capture before live YouTube extraction", async ({ page }) => {
+  await installMockYouTubePlayer(page);
+  let metadataRequests = 0;
+  let transcriptRequests = 0;
+
+  await page.route("**/api/items", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        items: [{
+          id: "youtube-captured",
+          title: "Original saved title",
+          url: "https://youtu.be/dQw4w9WgXcQ",
+          type: "video",
+          status: "desk",
+          addedAt: "2026-08-22T00:00:00.000Z",
+          finishedAt: null,
+          note: null,
+        }],
+      }),
+    });
+  });
+  await page.route("**/api/items/youtube-captured/media-progress", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ progress: null }),
+    });
+  });
+  await page.route("**/api/items/youtube-captured/media-content", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        content: {
+          kind: "youtube_capture",
+          videoId: "dQw4w9WgXcQ",
+          sourceUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+          title: "Captured video title",
+          author: "Captured channel",
+          description: "Captured description",
+          thumbnailUrl: null,
+          transcript: {
+            kind: "available",
+            language: "en",
+            chapters: [],
+            segments: [{ startSeconds: 0, text: "Captured transcript line." }],
+          },
+        },
+      }),
+    });
+  });
+  await page.route("**/api/media/youtube/metadata", async (route) => {
+    metadataRequests += 1;
+    await route.abort();
+  });
+  await page.route("**/api/media/youtube/transcript", async (route) => {
+    transcriptRequests += 1;
+    await route.abort();
+  });
+
+  await page.goto("/");
+  await page.getByRole("button", { name: "Open in readr: Original saved title" }).click();
+
+  await expect(page.getByRole("heading", { name: "Captured video title" })).toBeFocused();
+  await expect(page.getByText("Captured transcript line.")).toBeVisible();
+  expect(metadataRequests).toBe(0);
+  expect(transcriptRequests).toBe(0);
+});
+
 async function installMockYouTubePlayer(page: Page): Promise<void> {
   await page.addInitScript(() => {
     const testWindow = window as typeof window & {

@@ -241,7 +241,7 @@ Unauthenticated users can see a sign-in path, but they cannot create or access R
 9. **YouTube player view**
 10. **YouTube transcripts and chapters**
 11. **Media completion and resume**
-12. **Browser capture**
+12. **Browser capture** — first vertical slice implemented: Chrome MV3 capture of a visible YouTube transcript, same-origin persistence through the signed-in Readr tab, D1 media content, and reader-first stored fallback. Article capture, OAuth, cross-browser packaging, and InnerTube retry changes remain out of scope until browser smoke-test evidence justifies them.
 
 ## Acceptance criteria
 

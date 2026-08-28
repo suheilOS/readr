@@ -37,6 +37,8 @@ import {
   playPageChange,
   playToggle,
 } from "./soundCues";
+import { isYouTubeCapturedContent, type YouTubeCapturedContent } from "../shared/media";
+import { saveYouTubeContent } from "./itemApi";
 
 const THEME_STORAGE_KEY = "reader:theme";
 const SOUND_STORAGE_KEY = "reader:sounds";
@@ -171,6 +173,34 @@ export default function App() {
       window.removeEventListener("keydown", handleKeyDown);
     };
   }, [swapCandidateId]);
+
+  useEffect(() => {
+    function handleCaptureMessage(event: MessageEvent<unknown>) {
+      if (
+        event.source !== window ||
+        event.origin !== window.location.origin ||
+        !isYouTubeCaptureMessage(event.data)
+      ) {
+        return;
+      }
+
+      void saveYouTubeContent(event.data.content)
+        .then(({ item, created }) => {
+          retry();
+          setAnnouncement(created
+            ? `${item.title} captured to your inbox.`
+            : `${item.title} capture updated.`);
+          playCompletion();
+        })
+        .catch((error: unknown) => {
+          setAnnouncement(error instanceof Error ? error.message : "The video could not be captured.");
+        });
+    }
+
+    window.addEventListener("message", handleCaptureMessage);
+    window.postMessage({ type: "readr:capture-ready" }, window.location.origin);
+    return () => window.removeEventListener("message", handleCaptureMessage);
+  }, [retry]);
 
   const displayQuery = query.trim();
   const searching = displayQuery.length > 0;
@@ -450,6 +480,19 @@ function getAuthOrigin(): string {
   }
 
   return "https://auth.overhawl.app";
+}
+
+function isYouTubeCaptureMessage(value: unknown): value is {
+  type: "readr:youtube-capture";
+  content: YouTubeCapturedContent;
+} {
+  return isRecord(value) &&
+    value.type === "readr:youtube-capture" &&
+    isYouTubeCapturedContent(value.content);
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 function SignedOutState({ theme, onToggleTheme }: ThemeDockProps) {

@@ -2,6 +2,7 @@ import { startTransition, useCallback, useEffect, useMemo, useRef, useState } fr
 import type { Item } from "../../shared/item";
 import {
   parseYouTubeUrl,
+  type YouTubeCapturedContent,
   type YouTubeMetadata,
   type YouTubeTranscriptContent,
   type YouTubeUrl,
@@ -15,6 +16,7 @@ import {
 import { activeTimedEntryIndex, formatPlaybackTime } from "./transcriptSync";
 import { YouTubePlayer, type YouTubePlayerHandle } from "./YouTubePlayer";
 import { useMediaProgress } from "./useMediaProgress";
+import { fetchYouTubeContent } from "../itemApi";
 
 type YouTubeReaderProps = {
   item: Item;
@@ -57,16 +59,39 @@ function YouTubeReaderContentView({ item, parsedUrl }: YouTubeReaderProps & { pa
     setMetadata(null);
     setTranscriptState({ status: "loading" });
 
-    void extractYouTubeMetadata(parsedUrl.canonicalUrl, controller.signal).then((content) => {
-      if (controller.signal.aborted) return;
-      startTransition(() => setMetadata(content));
-    }).catch(() => undefined);
+    void loadYouTubeContent(item.id, parsedUrl.canonicalUrl, controller.signal);
+    return () => controller.abort();
+  }, [item.id, parsedUrl.canonicalUrl]);
 
-    void extractYouTubeTranscript(parsedUrl.canonicalUrl, controller.signal).then((content) => {
-      if (controller.signal.aborted) return;
+  async function loadYouTubeContent(itemId: string, url: string, signal: AbortSignal): Promise<void> {
+    let stored: YouTubeCapturedContent | null = null;
+    try {
+      stored = await fetchYouTubeContent(itemId, signal);
+    } catch {
+      // A missing or unavailable stored capture should not block live fallback extraction.
+    }
+
+    if (signal.aborted) return;
+
+    if (stored !== null) {
+      startTransition(() => setMetadata(toMetadata(stored)));
+      if (stored.transcript.kind === "available") {
+        startTransition(() => setTranscriptState({ status: "ready", content: toTranscriptContent(stored) }));
+        return;
+      }
+    }
+
+    const metadataPromise = stored === null
+      ? extractYouTubeMetadata(url, signal).then((content) => {
+          if (signal.aborted) return;
+          startTransition(() => setMetadata(content));
+        }).catch(() => undefined)
+      : Promise.resolve();
+    const transcriptPromise = extractYouTubeTranscript(url, signal).then((content) => {
+      if (signal.aborted) return;
       startTransition(() => setTranscriptState({ status: "ready", content }));
     }).catch((error: unknown) => {
-      if (controller.signal.aborted) return;
+      if (signal.aborted) return;
       playError();
       setTranscriptState({
         status: "degraded",
@@ -75,8 +100,9 @@ function YouTubeReaderContentView({ item, parsedUrl }: YouTubeReaderProps & { pa
           : "The transcript could not be loaded.",
       });
     });
-    return () => controller.abort();
-  }, [item.id, parsedUrl.canonicalUrl]);
+
+    await Promise.all([metadataPromise, transcriptPromise]);
+  }
 
   const transcript = transcriptState.status === "ready" && transcriptState.content.transcript.kind === "available"
     ? transcriptState.content.transcript
@@ -286,4 +312,25 @@ function isTypingTarget(target: EventTarget | null): boolean {
   return target instanceof HTMLInputElement ||
     target instanceof HTMLTextAreaElement ||
     (target instanceof HTMLElement && (target.isContentEditable || target.tagName === "BUTTON" || target.tagName === "A"));
+}
+
+function toMetadata(content: YouTubeCapturedContent): YouTubeMetadata {
+  return {
+    kind: "youtube_metadata",
+    videoId: content.videoId,
+    sourceUrl: content.sourceUrl,
+    title: content.title,
+    author: content.author,
+    thumbnailUrl: content.thumbnailUrl,
+  };
+}
+
+function toTranscriptContent(content: YouTubeCapturedContent): YouTubeTranscriptContent {
+  return {
+    kind: "youtube_transcript",
+    videoId: content.videoId,
+    sourceUrl: content.sourceUrl,
+    description: content.description,
+    transcript: content.transcript,
+  };
 }

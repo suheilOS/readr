@@ -1,0 +1,40 @@
+{
+  "manifest_version": 3,
+  "name": "Readr browser capture",
+  "description": "Capture a visible YouTube transcript into your Readr library.",
+  "version": "0.1.0",
+  "permissions": ["tabs"],
+  "host_permissions": [
+    "https://www.youtube.com/watch*",
+    "https://m.youtube.com/watch*",
+    "https://readr.overhawl.app/*",
+    "http://localhost:5173/*",
+    "http://localhost:8787/*"
+  ],
+  "background": {
+    "service_worker": "service-worker.js"
+  },
+  "action": {
+    "default_title": "Capture to Readr",
+    "default_popup": "popup.html"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://www.youtube.com/watch*",
+        "https://m.youtube.com/watch*"
+      ],
+      "js": ["youtube-capture.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://readr.overhawl.app/*",
+        "http://localhost:5173/*",
+        "http://localhost:8787/*"
+      ],
+      "js": ["readr-bridge.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}
