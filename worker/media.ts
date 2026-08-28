@@ -3,25 +3,139 @@ import { parseHTML } from "linkedom/worker";
 import {
   parseMediaRequest,
   parseYouTubeUrl,
+  type MediaRequest,
   type TranscriptSegment,
   type VideoChapter,
-  type YouTubeReaderContent,
+  type YouTubeMetadata,
+  type YouTubeTranscriptContent,
+  type YouTubeUrl,
 } from "../shared/media";
-import { ExtractionError, fetchHtml, readJsonRequestBody } from "./extract";
+import { ExtractionError, readJsonRequestBody } from "./extract";
 
-export async function extractYouTubeFromRequest(request: Request): Promise<YouTubeReaderContent> {
+const METADATA_TIMEOUT_MS = 4_000;
+const TRANSCRIPT_TIMEOUT_MS = 8_000;
+
+type ValidatedMediaRequest = {
+  input: MediaRequest;
+  url: YouTubeUrl;
+};
+
+export async function extractYouTubeMetadataFromRequest(request: Request): Promise<YouTubeMetadata> {
+  const { input, url } = await parseYouTubeRequest(request);
+  const startedAt = performance.now();
+  const endpoint = new URL("https://www.youtube.com/oembed");
+  endpoint.searchParams.set("url", url.canonicalUrl);
+  endpoint.searchParams.set("format", "json");
+
+  try {
+    const response = await fetch(endpoint, {
+      headers: {
+        Accept: "application/json",
+        ...(input.language === null ? {} : { "Accept-Language": input.language }),
+      },
+      signal: AbortSignal.timeout(METADATA_TIMEOUT_MS),
+    });
+    if (!response.ok) {
+      await response.body?.cancel();
+      logYouTubeStage(url.videoId, "metadata", startedAt, "upstream_error", response.status);
+      throw upstreamError("The video details could not be loaded.");
+    }
+
+    const value: unknown = await response.json();
+    const metadata = adaptOEmbedMetadata(value, url);
+    if (metadata === null) {
+      logYouTubeStage(url.videoId, "metadata", startedAt, "invalid_metadata", response.status);
+      throw upstreamError("The video details could not be loaded.");
+    }
+
+    logYouTubeStage(url.videoId, "metadata", startedAt, "ok", response.status);
+    return metadata;
+  } catch (error) {
+    if (error instanceof ExtractionError) throw error;
+    const timedOut = isTimeoutError(error);
+    logYouTubeStage(url.videoId, "metadata", startedAt, timedOut ? "timeout" : "network_error");
+    throw new ExtractionError({
+      code: timedOut ? "upstream_timeout" : "upstream_error",
+      status: timedOut ? 504 : 502,
+      message: "The video details could not be loaded.",
+    });
+  }
+}
+
+export async function extractYouTubeTranscriptFromRequest(
+  request: Request,
+): Promise<YouTubeTranscriptContent> {
+  const { input, url } = await parseYouTubeRequest(request);
+  const startedAt = performance.now();
+  const deadline = AbortSignal.timeout(TRANSCRIPT_TIMEOUT_MS);
+  const { document } = parseHTML(
+    `<!doctype html><html lang="${escapeAttribute(input.language ?? "en")}"><head>` +
+      `<link rel="canonical" href="${url.canonicalUrl}"></head><body></body></html>`,
+  );
+  const playerDetails: ExtractedPlayerDetails = { description: null };
+  try {
+    const result = await new Defuddle(document, {
+      url: url.canonicalUrl,
+      useAsync: true,
+      language: input.language ?? undefined,
+      fetch: createYouTubeTranscriptFetch(url.videoId, deadline, playerDetails),
+    }).parseAsync();
+    const adapted = adaptYouTubeTranscript({
+      content: result.content,
+      description: result.description || playerDetails.description || "",
+      language: result.language,
+    });
+    if (deadline.aborted && adapted.segments.length === 0) {
+      throw new DOMException("The transcript request timed out.", "TimeoutError");
+    }
+    const transcript = adapted.segments.length === 0
+      ? { kind: "unavailable" } as const
+      : {
+          kind: "available" as const,
+          language: adapted.language,
+          segments: adapted.segments,
+          chapters: adapted.chapters,
+        };
+
+    logYouTubeStage(
+      url.videoId,
+      "transcript_total",
+      startedAt,
+      transcript.kind === "available" ? "ok" : "unavailable",
+    );
+    return {
+      kind: "youtube_transcript",
+      videoId: url.videoId,
+      sourceUrl: url.canonicalUrl,
+      description: adapted.description,
+      transcript,
+    };
+  } catch (error) {
+    const timedOut = deadline.aborted || isTimeoutError(error);
+    logYouTubeStage(
+      url.videoId,
+      "transcript_total",
+      startedAt,
+      timedOut ? "timeout" : "extraction_error",
+    );
+    throw new ExtractionError({
+      code: timedOut ? "upstream_timeout" : "upstream_error",
+      status: timedOut ? 504 : 502,
+      message: "The transcript could not be loaded.",
+    });
+  }
+}
+
+async function parseYouTubeRequest(request: Request): Promise<ValidatedMediaRequest> {
   const body = await readJsonRequestBody(request);
   const input = parseMediaRequest(body);
-  const parsedUrl = input === null ? null : parseYouTubeUrl(input.url);
-
-  if (input === null || parsedUrl === null) {
+  if (input === null) {
     throw new ExtractionError({
       code: "bad_request",
       status: 400,
       message: "Enter a valid YouTube URL.",
     });
   }
-
   if (input.url.length > 2_048) {
     throw new ExtractionError({
       code: "bad_request",
@@ -30,56 +144,56 @@ export async function extractYouTubeFromRequest(request: Request): Promise<YouTu
     });
   }
 
-  const fetchedPage = await fetchHtml(new URL(parsedUrl.canonicalUrl));
-  const { document } = parseHTML(fetchedPage.html);
-  const result = await new Defuddle(document, {
-    url: parsedUrl.canonicalUrl,
-    useAsync: true,
-    language: input.language ?? undefined,
-  }).parseAsync();
+  const url = parseYouTubeUrl(input.url);
+  if (url === null) {
+    throw new ExtractionError({
+      code: "bad_request",
+      status: 400,
+      message: "Enter a valid YouTube URL.",
+    });
+  }
+  return { input, url };
+}
 
-  const adapted = adaptYouTubeResult({
-    content: result.content,
-    title: result.title,
-    author: result.author,
-    description: result.description,
-    language: result.language,
-    schemaOrgData: result.schemaOrgData,
-  });
+function adaptOEmbedMetadata(value: unknown, url: YouTubeUrl): YouTubeMetadata | null {
+  if (!isRecord(value) || typeof value.title !== "string") return null;
+  const title = cleanText(value.title);
+  if (!isUsefulYouTubeTitle(title)) return null;
 
   return {
-    kind: "youtube",
-    videoId: parsedUrl.videoId,
-    sourceUrl: parsedUrl.canonicalUrl,
-    title: adapted.title || "YouTube video",
-    author: adapted.author,
-    description: adapted.description,
-    thumbnailUrl: adapted.thumbnailUrl,
-    transcript: adapted.segments.length === 0
-      ? { kind: "unavailable" }
-      : {
-          kind: "available",
-          language: adapted.language,
-          segments: adapted.segments,
-          chapters: adapted.chapters,
-        },
+    kind: "youtube_metadata",
+    videoId: url.videoId,
+    sourceUrl: url.canonicalUrl,
+    title,
+    author: typeof value.author_name === "string" ? cleanText(value.author_name) || null : null,
+    thumbnailUrl: validatedThumbnail(value.thumbnail_url),
   };
+}
+
+function isUsefulYouTubeTitle(value: string): boolean {
+  return value.length > 0 && !/^(?:[-–—]\s*)?youtube(?:\s+video)?$/i.test(value);
+}
+
+function validatedThumbnail(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  try {
+    const url = new URL(value);
+    return url.protocol === "https:" && (url.hostname === "ytimg.com" || url.hostname.endsWith(".ytimg.com"))
+      ? url.toString()
+      : null;
+  } catch {
+    return null;
+  }
 }
 
 type DefuddleYouTubeResult = {
   content: string;
-  title: string;
-  author: string;
   description: string;
   language: string;
-  schemaOrgData: unknown;
 };
 
-function adaptYouTubeResult(result: DefuddleYouTubeResult): {
-  title: string;
-  author: string | null;
+function adaptYouTubeTranscript(result: DefuddleYouTubeResult): {
   description: string | null;
-  thumbnailUrl: string | null;
   language: string | null;
   segments: TranscriptSegment[];
   chapters: VideoChapter[];
@@ -119,41 +233,99 @@ function adaptYouTubeResult(result: DefuddleYouTubeResult): {
   const descriptionElement = Array.from(document.body.children).find(
     (element) => element.localName === "p" && !element.closest(".transcript"),
   );
-  const description = cleanText(descriptionElement?.textContent ?? result.description);
+  const description = cleanText(descriptionElement?.textContent ?? "") || cleanText(result.description);
 
   return {
-    title: result.title.trim(),
-    author: result.author.trim() || null,
     description: description || null,
-    thumbnailUrl: findThumbnail(result.schemaOrgData),
     language: result.language.trim() || null,
     segments: segments.sort((left, right) => left.startSeconds - right.startSeconds),
     chapters: chapters.sort((left, right) => left.startSeconds - right.startSeconds),
   };
 }
 
-function findThumbnail(schema: unknown): string | null {
-  const entries = Array.isArray(schema) ? schema : [schema];
-  for (const entry of entries) {
-    if (!isRecord(entry) || entry["@type"] !== "VideoObject") continue;
-    const value = entry.thumbnailUrl;
-    const candidate = Array.isArray(value) ? value[0] : value;
-    if (typeof candidate !== "string") continue;
+function createYouTubeTranscriptFetch(
+  videoId: string,
+  deadline: AbortSignal,
+  playerDetails: ExtractedPlayerDetails,
+): typeof fetch {
+  return async (input, init) => {
+    const startedAt = performance.now();
+    const stage = youtubeFetchStage(input);
+    const signals = [deadline];
+    if (init?.signal !== undefined && init.signal !== null) signals.push(init.signal);
 
     try {
-      const url = new URL(candidate);
-      if (url.protocol === "https:" && url.hostname.endsWith("ytimg.com")) {
-        return url.toString();
+      const response = await fetch(input, { ...init, signal: AbortSignal.any(signals) });
+      if (stage === "player_data" && response.ok) {
+        const playerData: unknown = await response.clone().json().catch(() => null);
+        const description = playerDescriptionFrom(playerData, videoId);
+        if (description !== null) playerDetails.description = description;
       }
-    } catch {
-      continue;
+      logYouTubeStage(videoId, stage, startedAt, response.ok ? "ok" : "upstream_error", response.status);
+      return response;
+    } catch (error) {
+      logYouTubeStage(videoId, stage, startedAt, isTimeoutError(error) ? "timeout" : "network_error");
+      throw error;
     }
-  }
-  return null;
+  };
+}
+
+type ExtractedPlayerDetails = {
+  description: string | null;
+};
+
+function playerDescriptionFrom(value: unknown, videoId: string): string | null {
+  if (!isRecord(value) || !isRecord(value.videoDetails)) return null;
+  const details = value.videoDetails;
+  if (details.videoId !== videoId || typeof details.shortDescription !== "string") return null;
+  return cleanText(details.shortDescription) || null;
+}
+
+function youtubeFetchStage(input: RequestInfo | URL): string {
+  const url = new URL(input instanceof Request ? input.url : String(input));
+  if (url.pathname.endsWith("/youtubei/v1/player")) return "player_data";
+  if (url.pathname.endsWith("/youtubei/v1/next")) return "chapters";
+  if (url.pathname.endsWith("/api/timedtext")) return "caption_xml";
+  return "transcript_upstream";
+}
+
+function logYouTubeStage(
+  videoId: string,
+  stage: string,
+  startedAt: number,
+  result: string,
+  status?: number,
+): void {
+  console.log(JSON.stringify({
+    message: "YouTube extraction stage",
+    videoId,
+    stage,
+    elapsedMs: Math.round(performance.now() - startedAt),
+    result,
+    ...(status === undefined ? {} : { status }),
+  }));
+}
+
+function upstreamError(message: string): ExtractionError {
+  return new ExtractionError({ code: "upstream_error", status: 502, message });
+}
+
+function isTimeoutError(error: unknown): boolean {
+  return error instanceof DOMException && (error.name === "TimeoutError" || error.name === "AbortError");
 }
 
 function cleanText(value: string): string {
   return value.replace(/\s+/g, " ").trim();
+}
+
+function escapeAttribute(value: string): string {
+  return value.replace(/[&<>"']/g, (character) => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    "\"": "&quot;",
+    "'": "&#39;",
+  })[character] ?? character);
 }
 
 function escapeRegExp(value: string): string {

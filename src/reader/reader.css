@@ -345,8 +345,12 @@
 }
 
 .media-title-block {
-  max-width: 760px;
+  max-width: 980px;
   margin-bottom: 36px;
+}
+
+.media-title-block .reader-title {
+  max-width: 24ch;
 }
 
 .media-reader-layout {
@@ -528,7 +532,7 @@
 .transcript-list p {
   margin: 0;
   color: var(--muted-strong);
-  font-size: clamp(16px, 1.5vw, 18px);
+  font-size: var(--font-size-emphasis);
   line-height: 1.62;
   text-wrap: pretty;
 }
@@ -589,6 +593,10 @@
   .media-title-block,
   .transcript-panel {
     padding-inline: 4px;
+  }
+
+  .media-title-block .reader-title {
+    max-width: 18ch;
   }
 
   .media-reader-layout {
