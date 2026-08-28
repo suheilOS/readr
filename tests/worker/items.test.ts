@@ -72,6 +72,26 @@ describe("Readr item API", () => {
     expect((await items.json() as { items: unknown[] }).items).toHaveLength(1);
   });
 
+  it("rejects a duplicate manually-added YouTube item with a conflict", async () => {
+    const userId = `duplicate-youtube-${crypto.randomUUID()}`;
+    const input = {
+      title: "Video",
+      url: "https://youtu.be/dQw4w9WgXcQ",
+      type: "video",
+    };
+    expect((await request(userId, "/api/items", {
+      method: "POST",
+      body: JSON.stringify(input),
+    })).status).toBe(201);
+
+    const duplicate = await request(userId, "/api/items", {
+      method: "POST",
+      body: JSON.stringify(input),
+    });
+    expect(duplicate.status).toBe(409);
+    expect(await duplicate.json()).toMatchObject({ error: { code: "duplicate_item" } });
+  });
+
   it("keeps item data isolated by authenticated user", async () => {
     const ownerId = `owner-${crypto.randomUUID()}`;
     const otherUserId = `other-${crypto.randomUUID()}`;
@@ -264,6 +284,14 @@ describe("Readr item API", () => {
       }),
     });
     const createdBody = await created.json() as { item: { id: string } };
+    const indexed = await env.READR_DB.prepare(
+      "SELECT youtube_video_id FROM items WHERE id = ?",
+    ).bind(createdBody.item.id).first<{ youtube_video_id: string | null }>();
+    expect(indexed?.youtube_video_id).toBe("dQw4w9WgXcQ");
+
+    await env.READR_DB.prepare(
+      "UPDATE items SET youtube_video_id = NULL WHERE id = ?",
+    ).bind(createdBody.item.id).run();
     const capture = {
       kind: "youtube_capture",
       videoId: "dQw4w9WgXcQ",
@@ -290,6 +318,11 @@ describe("Readr item API", () => {
       created: false,
       item: { id: createdBody.item.id, title: "My saved title" },
     });
+
+    const backfilled = await env.READR_DB.prepare(
+      "SELECT youtube_video_id FROM items WHERE id = ?",
+    ).bind(createdBody.item.id).first<{ youtube_video_id: string | null }>();
+    expect(backfilled?.youtube_video_id).toBe("dQw4w9WgXcQ");
 
     const repeated = await request(userId, "/api/media/youtube/capture", {
       method: "POST",

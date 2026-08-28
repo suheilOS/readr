@@ -11,4 +11,6 @@ This unpacked extension is the first Phase 12 vertical slice. It captures a tran
 5. Use the extension action and choose **Capture current video**.
 6. Open the matching item in Readr. Its stored metadata and transcript should render without waiting for server-side YouTube extraction.
 
+The popup remains in its capturing state until the signed-in Readr tab confirms that the capture was saved. Authentication, rate-limit, network, and persistence errors are returned to the popup instead of being reported as a successful capture.
+
 The local host patterns in `manifest.json` cover the Vite and Cloudflare preview origins used by this repository. The extension is intentionally not wired into the app build; Chrome packages these reviewable files directly under Manifest V3.

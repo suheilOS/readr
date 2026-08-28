@@ -306,6 +306,77 @@ test("uses a stored browser capture before live YouTube extraction", async ({ pa
   expect(transcriptRequests).toBe(0);
 });
 
+test("acknowledges browser capture only after persistence succeeds", async ({ page }) => {
+  let captureRequests = 0;
+  await page.route("**/api/items", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ items: [] }),
+    });
+  });
+  await page.route("**/api/media/youtube/capture", async (route) => {
+    captureRequests += 1;
+    await route.fulfill({
+      status: 201,
+      contentType: "application/json",
+      body: JSON.stringify({
+        created: true,
+        item: {
+          id: "captured-e2e",
+          title: "Captured from browser",
+          url: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+          type: "video",
+          status: "inbox",
+          addedAt: "2026-08-28T00:00:00.000Z",
+          finishedAt: null,
+          note: null,
+        },
+      }),
+    });
+  });
+
+  await page.goto("/");
+  await expect(page.locator("main.app")).toBeVisible();
+  const result = await page.evaluate(async () => {
+    const captureId = "e2e-capture";
+    const resultPromise = new Promise<unknown>((resolve) => {
+      function handleMessage(event: MessageEvent<unknown>) {
+        if (
+          event.source === window &&
+          event.origin === window.location.origin &&
+          typeof event.data === "object" &&
+          event.data !== null &&
+          (event.data as { type?: unknown }).type === "readr:capture-result" &&
+          (event.data as { captureId?: unknown }).captureId === captureId
+        ) {
+          window.removeEventListener("message", handleMessage);
+          resolve(event.data);
+        }
+      }
+      window.addEventListener("message", handleMessage);
+    });
+    window.postMessage({
+      type: "readr:youtube-capture",
+      captureId,
+      content: {
+        kind: "youtube_capture",
+        videoId: "dQw4w9WgXcQ",
+        sourceUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+        title: "Captured from browser",
+        author: null,
+        description: null,
+        thumbnailUrl: null,
+        transcript: { kind: "unavailable" },
+      },
+    }, window.location.origin);
+    return resultPromise;
+  });
+
+  expect(result).toEqual({ type: "readr:capture-result", captureId: "e2e-capture", ok: true });
+  expect(captureRequests).toBe(1);
+});
+
 async function installMockYouTubePlayer(page: Page): Promise<void> {
   await page.addInitScript(() => {
     const testWindow = window as typeof window & {

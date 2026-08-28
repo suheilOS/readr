@@ -7,7 +7,7 @@ import {
   YOUTUBE_CAPTURE_LIMITS,
   type YouTubeCapturedContent,
 } from "../shared/media";
-import { findItem, toItem, type ItemRow } from "./items";
+import { findItem, findYouTubeItem, toItem } from "./items";
 
 const MAX_CAPTURE_REQUEST_BYTES = YOUTUBE_CAPTURE_LIMITS.payloadBytes + 8 * 1024;
 
@@ -33,7 +33,7 @@ export async function captureYouTubeContent(context: Context<AppEnv>): Promise<R
     }
 
     const now = new Date().toISOString();
-    let existing = await findItemByVideoId(context.env.READR_DB, userId, body.videoId);
+    let existing = await findYouTubeItem(context.env.READR_DB, userId, body.videoId);
     let created = false;
     if (existing === null) {
       const itemId = crypto.randomUUID();
@@ -43,17 +43,23 @@ export async function captureYouTubeContent(context: Context<AppEnv>): Promise<R
         ) VALUES (?, ?, ?, ?, ?, 'video', 'inbox', ?, NULL, NULL, ?)
       `).bind(itemId, userId, body.title, body.sourceUrl, body.videoId, now, now).run();
       created = insertResult.meta.changes === 1;
-      existing = await findItemByVideoId(context.env.READR_DB, userId, body.videoId);
+      existing = await findYouTubeItem(context.env.READR_DB, userId, body.videoId);
     }
 
     if (existing === null) {
       return mediaContentError(context, "internal_error", "The captured video could not be saved.", 500);
     }
 
+    const identityUpdate = existing.youtube_video_id === null || existing.youtube_video_id === undefined
+      ? context.env.READR_DB.prepare(
+          "UPDATE items SET youtube_video_id = ?, updated_at = ? WHERE id = ? AND user_id = ?",
+        ).bind(body.videoId, now, existing.id, userId)
+      : context.env.READR_DB.prepare(
+          "UPDATE items SET updated_at = ? WHERE id = ? AND user_id = ?",
+        ).bind(now, existing.id, userId);
+
     await context.env.READR_DB.batch([
-      context.env.READR_DB.prepare(
-        "UPDATE items SET updated_at = ? WHERE id = ? AND user_id = ?",
-      ).bind(now, existing.id, userId),
+      identityUpdate,
       mediaUpsertStatement(context.env.READR_DB, existing.id, body, now),
     ]);
 
@@ -161,17 +167,6 @@ function mediaUpsertStatement(
     JSON.stringify(content.transcript),
     capturedAt,
   );
-}
-
-async function findItemByVideoId(db: D1Database, userId: string, videoId: string): Promise<ItemRow | null> {
-  const rows = await db.prepare(`
-    SELECT id, user_id, title, url, type, status, added_at, finished_at, note, updated_at, youtube_video_id
-    FROM items
-    WHERE user_id = ? AND (youtube_video_id = ? OR url IS NOT NULL)
-    ORDER BY youtube_video_id IS NULL ASC, added_at ASC, id ASC
-  `).bind(userId, videoId).all<ItemRow>();
-
-  return rows.results.find((row) => row.youtube_video_id === videoId || parseYouTubeUrl(row.url)?.videoId === videoId) ?? null;
 }
 
 function mediaContentError(

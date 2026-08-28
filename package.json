@@ -10,7 +10,7 @@
     "migrate:remote": "wrangler d1 migrations apply readr --remote",
     "deploy:check": "bun run build && wrangler deploy --dry-run",
     "deploy": "bun run build && bun run migrate:remote && wrangler deploy",
-    "test": "vitest run --config vitest.config.ts && vitest run --config vitest.dom.config.ts",
+    "test": "vitest run --config vitest.config.ts && vitest run --config vitest.dom.config.ts && vitest run --config vitest.extension.config.ts",
     "test:e2e": "playwright test",
     "test:watch": "bun run --parallel test:watch:worker test:watch:dom",
     "test:watch:worker": "vitest --config vitest.config.ts",

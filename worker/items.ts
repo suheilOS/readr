@@ -9,6 +9,7 @@ import {
   type ItemUrl,
   type ItemType,
 } from "../shared/item";
+import { parseYouTubeUrl, type YouTubeVideoId } from "../shared/media";
 import { parseSaveMediaProgressInput } from "../shared/mediaProgress";
 import { requireAuth, type AppEnv } from "./auth";
 import { requireSameOrigin } from "./csrf";
@@ -41,19 +42,29 @@ itemRoutes.post("/items", async (context) => {
 
   const now = new Date().toISOString();
   const id = crypto.randomUUID();
-  await context.env.READR_DB.prepare(`
-    INSERT INTO items (
-      id, user_id, title, url, type, status, added_at, finished_at, note, updated_at
-    ) VALUES (?, ?, ?, ?, ?, 'inbox', ?, NULL, NULL, ?)
+  const insertResult = await context.env.READR_DB.prepare(`
+    INSERT OR IGNORE INTO items (
+      id, user_id, title, url, youtube_video_id, type, status, added_at, finished_at, note, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, 'inbox', ?, NULL, NULL, ?)
   `).bind(
     id,
     context.get("userId"),
     input.title,
     input.url,
+    input.youtubeVideoId,
     input.type,
     now,
     now,
   ).run();
+
+  if (insertResult.meta.changes !== 1) {
+    const existing = input.youtubeVideoId === null
+      ? null
+      : await findYouTubeItem(context.env.READR_DB, context.get("userId"), input.youtubeVideoId);
+    return existing === null
+      ? apiError(context, "internal_error", "The item could not be created.", 500)
+      : apiError(context, "duplicate_item", "That YouTube video is already in your library.", 409);
+  }
 
   const item = await findItem(context.env.READR_DB, context.get("userId"), id);
   if (item === null) {
@@ -263,7 +274,7 @@ itemRoutes.put("/items/:id/media-progress", async (context) => {
     : apiError(context, "internal_error", "Playback progress could not be saved.", 500);
 });
 
-export { findItem, itemRoutes, toItem };
+export { findItem, findYouTubeItem, itemRoutes, toItem };
 export type { ItemRow };
 
 async function readCreateInput(context: Context<AppEnv>): Promise<CreateItemInput | null> {
@@ -273,6 +284,7 @@ async function readCreateInput(context: Context<AppEnv>): Promise<CreateItemInpu
   const title = typeof body.title === "string" ? body.title.trim() : "";
   const type = body.type;
   const url = parseItemUrl(body.url);
+  const youtubeVideoId = parseYouTubeUrl(url)?.videoId ?? null;
 
   if (
     title.length === 0 || title.length > 500 ||
@@ -282,7 +294,7 @@ async function readCreateInput(context: Context<AppEnv>): Promise<CreateItemInpu
     return null;
   }
 
-  return { title, type, url };
+  return { title, type, url, youtubeVideoId };
 }
 
 async function readJson(context: Context<AppEnv>): Promise<unknown> {
@@ -299,6 +311,29 @@ async function findItem(db: D1Database, userId: string, id: string): Promise<Ite
     FROM items
     WHERE id = ? AND user_id = ?
   `).bind(id, userId).first<ItemRow>();
+}
+
+async function findYouTubeItem(
+  db: D1Database,
+  userId: string,
+  videoId: YouTubeVideoId,
+): Promise<ItemRow | null> {
+  const indexed = await db.prepare(`
+    SELECT ${ITEM_COLUMNS}, youtube_video_id
+    FROM items
+    WHERE user_id = ? AND youtube_video_id = ?
+    LIMIT 1
+  `).bind(userId, videoId).first<ItemRow>();
+  if (indexed !== null) return indexed;
+
+  const historical = await db.prepare(`
+    SELECT ${ITEM_COLUMNS}, youtube_video_id
+    FROM items
+    WHERE user_id = ? AND youtube_video_id IS NULL AND url IS NOT NULL
+    ORDER BY added_at ASC, id ASC
+  `).bind(userId).all<ItemRow>();
+
+  return historical.results.find((row) => parseYouTubeUrl(row.url)?.videoId === videoId) ?? null;
 }
 
 function toItem(row: ItemRow): Item {
@@ -334,6 +369,7 @@ function apiError(
 type CreateItemInput = {
   title: string;
   url: ItemUrl | null;
+  youtubeVideoId: YouTubeVideoId | null;
   type: ItemType;
 };
 

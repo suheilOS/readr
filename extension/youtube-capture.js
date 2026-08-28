@@ -20,10 +20,10 @@
     if (videoId === null) throw new Error("This is not a supported YouTube video page.");
 
     const title = readText([
-      "h1.ytd-watch-metadata",
-      "h1.title",
-      "meta[property=\"og:title\"]",
-    ], "content") || document.title.replace(/\s*-\s*YouTube\s*$/i, "").trim();
+      ["h1.ytd-watch-metadata", "text"],
+      ["h1.title", "text"],
+      ["meta[property=\"og:title\"]", "content"],
+    ]) || document.title.replace(/\s*-\s*YouTube\s*$/i, "").trim();
     if (title.length === 0 || title.length > 500) {
       throw new Error("The video title is not available yet. Try again after the page finishes loading.");
     }
@@ -39,17 +39,17 @@
       sourceUrl: `https://www.youtube.com/watch?v=${videoId}`,
       title,
       author: readText([
-        "ytd-video-owner-renderer #channel-name a[href^=\"/@\"]",
-        "#owner-name a[href^=\"/@\"]",
-      ], "text") || null,
+        ["ytd-video-owner-renderer #channel-name a[href^=\"/@\"]", "text"],
+        ["#owner-name a[href^=\"/@\"]", "text"],
+      ]) || null,
       description: readText([
-        "ytd-text-inline-expander#description-inline-expander",
-        "#description-inline-expander",
-      ], "text") || null,
+        ["ytd-text-inline-expander#description-inline-expander", "text"],
+        ["#description-inline-expander", "text"],
+      ]) || null,
       thumbnailUrl: readThumbnail(videoId),
       transcript: {
         kind: "available",
-        language: document.documentElement.lang || null,
+          language: null,
         segments,
         chapters: [],
       },
@@ -89,11 +89,11 @@
     return Number.isFinite(seconds) && seconds >= 0 ? seconds : null;
   }
 
-  function readText(selectors, attribute) {
-    for (const selector of selectors) {
+  function readText(selectors) {
+    for (const [selector, source] of selectors) {
       const element = document.querySelector(selector);
       if (!element) continue;
-      const value = attribute === "content" ? element.getAttribute("content") : element.textContent;
+      const value = source === "content" ? element.getAttribute("content") : element.textContent;
       const text = cleanText(value || "");
       if (text.length > 0) return text;
     }

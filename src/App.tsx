@@ -184,16 +184,29 @@ export default function App() {
         return;
       }
 
-      void saveYouTubeContent(event.data.content)
+      const capture = event.data;
+      void saveYouTubeContent(capture.content)
         .then(({ item, created }) => {
           retry();
           setAnnouncement(created
             ? `${item.title} captured to your inbox.`
             : `${item.title} capture updated.`);
           playCompletion();
+          window.postMessage({
+            type: "readr:capture-result",
+            captureId: capture.captureId,
+            ok: true,
+          }, window.location.origin);
         })
         .catch((error: unknown) => {
-          setAnnouncement(error instanceof Error ? error.message : "The video could not be captured.");
+          const message = error instanceof Error ? error.message : "The video could not be captured.";
+          setAnnouncement(message);
+          window.postMessage({
+            type: "readr:capture-result",
+            captureId: capture.captureId,
+            ok: false,
+            error: message,
+          }, window.location.origin);
         });
     }
 
@@ -484,11 +497,17 @@ function getAuthOrigin(): string {
 
 function isYouTubeCaptureMessage(value: unknown): value is {
   type: "readr:youtube-capture";
+  captureId: string;
   content: YouTubeCapturedContent;
 } {
   return isRecord(value) &&
     value.type === "readr:youtube-capture" &&
+    isCaptureId(value.captureId) &&
     isYouTubeCapturedContent(value.content);
+}
+
+function isCaptureId(value: unknown): value is string {
+  return typeof value === "string" && value.length > 0 && value.length <= 100;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

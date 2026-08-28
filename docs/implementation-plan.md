@@ -148,6 +148,7 @@ items
 - user_id      TEXT NOT NULL
 - title        TEXT NOT NULL
 - url          TEXT NULL
+- youtube_video_id TEXT NULL (canonical YouTube identity when applicable)
 - type         TEXT NOT NULL
 - status       TEXT NOT NULL
 - added_at     TEXT NOT NULL
@@ -156,7 +157,7 @@ items
 - updated_at   TEXT NOT NULL
 ```
 
-Add indexes for `(user_id, status)` and `(user_id, updated_at)`. `user_id` is an external identity reference, not a database foreign key. It must never be an email address.
+Add indexes for `(user_id, status)`, `(user_id, updated_at)`, and a partial unique index for `(user_id, youtube_video_id)` when the latter is present. `user_id` is an external identity reference, not a database foreign key. It must never be an email address.
 
 The server generates item IDs and timestamps. The client sends only the fields the user entered.
 

@@ -29,7 +29,14 @@ async function captureFromActiveYouTubeTab() {
   }
 
   const readrTab = await findOrOpenReadrTab(activeTab.windowId);
-  await chrome.tabs.sendMessage(readrTab.id, { type: "readr-capture", content: captured.content });
+  const result = await chrome.tabs.sendMessage(readrTab.id, {
+    type: "readr-capture",
+    captureId: crypto.randomUUID(),
+    content: captured.content,
+  });
+  if (!result?.ok) {
+    throw new Error(result?.error || "Readr could not save the video.");
+  }
 }
 
 async function findOrOpenReadrTab(sourceWindowId) {

@@ -10,7 +10,7 @@ button.addEventListener("click", () => {
     if (chrome.runtime.lastError) {
       status.textContent = chrome.runtime.lastError.message;
     } else if (response?.ok) {
-      status.textContent = "Captured. Readr is updating your library.";
+      status.textContent = "Captured to Readr.";
     } else {
       status.textContent = response?.error || "The video could not be captured.";
     }
