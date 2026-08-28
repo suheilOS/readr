@@ -57,7 +57,15 @@ export const YouTubePlayer = forwardRef<YouTubePlayerHandle, YouTubePlayerProps>
 
     useEffect(() => {
       let disposed = false;
+      let lastDuration = 0;
       let timer: number | null = null;
+
+      function publishDuration(player: YouTubePlayerInstance): void {
+        const duration = player.getDuration();
+        if (!Number.isFinite(duration) || duration <= 0 || duration === lastDuration) return;
+        lastDuration = duration;
+        onDurationChange(duration);
+      }
 
       void loadYouTubeApi().then((api) => {
         if (disposed || hostRef.current === null) return;
@@ -74,17 +82,21 @@ export const YouTubePlayer = forwardRef<YouTubePlayerHandle, YouTubePlayerProps>
             onReady: ({ target }) => {
               if (disposed) return;
               setState("ready");
-              onDurationChange(target.getDuration());
+              publishDuration(target);
               onTimeChange(target.getCurrentTime());
             },
             onStateChange: ({ data, target }) => {
               if (disposed) return;
               const playing = playingStateForYouTubePlayerState(data);
               if (playing !== null) onPlayingChange(playing);
+              publishDuration(target);
               onTimeChange(target.getCurrentTime());
               if (playing === true) {
                 if (timer !== null) window.clearInterval(timer);
-                timer = window.setInterval(() => onTimeChange(target.getCurrentTime()), 350);
+                timer = window.setInterval(() => {
+                  publishDuration(target);
+                  onTimeChange(target.getCurrentTime());
+                }, 350);
               } else if (playing === false && timer !== null) {
                 window.clearInterval(timer);
                 timer = null;

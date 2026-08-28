@@ -1,6 +1,6 @@
 import { useRef } from "react";
 import { Menu } from "@base-ui/react/menu";
-import { canReadInApp, DESK_CAPACITY, type Item, itemMetaLine } from "../../shared/item";
+import { canReadInApp, DESK_CAPACITY, type Item, itemMetaLine, readerKindFor } from "../../shared/item";
 import { focusAdjacentAction } from "../focusAdjacentAction";
 import { isPendingItemAction, type PendingItemAction } from "../pendingItemAction";
 import {
@@ -94,7 +94,7 @@ export function DeskSection({
                       onClick={() => onRead(item)}
                     >
                       <BookOpenIcon className="button-icon" />
-                      <span>{item.type === "video" ? "Watch" : "Read"}</span>
+                      <span>{readerKindFor(item) === "youtube" ? "Watch" : "Read"}</span>
                     </button>
                   )}
                   {item.url !== null && !canReadInApp(item) && (

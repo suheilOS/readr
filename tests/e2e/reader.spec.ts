@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { parseSaveMediaProgressInput, type SaveMediaProgressInput } from "../../shared/mediaProgress";
 
 test("reads sanitized content under the production security policy", async ({ page }) => {
   const cspErrors: string[] = [];
@@ -63,6 +64,7 @@ test("reads sanitized content under the production security policy", async ({ pa
 });
 
 test("plays a YouTube item with synchronized transcript controls", async ({ page }) => {
+  const progressWrites: SaveMediaProgressInput[] = [];
   await page.addInitScript(() => {
     const testWindow = window as typeof window & {
       YT: { Player: new (element: HTMLElement, options: Record<string, unknown>) => object };
@@ -71,6 +73,7 @@ test("plays a YouTube item with synchronized transcript controls", async ({ page
     testWindow.__seekTimes = [];
     testWindow.YT = {
       Player: class {
+        private duration = 0;
         private time = 0;
         private readonly options: {
           events: {
@@ -87,9 +90,12 @@ test("plays a YouTube item with synchronized transcript controls", async ({ page
 
         destroy() {}
         getCurrentTime() { return this.time; }
-        getDuration() { return 300; }
+        getDuration() { return this.duration; }
         pauseVideo() { this.options.events.onStateChange({ data: 2, target: this }); }
-        playVideo() { this.options.events.onStateChange({ data: 1, target: this }); }
+        playVideo() {
+          this.duration = 300;
+          this.options.events.onStateChange({ data: 1, target: this });
+        }
         seekTo(seconds: number) {
           this.time = seconds;
           testWindow.__seekTimes.push(seconds);
@@ -108,7 +114,7 @@ test("plays a YouTube item with synchronized transcript controls", async ({ page
           id: "youtube-smoke",
           title: "Stored video",
           url: "https://youtu.be/dQw4w9WgXcQ",
-          type: "video",
+          type: "article",
           status: "desk",
           addedAt: "2026-08-22T00:00:00.000Z",
           finishedAt: null,
@@ -118,6 +124,20 @@ test("plays a YouTube item with synchronized transcript controls", async ({ page
     });
   });
   await page.route("**/api/items/youtube-smoke/media-progress", async (route) => {
+    if (route.request().method() === "PUT") {
+      const requestBody: unknown = JSON.parse(route.request().postData() ?? "null");
+      const progress = parseSaveMediaProgressInput(requestBody);
+      if (progress === null) throw new Error("Invalid progress request");
+      progressWrites.push(progress);
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          progress: { ...progress, updatedAt: "2026-08-28T00:00:00.000Z" },
+        }),
+      });
+      return;
+    }
     await route.fulfill({
       status: 200,
       contentType: "application/json",
@@ -150,13 +170,22 @@ test("plays a YouTube item with synchronized transcript controls", async ({ page
   });
 
   await page.goto("/");
-  await page.getByRole("button", { name: "Open in readr: Stored video" }).click();
+  const watchButton = page.getByRole("button", { name: "Open in readr: Stored video" });
+  const actionLabel = await watchButton.textContent();
+  await watchButton.click();
   await expect(page.getByRole("heading", { name: "Extracted video" })).toBeFocused();
   await expect(page.getByText("Welcome to the video.")).toBeVisible();
   await page.getByRole("button", { name: "Seek to 0:42" }).click();
   await expect.poll(() => page.evaluate(() => (
     window as typeof window & { __seekTimes: number[] }
   ).__seekTimes)).toContain(42);
+  await page.getByRole("heading", { name: "Extracted video" }).focus();
+  await page.keyboard.press("k");
+  await expect.poll(() => progressWrites).toContainEqual(expect.objectContaining({
+    positionSeconds: 42,
+    durationSeconds: 300,
+  }));
+  expect(actionLabel).toContain("Watch");
   await page.keyboard.press("Escape");
   await expect(page.getByRole("button", { name: "Open in readr: Stored video" })).toBeFocused();
 });
