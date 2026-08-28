@@ -7,6 +7,7 @@ import {
   type TranscriptSegment,
   type VideoChapter,
   type YouTubeMetadata,
+  type YouTubeReaderContent,
   type YouTubeTranscriptContent,
   type YouTubeUrl,
 } from "../shared/media";
@@ -22,6 +23,10 @@ type ValidatedMediaRequest = {
 
 export async function extractYouTubeMetadataFromRequest(request: Request): Promise<YouTubeMetadata> {
   const { input, url } = await parseYouTubeRequest(request);
+  return extractYouTubeMetadata(input, url);
+}
+
+async function extractYouTubeMetadata(input: MediaRequest, url: YouTubeUrl): Promise<YouTubeMetadata> {
   const startedAt = performance.now();
   const endpoint = new URL("https://www.youtube.com/oembed");
   endpoint.searchParams.set("url", url.canonicalUrl);
@@ -66,6 +71,13 @@ export async function extractYouTubeTranscriptFromRequest(
   request: Request,
 ): Promise<YouTubeTranscriptContent> {
   const { input, url } = await parseYouTubeRequest(request);
+  return extractYouTubeTranscript(input, url);
+}
+
+async function extractYouTubeTranscript(
+  input: MediaRequest,
+  url: YouTubeUrl,
+): Promise<YouTubeTranscriptContent> {
   const startedAt = performance.now();
   const deadline = AbortSignal.timeout(TRANSCRIPT_TIMEOUT_MS);
   const { document } = parseHTML(
@@ -124,6 +136,42 @@ export async function extractYouTubeTranscriptFromRequest(
       message: "The transcript could not be loaded.",
     });
   }
+}
+
+/**
+ * Keep the old combined response available while already-open tabs move to
+ * the independent metadata and transcript endpoints.
+ */
+export async function extractYouTubeFromRequest(request: Request): Promise<YouTubeReaderContent> {
+  const { input, url } = await parseYouTubeRequest(request);
+  const [metadataResult, transcriptResult] = await Promise.allSettled([
+    extractYouTubeMetadata(input, url),
+    extractYouTubeTranscript(input, url),
+  ]);
+
+  if (metadataResult.status === "rejected") throw metadataResult.reason;
+
+  const metadata = metadataResult.value;
+  const transcript = transcriptResult.status === "fulfilled"
+    ? transcriptResult.value
+    : {
+        kind: "youtube_transcript" as const,
+        videoId: metadata.videoId,
+        sourceUrl: metadata.sourceUrl,
+        description: null,
+        transcript: { kind: "unavailable" as const },
+      };
+
+  return {
+    kind: "youtube",
+    videoId: metadata.videoId,
+    sourceUrl: metadata.sourceUrl,
+    title: metadata.title,
+    author: metadata.author,
+    description: transcript.description,
+    thumbnailUrl: metadata.thumbnailUrl,
+    transcript: transcript.transcript,
+  };
 }
 
 async function parseYouTubeRequest(request: Request): Promise<ValidatedMediaRequest> {

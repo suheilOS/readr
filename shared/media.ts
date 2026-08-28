@@ -51,6 +51,21 @@ export type YouTubeTranscriptContent = {
   transcript: YouTubeTranscript;
 };
 
+/**
+ * Response shape kept for tabs running the pre-split YouTube reader bundle.
+ * New clients should request metadata and transcript content independently.
+ */
+export type YouTubeReaderContent = {
+  kind: "youtube";
+  videoId: YouTubeVideoId;
+  sourceUrl: string;
+  title: string;
+  author: string | null;
+  description: string | null;
+  thumbnailUrl: string | null;
+  transcript: YouTubeTranscript;
+};
+
 export type MediaRequest = {
   url: string;
   language: string | null;

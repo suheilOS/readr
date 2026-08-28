@@ -125,6 +125,45 @@ describe("YouTube media extraction", () => {
     });
   });
 
+  it("keeps the combined response for already-open reader tabs", async () => {
+    const upstreamFetch = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.startsWith("https://www.youtube.com/oembed?")) {
+        return Response.json({
+          title: "Fixture video",
+          author_name: "Fixture channel",
+          thumbnail_url: `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`,
+        });
+      }
+      if (url.includes("youtubei/v1/player")) return Response.json(playerData);
+      if (url.includes("youtubei/v1/next")) return Response.json({});
+      if (url.startsWith(captionUrl)) {
+        return new Response(
+          '<transcript><text start="0" dur="2">Hello world.</text></transcript>',
+        );
+      }
+      return new Response("", { status: 404 });
+    });
+    vi.stubGlobal("fetch", upstreamFetch);
+
+    const response = await callWorker("legacy", { url: canonicalUrl, language: "en" });
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({
+      kind: "youtube",
+      videoId,
+      sourceUrl: canonicalUrl,
+      title: "Fixture video",
+      author: "Fixture channel",
+      description: "A useful description.",
+      transcript: {
+        kind: "available",
+        segments: [{ startSeconds: 0, text: "Hello world." }],
+      },
+    });
+    expect(upstreamFetch).not.toHaveBeenCalledWith(canonicalUrl, expect.anything());
+  });
+
   it("rejects non-YouTube URLs before any upstream request", async () => {
     const upstreamFetch = vi.fn();
     vi.stubGlobal("fetch", upstreamFetch);
@@ -134,8 +173,9 @@ describe("YouTube media extraction", () => {
   });
 });
 
-async function callWorker(resource: "metadata" | "transcript", body: unknown): Promise<Response> {
-  const request = new Request(`https://readr.test/api/media/youtube/${resource}`, {
+async function callWorker(resource: "legacy" | "metadata" | "transcript", body: unknown): Promise<Response> {
+  const path = resource === "legacy" ? "" : `/${resource}`;
+  const request = new Request(`https://readr.test/api/media/youtube${path}`, {
     method: "POST",
     headers: {
       "content-type": "application/json",

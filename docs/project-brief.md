@@ -81,7 +81,7 @@ Extraction failures fall back to an Open original link. Version 1 ships no per-s
 
 Typography is the entire article-reading interface: measure, line height, hierarchy. No floating settings bars, font pickers, or outlines.
 
-YouTube links use a separate reader path. The Worker canonicalizes the video URL and runs Defuddle's asynchronous YouTube extractor, then returns typed metadata, transcript segments, and chapters. The client creates the embed from the validated video ID and uses the YouTube IFrame Player API for playback, seeking, transcript synchronization, keyboard controls, and resume state. Transcript extraction is best effort; the player and original link remain usable when captions are unavailable.
+YouTube links use a separate reader path. The Worker canonicalizes the video URL and serves metadata and transcript content through independent endpoints. Metadata uses YouTube's oEmbed response, while Defuddle's asynchronous YouTube extraction path fetches player and timed-text data directly for transcript segments and chapters instead of relying on watch-page HTML. The client creates the embed from the validated video ID and uses the YouTube IFrame Player API for playback, seeking, transcript synchronization, keyboard controls, and resume state. Transcript extraction is best effort; the player and original link remain usable when captions are unavailable. The former combined endpoint remains temporarily for already-open tabs during deployment.
 
 ## What the library shows
 

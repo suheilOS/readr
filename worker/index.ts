@@ -1,6 +1,6 @@
 import type { Context } from "hono";
 import { Hono } from "hono";
-import type { YouTubeMetadata, YouTubeTranscriptContent } from "../shared/media";
+import type { YouTubeMetadata, YouTubeReaderContent, YouTubeTranscriptContent } from "../shared/media";
 import { extractFromRequest, ExtractionError } from "./extract";
 import { requireAuth, type AppEnv } from "./auth";
 import { itemRoutes } from "./items";
@@ -8,6 +8,7 @@ import { requireSameOrigin } from "./csrf";
 import { jsonError } from "./http";
 import { handleSignOut } from "./sign-out";
 import {
+  extractYouTubeFromRequest,
   extractYouTubeMetadataFromRequest,
   extractYouTubeTranscriptFromRequest,
 } from "./media";
@@ -31,6 +32,19 @@ app.all("/api/extract", () => jsonError({
   error: {
     code: "method_not_allowed",
     message: "Use POST for extraction.",
+  },
+}, 405, { Allow: "POST" }));
+
+app.post(
+  "/api/media/youtube",
+  requireAuth,
+  requireSameOrigin,
+  (context) => handleYouTubeExtraction(context, "legacy", extractYouTubeFromRequest),
+);
+app.all("/api/media/youtube", () => jsonError({
+  error: {
+    code: "method_not_allowed",
+    message: "Use POST for YouTube extraction.",
   },
 }, 405, { Allow: "POST" }));
 
@@ -133,8 +147,8 @@ async function handleExtraction(context: Context<AppEnv>): Promise<Response> {
 
 async function handleYouTubeExtraction(
   context: Context<AppEnv>,
-  resource: "metadata" | "transcript",
-  extract: (request: Request) => Promise<YouTubeMetadata | YouTubeTranscriptContent>,
+  resource: "legacy" | "metadata" | "transcript",
+  extract: (request: Request) => Promise<YouTubeMetadata | YouTubeReaderContent | YouTubeTranscriptContent>,
 ): Promise<Response> {
   const clientKey = context.req.header("CF-Connecting-IP") ?? "unidentified";
   const rateLimit = await context.env.EXTRACT_RATE_LIMITER.limit({

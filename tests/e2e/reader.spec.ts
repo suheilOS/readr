@@ -106,8 +106,14 @@ test("plays a YouTube item with synchronized transcript controls", async ({ page
       body: JSON.stringify({ progress: null }),
     });
   });
+  let metadataRequestStarted = false;
+  let releaseMetadata!: () => void;
+  const metadataResponseReleased = new Promise<void>((resolve) => {
+    releaseMetadata = resolve;
+  });
   await page.route("**/api/media/youtube/metadata", async (route) => {
-    await new Promise((resolve) => setTimeout(resolve, 250));
+    metadataRequestStarted = true;
+    await metadataResponseReleased;
     await route.fulfill({
       status: 200,
       contentType: "application/json",
@@ -150,6 +156,8 @@ test("plays a YouTube item with synchronized transcript controls", async ({ page
   await watchButton.click();
   await expect(page.getByRole("heading", { name: "Stored video" })).toBeFocused();
   await expect(page.getByText("Mock YouTube player")).toBeVisible();
+  await expect.poll(() => metadataRequestStarted).toBe(true);
+  releaseMetadata();
   await expect(page.getByRole("heading", { name: "Extracted video" })).toBeFocused();
   await expect(page.getByText("Welcome to the video.")).toBeVisible();
   await page.getByRole("button", { name: "Seek to 0:42" }).click();
