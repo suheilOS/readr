@@ -45,7 +45,7 @@ describe("YouTube capture content script", () => {
         <meta property="og:title" content="Metadata title">
         <transcript-segment-view-model>
           <span class="ytwTranscriptSegmentViewModelTimestamp">1:02:03</span>
-          <span class="yt-core-attributed-string">Second line</span>
+          <span class="ytAttributedStringHost" role="text">Second line</span>
         </transcript-segment-view-model>
       </body></html>
     `);
@@ -61,6 +61,27 @@ describe("YouTube capture content script", () => {
         }),
       }),
     });
+  });
+
+  it("keeps supporting the legacy modern transcript text selector", () => {
+    const { listener } = loadCapturePage(`
+      <html><body>
+        <meta property="og:title" content="Metadata title">
+        <transcript-segment-view-model>
+          <span class="ytwTranscriptSegmentViewModelTimestamp">0:12</span>
+          <span class="yt-core-attributed-string">Legacy line</span>
+        </transcript-segment-view-model>
+      </body></html>
+    `);
+
+    expect(invoke(listener)).toEqual(expect.objectContaining({
+      ok: true,
+      content: expect.objectContaining({
+        transcript: expect.objectContaining({
+          segments: [{ startSeconds: 12, text: "Legacy line" }],
+        }),
+      }),
+    }));
   });
 
   it("reports unsupported pages and missing transcripts without throwing", () => {

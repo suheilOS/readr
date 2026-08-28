@@ -49,7 +49,7 @@
       thumbnailUrl: readThumbnail(videoId),
       transcript: {
         kind: "available",
-          language: null,
+        language: null,
         segments,
         chapters: [],
       },
@@ -64,7 +64,11 @@
   function readTranscriptSegments() {
     const selectors = [
       ["ytd-transcript-segment-renderer", ".segment-timestamp", ".segment-text"],
-      ["transcript-segment-view-model", ".ytwTranscriptSegmentViewModelTimestamp", "span.yt-core-attributed-string"],
+      [
+        "transcript-segment-view-model",
+        ".ytwTranscriptSegmentViewModelTimestamp",
+        'span.ytAttributedStringHost[role="text"], span.yt-core-attributed-string',
+      ],
     ];
 
     for (const [segmentSelector, timestampSelector, textSelector] of selectors) {
