@@ -9,6 +9,7 @@ import {
   type ItemUrl,
   type ItemType,
 } from "../shared/item";
+import { parseSaveMediaProgressInput } from "../shared/mediaProgress";
 import { requireAuth, type AppEnv } from "./auth";
 import { requireSameOrigin } from "./csrf";
 
@@ -210,6 +211,58 @@ itemRoutes.post("/items/:candidateId/swap", async (context) => {
     : context.json({ item: toItem(item), displacedId });
 });
 
+itemRoutes.get("/items/:id/media-progress", async (context) => {
+  const row = await findMediaProgress(
+    context.env.READR_DB,
+    context.get("userId"),
+    context.req.param("id"),
+  );
+
+  return context.json({
+    progress: row === null ? null : toMediaProgress(row),
+  });
+});
+
+itemRoutes.put("/items/:id/media-progress", async (context) => {
+  const input = parseSaveMediaProgressInput(await readJson(context));
+  if (input === null) {
+    return apiError(context, "bad_request", "Enter valid playback progress.", 400);
+  }
+
+  const userId = context.get("userId");
+  const itemId = context.req.param("id");
+  const updatedAt = new Date().toISOString();
+  await context.env.READR_DB.prepare(`
+    INSERT INTO media_progress (
+      item_id, position_seconds, duration_seconds, revision, updated_at
+    )
+    SELECT id, ?, ?, ?, ?
+    FROM items
+    WHERE id = ? AND user_id = ?
+    ON CONFLICT(item_id) DO UPDATE SET
+      position_seconds = excluded.position_seconds,
+      duration_seconds = excluded.duration_seconds,
+      revision = excluded.revision,
+      updated_at = excluded.updated_at
+    WHERE excluded.revision > media_progress.revision
+  `).bind(
+    input.positionSeconds,
+    input.durationSeconds,
+    input.revision,
+    updatedAt,
+    itemId,
+    userId,
+  ).run();
+
+  const progress = await findMediaProgress(context.env.READR_DB, userId, itemId);
+  if (progress !== null) return context.json({ progress: toMediaProgress(progress) });
+
+  const item = await findItem(context.env.READR_DB, userId, itemId);
+  return item === null
+    ? apiError(context, "not_found", "The item could not be found.", 404)
+    : apiError(context, "internal_error", "Playback progress could not be saved.", 500);
+});
+
 export { itemRoutes };
 
 async function readCreateInput(context: Context<AppEnv>): Promise<CreateItemInput | null> {
@@ -295,3 +348,32 @@ type ItemRow = {
   note: string | null;
   updated_at: string;
 };
+
+type MediaProgressRow = {
+  position_seconds: number;
+  duration_seconds: number;
+  revision: string;
+  updated_at: string;
+};
+
+async function findMediaProgress(
+  db: D1Database,
+  userId: string,
+  itemId: string,
+): Promise<MediaProgressRow | null> {
+  return db.prepare(`
+    SELECT p.position_seconds, p.duration_seconds, p.revision, p.updated_at
+    FROM media_progress p
+    INNER JOIN items i ON i.id = p.item_id
+    WHERE p.item_id = ? AND i.user_id = ?
+  `).bind(itemId, userId).first<MediaProgressRow>();
+}
+
+function toMediaProgress(row: MediaProgressRow) {
+  return {
+    positionSeconds: row.position_seconds,
+    durationSeconds: row.duration_seconds,
+    revision: row.revision,
+    updatedAt: row.updated_at,
+  };
+}

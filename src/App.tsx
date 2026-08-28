@@ -58,8 +58,8 @@ function ReaderLoadingFallback({ onClose }: { onClose: () => void }) {
       </header>
       <div className="reader-column">
         <div className="reader-loading">
-          <TwinOrbit label="Opening article" />
-          <span aria-hidden="true">Opening article…</span>
+          <TwinOrbit label="Opening reader" />
+          <span aria-hidden="true">Opening reader…</span>
         </div>
       </div>
     </div>

@@ -6,6 +6,7 @@ import { itemRoutes } from "./items";
 import { requireSameOrigin } from "./csrf";
 import { jsonError } from "./http";
 import { handleSignOut } from "./sign-out";
+import { extractYouTubeFromRequest } from "./media";
 
 export const app = new Hono<AppEnv>();
 
@@ -26,6 +27,14 @@ app.all("/api/extract", () => jsonError({
   error: {
     code: "method_not_allowed",
     message: "Use POST for extraction.",
+  },
+}, 405, { Allow: "POST" }));
+
+app.post("/api/media/youtube", requireAuth, requireSameOrigin, handleYouTubeExtraction);
+app.all("/api/media/youtube", () => jsonError({
+  error: {
+    code: "method_not_allowed",
+    message: "Use POST for YouTube extraction.",
   },
 }, 405, { Allow: "POST" }));
 
@@ -102,6 +111,46 @@ async function handleExtraction(context: Context<AppEnv>): Promise<Response> {
       error: {
         code: "internal_error",
         message: "The page could not be opened.",
+      },
+    }, 500);
+  }
+}
+
+async function handleYouTubeExtraction(context: Context<AppEnv>): Promise<Response> {
+  const clientKey = context.req.header("CF-Connecting-IP") ?? "unidentified";
+  const rateLimit = await context.env.EXTRACT_RATE_LIMITER.limit({ key: `youtube:${clientKey}` });
+  if (!rateLimit.success) {
+    return jsonError({
+      error: {
+        code: "rate_limited",
+        message: "Too many videos were opened recently. Try again in a minute.",
+      },
+    }, 429, { "Retry-After": "60" });
+  }
+
+  try {
+    const content = await extractYouTubeFromRequest(context.req.raw);
+    return Response.json(content, {
+      headers: {
+        "Cache-Control": "no-store",
+        "X-Content-Type-Options": "nosniff",
+      },
+    });
+  } catch (error) {
+    if (error instanceof ExtractionError) {
+      return jsonError({
+        error: { code: error.code, message: error.message },
+      }, error.status);
+    }
+
+    console.error(JSON.stringify({
+      message: "YouTube extraction failed",
+      error: error instanceof Error ? error.message : String(error),
+    }));
+    return jsonError({
+      error: {
+        code: "internal_error",
+        message: "The video details could not be loaded.",
       },
     }, 500);
   }

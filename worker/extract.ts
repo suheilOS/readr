@@ -37,7 +37,7 @@ export class ExtractionError extends Error {
 }
 
 export async function extractFromRequest(request: Request): Promise<ExtractedArticle> {
-  const requestBody = await readRequestBody(request);
+  const requestBody = await readJsonRequestBody(request);
   const input = parseExtractRequest(requestBody);
   if (input === null) {
     throw new ExtractionError({
@@ -92,7 +92,7 @@ export async function extractFromRequest(request: Request): Promise<ExtractedArt
   };
 }
 
-async function readRequestBody(request: Request): Promise<unknown> {
+export async function readJsonRequestBody(request: Request): Promise<unknown> {
   const contentType = request.headers.get("content-type")?.toLowerCase() ?? "";
   if (!contentType.startsWith("application/json")) {
     throw new ExtractionError({
@@ -149,7 +149,7 @@ async function readRequestBody(request: Request): Promise<unknown> {
   }
 }
 
-async function fetchHtml(initialUrl: URL): Promise<{ html: string; sourceUrl: string }> {
+export async function fetchHtml(initialUrl: URL): Promise<{ html: string; sourceUrl: string }> {
   let currentUrl = initialUrl;
 
   for (let redirect = 0; redirect <= MAX_REDIRECTS; redirect += 1) {

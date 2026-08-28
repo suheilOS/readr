@@ -1,6 +1,6 @@
 import { useRef } from "react";
 import { Menu } from "@base-ui/react/menu";
-import { canReadInApp, DESK_CAPACITY, type Item, itemMetaLine } from "../../shared/item";
+import { canReadInApp, DESK_CAPACITY, type Item, itemMetaLine, readerKindFor } from "../../shared/item";
 import { focusAdjacentAction } from "../focusAdjacentAction";
 import { isPendingItemAction, type PendingItemAction } from "../pendingItemAction";
 import {
@@ -89,12 +89,12 @@ export function DeskSection({
                     <button
                       type="button"
                       className="pill-button"
-                      aria-label={`Read in readr: ${item.title}`}
+                      aria-label={`Open in readr: ${item.title}`}
                       data-reader-item-id={item.id}
                       onClick={() => onRead(item)}
                     >
                       <BookOpenIcon className="button-icon" />
-                      <span>Read</span>
+                      <span>{readerKindFor(item) === "youtube" ? "Watch" : "Read"}</span>
                     </button>
                   )}
                   {item.url !== null && !canReadInApp(item) && (

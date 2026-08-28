@@ -53,7 +53,7 @@ type Item = {
 };
 ```
 
-The type appears quietly on cards, as “Book” or “Article”. Books, podcasts, and videos stay external: readr manages the intention, not the media.
+The type appears quietly on cards, as “Book” or “Article”. Books and podcasts stay external. Supported YouTube links open in a media reader; other videos fall back to the original link.
 
 Reading time is not stored. It is computed when you open an item in the reader, from extracted word count.
 
@@ -79,7 +79,9 @@ Articles and papers open inside the app through a distraction-free view. A Worke
 
 Extraction failures fall back to an Open original link. Version 1 ships no per-site selector overrides.
 
-Typography is the entire reading interface: measure, line height, hierarchy. No floating settings bars, font pickers, or outlines.
+Typography is the entire article-reading interface: measure, line height, hierarchy. No floating settings bars, font pickers, or outlines.
+
+YouTube links use a separate reader path. The Worker canonicalizes the video URL and runs Defuddle's asynchronous YouTube extractor, then returns typed metadata, transcript segments, and chapters. The client creates the embed from the validated video ID and uses the YouTube IFrame Player API for playback, seeking, transcript synchronization, keyboard controls, and resume state. Transcript extraction is best effort; the player and original link remain usable when captions are unavailable.
 
 ## What the library shows
 
@@ -182,8 +184,9 @@ Version 1 is complete when:
 - capture, decide, finish, discard, and search use the authenticated API
 - valid items persist across reloads and devices
 - articles and papers open in the reader with clean typography
+- supported YouTube videos open with playback, transcript seeking, chapters, and resume
 - extraction failures fall back to the original link
-- books, podcasts, and videos manage as intentions only
+- books, podcasts, and unsupported videos manage as intentions only
 - the flow works well on desktop and mobile
 
 It should feel finished because it does so little.

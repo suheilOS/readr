@@ -2,7 +2,7 @@
 
 readr is a focused reading queue for deciding what deserves your attention.
 
-Capture articles, papers, books, podcasts, and videos. Keep a small desk of up to five items, finish what you choose, and retain a quiet record in your library. Articles and papers with links can open in a distraction-free reader; other media stay external.
+Capture articles, papers, books, podcasts, and videos. Keep a small desk of up to five items, finish what you choose, and retain a quiet record in your library. Articles and papers open in a distraction-free reader. YouTube videos open with synchronized transcripts and resume playback when captions are available.
 
 ## How it works
 
@@ -20,6 +20,7 @@ The desk has a fixed capacity of five. When it is full, replacing an item discar
 - Capture a title, optional link, and type: article, book, paper, video, or podcast.
 - Search titles and links across the inbox, desk, and library.
 - Read linked articles and papers in the app with extracted title, author, reading time, and word count.
+- Watch supported YouTube links with a sticky player, timestamp seeking, transcript follow mode, chapters, keyboard controls, and saved playback position.
 - Fall back to the original link when extraction is not available.
 - Light and dark themes, with optional sound cues.
 - Server-backed item data that follows your account across devices.
@@ -67,6 +68,9 @@ POST   /api/items/:id/finish
 DELETE /api/items/:id
 POST   /api/items/:candidateId/swap
 POST   /api/extract
+POST   /api/media/youtube
+GET    /api/items/:id/media-progress
+PUT    /api/items/:id/media-progress
 ```
 
 The item API owns IDs, timestamps, ownership checks, validation, desk capacity, lifecycle changes, and swaps. Discard is permanent.
@@ -84,6 +88,8 @@ Content-Type: application/json
 
 The Worker accepts public HTTP(S) page URLs, removes common tracking parameters, fetches the HTML server-side, and extracts the readable content with Defuddle. The client sanitizes the returned HTML before rendering it. The endpoint rejects unsafe URLs, unsupported content, oversized requests or pages, rate-limited clients, and upstream failures with structured error responses.
 
+The YouTube endpoint accepts watch, short, embed, live, and `youtu.be` URLs, reduces them to a validated video ID, and returns structured metadata and transcript data from Defuddle's asynchronous extractor. It never returns extracted iframe HTML. Transcript failures degrade to the player and original link. Playback progress lives in a separate `media_progress` table and saves periodically while playing and when playback pauses or the page closes.
+
 ## Project structure
 
 - `src/` — React interface, API client, reader, themes, and sound cues.
@@ -100,6 +106,8 @@ The app is configured for Cloudflare Workers static assets, Readr D1, and an Aut
 ```sh
 bun run deploy
 ```
+
+The deploy command builds the app, applies pending migrations to the remote `readr` D1 database, and then deploys the Worker. If a migration fails, deployment stops before the Worker is updated.
 
 ## License
 

@@ -6,6 +6,8 @@ Complete for the current launch. Overhawl Auth is deployed, its D1 schema is app
 
 No user data exists, so this is a clean launch. There is no account migration, item migration, localStorage recovery flow, or anonymous-data merge to support.
 
+The media reader work in phases 7, 9, 10, and 11 is now implemented for YouTube. Readr has canonical URL parsing, structured async Defuddle extraction, an IFrame API player, synchronized transcripts and chapters, graceful caption fallback, and account-backed resume state. Phase 8 currently exposes thumbnail metadata through the media API; the visual desk-card treatment remains a separate presentation pass.
+
 ## Decision
 
 Overhawl will use one identity service and one database per product.
@@ -173,6 +175,9 @@ POST   /api/items/:id/finish
 DELETE /api/items/:id
 POST   /api/items/:candidateId/swap
 POST   /api/extract
+POST   /api/media/youtube
+GET    /api/items/:id/media-progress
+PUT    /api/items/:id/media-progress
 ```
 
 Every endpoint requires an authenticated session. Every query includes the authenticated `user_id`, including lookups, updates, deletes, and swap operations. A client cannot read or modify another user's item by changing an ID in the URL.
