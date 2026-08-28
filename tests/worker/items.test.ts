@@ -37,6 +37,63 @@ describe("Readr item API", () => {
     const names = columns.results.map((column) => column.name);
     expect(names).toContain("revision");
     expect(names).not.toContain("user_id");
+
+    const indexes = await env.READR_DB.prepare("PRAGMA index_list(media_content)")
+      .all<{ name: string }>();
+    expect(indexes.results.map((index) => index.name)).not.toContain("media_content_video_idx");
+  });
+
+  it("enforces one captured YouTube item per user", async () => {
+    const columns = await env.READR_DB.prepare("PRAGMA table_info(items)").all<{ name: string }>();
+    expect(columns.results.map((column) => column.name)).toContain("youtube_video_id");
+
+    const userId = `capture-unique-${crypto.randomUUID()}`;
+    const capture = {
+      kind: "youtube_capture",
+      videoId: "dQw4w9WgXcQ",
+      sourceUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+      title: "Captured video",
+      author: null,
+      description: null,
+      thumbnailUrl: null,
+      transcript: { kind: "unavailable" },
+    };
+    const responses = await Promise.all([
+      request(userId, "/api/media/youtube/capture", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(capture),
+      }),
+      request(userId, "/api/media/youtube/capture", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(capture),
+      }),
+    ]);
+
+    expect(responses.map((response) => response.status).sort()).toEqual([200, 201]);
+    const items = await request(userId, "/api/items");
+    expect((await items.json() as { items: unknown[] }).items).toHaveLength(1);
+  });
+
+  it("rejects a duplicate manually-added YouTube item with a conflict", async () => {
+    const userId = `duplicate-youtube-${crypto.randomUUID()}`;
+    const input = {
+      title: "Video",
+      url: "https://youtu.be/dQw4w9WgXcQ",
+      type: "video",
+    };
+    expect((await request(userId, "/api/items", {
+      method: "POST",
+      body: JSON.stringify(input),
+    })).status).toBe(201);
+
+    const duplicate = await request(userId, "/api/items", {
+      method: "POST",
+      body: JSON.stringify(input),
+    });
+    expect(duplicate.status).toBe(409);
+    expect(await duplicate.json()).toMatchObject({ error: { code: "duplicate_item" } });
   });
 
   it("keeps item data isolated by authenticated user", async () => {
@@ -218,6 +275,144 @@ describe("Readr item API", () => {
     expect(await equalRevision.json()).toMatchObject({
       progress: { positionSeconds: 80, durationSeconds: 300, revision: REVISION_2 },
     });
+  });
+
+  it("persists browser captures without duplicating a matching YouTube item", async () => {
+    const userId = `capture-${crypto.randomUUID()}`;
+    const created = await request(userId, "/api/items", {
+      method: "POST",
+      body: JSON.stringify({
+        title: "My saved title",
+        url: "https://youtu.be/dQw4w9WgXcQ",
+        type: "article",
+      }),
+    });
+    const createdBody = await created.json() as { item: { id: string } };
+    const indexed = await env.READR_DB.prepare(
+      "SELECT youtube_video_id FROM items WHERE id = ?",
+    ).bind(createdBody.item.id).first<{ youtube_video_id: string | null }>();
+    expect(indexed?.youtube_video_id).toBe("dQw4w9WgXcQ");
+
+    await env.READR_DB.prepare(
+      "UPDATE items SET youtube_video_id = NULL WHERE id = ?",
+    ).bind(createdBody.item.id).run();
+    const capture = {
+      kind: "youtube_capture",
+      videoId: "dQw4w9WgXcQ",
+      sourceUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+      title: "Captured video",
+      author: "Captured channel",
+      description: "Captured description",
+      thumbnailUrl: "https://i.ytimg.com/vi/dQw4w9WgXcQ/hqdefault.jpg",
+      transcript: {
+        kind: "available",
+        language: "en",
+        segments: [{ startSeconds: 0, text: "Captured transcript." }],
+        chapters: [],
+      },
+    };
+
+    const saved = await request(userId, "/api/media/youtube/capture", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(capture),
+    });
+    expect(saved.status).toBe(200);
+    expect(await saved.json()).toMatchObject({
+      created: false,
+      item: { id: createdBody.item.id, title: "My saved title" },
+    });
+
+    const backfilled = await env.READR_DB.prepare(
+      "SELECT youtube_video_id FROM items WHERE id = ?",
+    ).bind(createdBody.item.id).first<{ youtube_video_id: string | null }>();
+    expect(backfilled?.youtube_video_id).toBe("dQw4w9WgXcQ");
+
+    const repeated = await request(userId, "/api/media/youtube/capture", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(capture),
+    });
+    expect(repeated.status).toBe(200);
+
+    const content = await request(userId, `/api/items/${createdBody.item.id}/media-content`);
+    expect(content.status).toBe(200);
+    expect(await content.json()).toMatchObject({
+      content: {
+        kind: "youtube_capture",
+        title: "Captured video",
+        transcript: { kind: "available", segments: [{ text: "Captured transcript." }] },
+      },
+    });
+
+    const otherContent = await request(`other-${crypto.randomUUID()}`, `/api/items/${createdBody.item.id}/media-content`);
+    expect(otherContent.status).toBe(404);
+
+    const items = await request(userId, "/api/items");
+    expect((await items.json() as { items: unknown[] }).items).toHaveLength(1);
+  });
+
+  it("creates a video inbox item when a browser capture has no match", async () => {
+    const userId = `capture-new-${crypto.randomUUID()}`;
+    const response = await request(userId, "/api/media/youtube/capture", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        kind: "youtube_capture",
+        videoId: "dQw4w9WgXcQ",
+        sourceUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ&feature=shared",
+        title: "New captured video",
+        author: null,
+        description: null,
+        thumbnailUrl: null,
+        transcript: { kind: "unavailable" },
+      }),
+    });
+
+    expect(response.status).toBe(201);
+    expect(await response.json()).toMatchObject({
+      created: true,
+      item: { title: "New captured video", type: "video", status: "inbox" },
+    });
+    const items = await request(userId, "/api/items");
+    expect(await items.json()).toMatchObject({
+      items: [{ url: "https://www.youtube.com/watch?v=dQw4w9WgXcQ" }],
+    });
+  });
+
+  it("rejects malformed browser captures before writing", async () => {
+    const userId = `capture-invalid-${crypto.randomUUID()}`;
+    const response = await request(userId, "/api/media/youtube/capture", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        kind: "youtube_capture",
+        videoId: "dQw4w9WgXcQ",
+        sourceUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+        title: "x".repeat(501),
+        author: null,
+        description: null,
+        thumbnailUrl: null,
+        transcript: { kind: "unavailable" },
+      }),
+    });
+
+    expect(response.status).toBe(400);
+    expect(await (await request(userId, "/api/items")).json()).toEqual({ items: [] });
+  });
+
+  it("keeps browser capture writes behind the existing same-origin boundary", async () => {
+    const response = await request(`capture-csrf-${crypto.randomUUID()}`, "/api/media/youtube/capture", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        Origin: "https://malicious.test",
+      },
+      body: JSON.stringify({}),
+    });
+
+    expect(response.status).toBe(403);
+    expect(await response.json()).toMatchObject({ error: { code: "csrf_rejected" } });
   });
 });
 

@@ -21,6 +21,7 @@ The desk has a fixed capacity of five. When it is full, replacing an item discar
 - Search titles and links across the inbox, desk, and library.
 - Read linked articles and papers in the app with extracted title, author, reading time, and word count.
 - Watch supported YouTube links with a sticky player, timestamp seeking, transcript follow mode, chapters, keyboard controls, and saved playback position.
+- Capture a visible YouTube transcript from the companion Chrome MV3 extension and store it with the matching Readr item for fast repeat reads.
 - Fall back to the original link when extraction is not available.
 - Light and dark themes, with optional sound cues.
 - Server-backed item data that follows your account across devices.
@@ -71,6 +72,8 @@ POST   /api/extract
 POST   /api/media/youtube/metadata
 POST   /api/media/youtube/transcript
 POST   /api/media/youtube       (legacy compatibility)
+POST   /api/media/youtube/capture
+GET    /api/items/:id/media-content
 GET    /api/items/:id/media-progress
 PUT    /api/items/:id/media-progress
 ```
@@ -92,12 +95,15 @@ The Worker accepts public HTTP(S) page URLs, removes common tracking parameters,
 
 The YouTube metadata and transcript endpoints accept watch, short, embed, live, and `youtu.be` URLs, reduce them to a validated video ID, and run independently. Metadata comes from YouTube's oEmbed endpoint; transcript segments and chapters come from Defuddle's asynchronous YouTube extraction path, which fetches player and timed-text data directly without relying on watch-page HTML. Neither endpoint returns extracted iframe HTML. Transcript failures degrade to the player and original link, while metadata failures leave the stored item title in place. The old combined `POST /api/media/youtube` response remains temporarily for already-open tabs during deployment and should not be used by new clients. Playback progress lives in a separate `media_progress` table and saves periodically while playing and when the page closes.
 
+The companion Chrome MV3 extension captures structured metadata and the transcript currently rendered by YouTube in the user's browser. It sends that payload through the signed-in Readr tab, so it never reads or copies the session cookie. `POST /api/media/youtube/capture` validates and upserts the capture, matching an existing YouTube item by video ID or creating one inbox video item. `GET /api/items/:id/media-content` returns the stored capture; the reader uses it before falling back to live extraction. See [`extension/README.md`](extension/README.md) for the unpacked-extension smoke test.
+
 ## Project structure
 
 - `src/` — React interface, API client, reader, themes, and sound cues.
 - `worker/` — Hono routes, Auth Service session checks, D1 item handlers, URL checks, and extraction.
 - `migrations/` — Readr D1 schema migrations.
 - `shared/` — Types and validation shared by the client and Worker.
+- `extension/` — Reviewable Chrome MV3 browser-capture files.
 - `tests/` — Worker, lifecycle, sanitization, and Chromium reader tests.
 - `docs/` — Product description, project brief, and launch notes.
 

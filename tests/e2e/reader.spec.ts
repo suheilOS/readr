@@ -235,6 +235,148 @@ test("keeps a YouTube video usable when metadata and transcript are unavailable"
   await expect(page.getByRole("heading", { name: "- YouTube" })).toHaveCount(0);
 });
 
+test("uses a stored browser capture before live YouTube extraction", async ({ page }) => {
+  await installMockYouTubePlayer(page);
+  let metadataRequests = 0;
+  let transcriptRequests = 0;
+
+  await page.route("**/api/items", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        items: [{
+          id: "youtube-captured",
+          title: "Original saved title",
+          url: "https://youtu.be/dQw4w9WgXcQ",
+          type: "video",
+          status: "desk",
+          addedAt: "2026-08-22T00:00:00.000Z",
+          finishedAt: null,
+          note: null,
+        }],
+      }),
+    });
+  });
+  await page.route("**/api/items/youtube-captured/media-progress", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ progress: null }),
+    });
+  });
+  await page.route("**/api/items/youtube-captured/media-content", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        content: {
+          kind: "youtube_capture",
+          videoId: "dQw4w9WgXcQ",
+          sourceUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+          title: "Captured video title",
+          author: "Captured channel",
+          description: "Captured description",
+          thumbnailUrl: null,
+          transcript: {
+            kind: "available",
+            language: "en",
+            chapters: [],
+            segments: [{ startSeconds: 0, text: "Captured transcript line." }],
+          },
+        },
+      }),
+    });
+  });
+  await page.route("**/api/media/youtube/metadata", async (route) => {
+    metadataRequests += 1;
+    await route.abort();
+  });
+  await page.route("**/api/media/youtube/transcript", async (route) => {
+    transcriptRequests += 1;
+    await route.abort();
+  });
+
+  await page.goto("/");
+  await page.getByRole("button", { name: "Open in readr: Original saved title" }).click();
+
+  await expect(page.getByRole("heading", { name: "Captured video title" })).toBeFocused();
+  await expect(page.getByText("Captured transcript line.")).toBeVisible();
+  expect(metadataRequests).toBe(0);
+  expect(transcriptRequests).toBe(0);
+});
+
+test("acknowledges browser capture only after persistence succeeds", async ({ page }) => {
+  let captureRequests = 0;
+  await page.route("**/api/items", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ items: [] }),
+    });
+  });
+  await page.route("**/api/media/youtube/capture", async (route) => {
+    captureRequests += 1;
+    await route.fulfill({
+      status: 201,
+      contentType: "application/json",
+      body: JSON.stringify({
+        created: true,
+        item: {
+          id: "captured-e2e",
+          title: "Captured from browser",
+          url: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+          type: "video",
+          status: "inbox",
+          addedAt: "2026-08-28T00:00:00.000Z",
+          finishedAt: null,
+          note: null,
+        },
+      }),
+    });
+  });
+
+  await page.goto("/");
+  await expect(page.locator("main.app")).toBeVisible();
+  const result = await page.evaluate(async () => {
+    const captureId = "e2e-capture";
+    const resultPromise = new Promise<unknown>((resolve) => {
+      function handleMessage(event: MessageEvent<unknown>) {
+        if (
+          event.source === window &&
+          event.origin === window.location.origin &&
+          typeof event.data === "object" &&
+          event.data !== null &&
+          (event.data as { type?: unknown }).type === "readr:capture-result" &&
+          (event.data as { captureId?: unknown }).captureId === captureId
+        ) {
+          window.removeEventListener("message", handleMessage);
+          resolve(event.data);
+        }
+      }
+      window.addEventListener("message", handleMessage);
+    });
+    window.postMessage({
+      type: "readr:youtube-capture",
+      captureId,
+      content: {
+        kind: "youtube_capture",
+        videoId: "dQw4w9WgXcQ",
+        sourceUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+        title: "Captured from browser",
+        author: null,
+        description: null,
+        thumbnailUrl: null,
+        transcript: { kind: "unavailable" },
+      },
+    }, window.location.origin);
+    return resultPromise;
+  });
+
+  expect(result).toEqual({ type: "readr:capture-result", captureId: "e2e-capture", ok: true });
+  expect(captureRequests).toBe(1);
+});
+
 async function installMockYouTubePlayer(page: Page): Promise<void> {
   await page.addInitScript(() => {
     const testWindow = window as typeof window & {

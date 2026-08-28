@@ -12,6 +12,7 @@ import {
   extractYouTubeMetadataFromRequest,
   extractYouTubeTranscriptFromRequest,
 } from "./media";
+import { captureYouTubeContent, getYouTubeContent } from "./mediaContent";
 
 export const app = new Hono<AppEnv>();
 
@@ -60,6 +61,8 @@ app.post(
   requireSameOrigin,
   (context) => handleYouTubeExtraction(context, "transcript", extractYouTubeTranscriptFromRequest),
 );
+app.post("/api/media/youtube/capture", requireAuth, requireSameOrigin, captureYouTubeContent);
+app.get("/api/items/:id/media-content", requireAuth, getYouTubeContent);
 app.all("/api/media/youtube/*", () => jsonError({
   error: {
     code: "method_not_allowed",

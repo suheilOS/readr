@@ -4,6 +4,7 @@ import {
   type ItemType,
   type ItemUrl,
 } from "../shared/item";
+import { isYouTubeCapturedContent, type YouTubeCapturedContent } from "../shared/media";
 
 export type NewItemInput = {
   title: string;
@@ -14,6 +15,7 @@ export type NewItemInput = {
 type ItemResponse = { item: Item };
 type ItemsResponse = { items: Item[] };
 type SwapResponse = { item: Item; displacedId: string };
+type CaptureResponse = { item: Item; created: boolean };
 
 export class ItemApiError extends Error {
   readonly status: number;
@@ -77,6 +79,32 @@ export async function swapItems(candidateId: string, displacedId: string): Promi
     throw new ItemApiError("The server returned an invalid item.", 502, "invalid_response");
   }
   return { item, displacedId: body.displacedId };
+}
+
+export async function fetchYouTubeContent(
+  itemId: string,
+  signal?: AbortSignal,
+): Promise<YouTubeCapturedContent | null> {
+  const response = await request(`/api/items/${encodeURIComponent(itemId)}/media-content`, { signal });
+  if (!isRecord(response.body) || (response.body.content !== null && !isYouTubeCapturedContent(response.body.content))) {
+    throw new ItemApiError("The server returned invalid video content.", 502, "invalid_response");
+  }
+  return response.body.content;
+}
+
+export async function saveYouTubeContent(content: YouTubeCapturedContent): Promise<CaptureResponse> {
+  const response = await request("/api/media/youtube/capture", {
+    method: "POST",
+    body: JSON.stringify(content),
+  });
+  const item = isRecord(response.body) ? parseItem(response.body.item) : null;
+  if (!isRecord(response.body) || item === null || typeof response.body.created !== "boolean") {
+    throw new ItemApiError("The server returned an invalid capture.", 502, "invalid_response");
+  }
+  return {
+    item,
+    created: response.body.created,
+  };
 }
 
 async function request(path: string, init: RequestInit = {}): Promise<{ body: unknown }> {

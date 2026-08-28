@@ -148,6 +148,7 @@ items
 - user_id      TEXT NOT NULL
 - title        TEXT NOT NULL
 - url          TEXT NULL
+- youtube_video_id TEXT NULL (canonical YouTube identity when applicable)
 - type         TEXT NOT NULL
 - status       TEXT NOT NULL
 - added_at     TEXT NOT NULL
@@ -156,7 +157,7 @@ items
 - updated_at   TEXT NOT NULL
 ```
 
-Add indexes for `(user_id, status)` and `(user_id, updated_at)`. `user_id` is an external identity reference, not a database foreign key. It must never be an email address.
+Add indexes for `(user_id, status)`, `(user_id, updated_at)`, and a partial unique index for `(user_id, youtube_video_id)` when the latter is present. `user_id` is an external identity reference, not a database foreign key. It must never be an email address.
 
 The server generates item IDs and timestamps. The client sends only the fields the user entered.
 
@@ -178,6 +179,8 @@ POST   /api/extract
 POST   /api/media/youtube/metadata
 POST   /api/media/youtube/transcript
 POST   /api/media/youtube       (legacy compatibility)
+POST   /api/media/youtube/capture
+GET    /api/items/:id/media-content
 GET    /api/items/:id/media-progress
 PUT    /api/items/:id/media-progress
 ```
@@ -241,7 +244,7 @@ Unauthenticated users can see a sign-in path, but they cannot create or access R
 9. **YouTube player view**
 10. **YouTube transcripts and chapters**
 11. **Media completion and resume**
-12. **Browser capture**
+12. **Browser capture** — first vertical slice implemented: Chrome MV3 capture of a visible YouTube transcript, same-origin persistence through the signed-in Readr tab, D1 media content, and reader-first stored fallback. Article capture, OAuth, cross-browser packaging, and InnerTube retry changes remain out of scope until browser smoke-test evidence justifies them.
 
 ## Acceptance criteria
 

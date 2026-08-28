@@ -12,7 +12,7 @@ import {
   resolvePublicUrl,
 } from "./urlSafety";
 
-const MAX_REQUEST_BYTES = 8 * 1024;
+export const MAX_REQUEST_BYTES = 8 * 1024;
 const MAX_HTML_BYTES = 5 * 1024 * 1024;
 const FETCH_TIMEOUT_MS = 10_000;
 
@@ -92,7 +92,10 @@ export async function extractFromRequest(request: Request): Promise<ExtractedArt
   };
 }
 
-export async function readJsonRequestBody(request: Request): Promise<unknown> {
+export async function readJsonRequestBody(
+  request: Request,
+  maxBytes = MAX_REQUEST_BYTES,
+): Promise<unknown> {
   const contentType = request.headers.get("content-type")?.toLowerCase() ?? "";
   if (!contentType.startsWith("application/json")) {
     throw new ExtractionError({
@@ -103,7 +106,7 @@ export async function readJsonRequestBody(request: Request): Promise<unknown> {
   }
 
   const contentLength = Number(request.headers.get("content-length"));
-  if (Number.isFinite(contentLength) && contentLength > MAX_REQUEST_BYTES) {
+  if (Number.isFinite(contentLength) && contentLength > maxBytes) {
     throw new ExtractionError({
       code: "request_too_large",
       status: 413,
@@ -123,7 +126,7 @@ export async function readJsonRequestBody(request: Request): Promise<unknown> {
   try {
     body = await readBodyWithLimit(
       request.body,
-      MAX_REQUEST_BYTES,
+      maxBytes,
       "request_too_large",
     );
   } catch (error) {

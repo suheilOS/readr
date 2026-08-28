@@ -51,6 +51,28 @@ export type YouTubeTranscriptContent = {
   transcript: YouTubeTranscript;
 };
 
+export type YouTubeCapturedContent = {
+  kind: "youtube_capture";
+  videoId: YouTubeVideoId;
+  sourceUrl: string;
+  title: string;
+  author: string | null;
+  description: string | null;
+  thumbnailUrl: string | null;
+  transcript: YouTubeTranscript;
+};
+
+export const YOUTUBE_CAPTURE_LIMITS = {
+  title: 500,
+  author: 300,
+  description: 20_000,
+  segments: 5_000,
+  segmentText: 2_000,
+  chapters: 500,
+  chapterTitle: 300,
+  payloadBytes: 512 * 1024,
+} as const;
+
 /**
  * Response shape kept for tabs running the pre-split YouTube reader bundle.
  * New clients should request metadata and transcript content independently.
@@ -167,6 +189,29 @@ export function isYouTubeTranscriptContent(value: unknown): value is YouTubeTran
   );
 }
 
+export function isYouTubeCapturedContent(value: unknown): value is YouTubeCapturedContent {
+  if (!isRecord(value) || value.kind !== "youtube_capture") return false;
+  const parsedUrl = parseYouTubeUrl(value.sourceUrl);
+
+  if (
+    parsedUrl === null ||
+    value.videoId !== parsedUrl.videoId ||
+    !isBoundedNonEmptyString(value.title, YOUTUBE_CAPTURE_LIMITS.title) ||
+    !isNullableBoundedString(value.author, YOUTUBE_CAPTURE_LIMITS.author) ||
+    !isNullableBoundedString(value.description, YOUTUBE_CAPTURE_LIMITS.description) ||
+    (value.thumbnailUrl !== null && !isYouTubeImageUrl(value.thumbnailUrl)) ||
+    !isCapturedTranscript(value.transcript)
+  ) {
+    return false;
+  }
+
+  try {
+    return new TextEncoder().encode(JSON.stringify(value)).byteLength <= YOUTUBE_CAPTURE_LIMITS.payloadBytes;
+  } catch {
+    return false;
+  }
+}
+
 function isTranscript(value: unknown): value is YouTubeTranscript {
   if (!isRecord(value)) return false;
   if (value.kind === "unavailable") return true;
@@ -181,6 +226,17 @@ function isTranscript(value: unknown): value is YouTubeTranscript {
     value.chapters.every(isVideoChapter) &&
     hasAscendingTimestamps(value.chapters)
   );
+}
+
+function isCapturedTranscript(value: unknown): value is YouTubeTranscript {
+  if (!isTranscript(value)) return false;
+  if (value.kind === "unavailable") return true;
+
+  return value.segments.length > 0 &&
+    value.segments.length <= YOUTUBE_CAPTURE_LIMITS.segments &&
+    value.segments.every((segment) => segment.text.length <= YOUTUBE_CAPTURE_LIMITS.segmentText) &&
+    value.chapters.length <= YOUTUBE_CAPTURE_LIMITS.chapters &&
+    value.chapters.every((chapter) => chapter.title.length <= YOUTUBE_CAPTURE_LIMITS.chapterTitle);
 }
 
 function hasAscendingTimestamps(values: unknown[]): boolean {
@@ -221,6 +277,24 @@ function isHttpsUrl(value: unknown): value is string {
 
 function isNonEmptyString(value: unknown): value is string {
   return typeof value === "string" && value.trim().length > 0;
+}
+
+function isYouTubeImageUrl(value: unknown): value is string {
+  if (!isHttpsUrl(value)) return false;
+  try {
+    const hostname = new URL(value).hostname.toLowerCase();
+    return hostname === "ytimg.com" || hostname.endsWith(".ytimg.com");
+  } catch {
+    return false;
+  }
+}
+
+function isBoundedNonEmptyString(value: unknown, maxLength: number): value is string {
+  return isNonEmptyString(value) && value.length <= maxLength;
+}
+
+function isNullableBoundedString(value: unknown, maxLength: number): value is string | null {
+  return value === null || (typeof value === "string" && value.length <= maxLength);
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

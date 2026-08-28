@@ -37,6 +37,8 @@ import {
   playPageChange,
   playToggle,
 } from "./soundCues";
+import { isYouTubeCapturedContent, type YouTubeCapturedContent } from "../shared/media";
+import { saveYouTubeContent } from "./itemApi";
 
 const THEME_STORAGE_KEY = "reader:theme";
 const SOUND_STORAGE_KEY = "reader:sounds";
@@ -171,6 +173,47 @@ export default function App() {
       window.removeEventListener("keydown", handleKeyDown);
     };
   }, [swapCandidateId]);
+
+  useEffect(() => {
+    function handleCaptureMessage(event: MessageEvent<unknown>) {
+      if (
+        event.source !== window ||
+        event.origin !== window.location.origin ||
+        !isYouTubeCaptureMessage(event.data)
+      ) {
+        return;
+      }
+
+      const capture = event.data;
+      void saveYouTubeContent(capture.content)
+        .then(({ item, created }) => {
+          retry();
+          setAnnouncement(created
+            ? `${item.title} captured to your inbox.`
+            : `${item.title} capture updated.`);
+          playCompletion();
+          window.postMessage({
+            type: "readr:capture-result",
+            captureId: capture.captureId,
+            ok: true,
+          }, window.location.origin);
+        })
+        .catch((error: unknown) => {
+          const message = error instanceof Error ? error.message : "The video could not be captured.";
+          setAnnouncement(message);
+          window.postMessage({
+            type: "readr:capture-result",
+            captureId: capture.captureId,
+            ok: false,
+            error: message,
+          }, window.location.origin);
+        });
+    }
+
+    window.addEventListener("message", handleCaptureMessage);
+    window.postMessage({ type: "readr:capture-ready" }, window.location.origin);
+    return () => window.removeEventListener("message", handleCaptureMessage);
+  }, [retry]);
 
   const displayQuery = query.trim();
   const searching = displayQuery.length > 0;
@@ -450,6 +493,25 @@ function getAuthOrigin(): string {
   }
 
   return "https://auth.overhawl.app";
+}
+
+function isYouTubeCaptureMessage(value: unknown): value is {
+  type: "readr:youtube-capture";
+  captureId: string;
+  content: YouTubeCapturedContent;
+} {
+  return isRecord(value) &&
+    value.type === "readr:youtube-capture" &&
+    isCaptureId(value.captureId) &&
+    isYouTubeCapturedContent(value.content);
+}
+
+function isCaptureId(value: unknown): value is string {
+  return typeof value === "string" && value.length > 0 && value.length <= 100;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 function SignedOutState({ theme, onToggleTheme }: ThemeDockProps) {

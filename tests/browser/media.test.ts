@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  isYouTubeCapturedContent,
   isYouTubeMetadata,
   isYouTubeTranscriptContent,
   parseYouTubeUrl,
@@ -89,6 +90,32 @@ describe("YouTube media boundaries", () => {
       author: "A channel",
       thumbnailUrl: "https://i.ytimg.com/vi/dQw4w9WgXcQ/hqdefault.jpg",
     })).toBe(true);
+  });
+
+  it("rejects a captured transcript that claims availability without segments", () => {
+    expect(isYouTubeCapturedContent({
+      kind: "youtube_capture",
+      videoId: "dQw4w9WgXcQ",
+      sourceUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+      title: "A video",
+      author: null,
+      description: null,
+      thumbnailUrl: null,
+      transcript: { kind: "available", language: "en", segments: [], chapters: [] },
+    })).toBe(false);
+  });
+
+  it("accepts only YouTube-hosted thumbnails in captured content", () => {
+    expect(isYouTubeCapturedContent({
+      kind: "youtube_capture",
+      videoId: "dQw4w9WgXcQ",
+      sourceUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+      title: "A video",
+      author: null,
+      description: null,
+      thumbnailUrl: "https://example.com/thumbnail.jpg",
+      transcript: { kind: "unavailable" },
+    })).toBe(false);
   });
 });
 
