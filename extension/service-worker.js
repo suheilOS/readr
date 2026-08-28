@@ -28,18 +28,21 @@ async function captureFromActiveYouTubeTab() {
     throw new Error(captured?.error || "The YouTube page could not be captured.");
   }
 
-  const readrTab = await findOrOpenReadrTab();
+  const readrTab = await findOrOpenReadrTab(activeTab.windowId);
   await chrome.tabs.sendMessage(readrTab.id, { type: "readr-capture", content: captured.content });
 }
 
-async function findOrOpenReadrTab() {
-  const [existing] = await chrome.tabs.query({ url: READR_PATTERNS });
+async function findOrOpenReadrTab(sourceWindowId) {
+  const tabs = await chrome.tabs.query({ url: READR_PATTERNS });
+  const [existing] = tabs
+    .filter((tab) => tab.id !== undefined)
+    .sort((left, right) => compareReadrTabs(left, right, sourceWindowId));
   if (existing?.id !== undefined) {
     await waitForBridge(existing.id);
     return existing;
   }
 
-  const created = await chrome.tabs.create({ url: READR_HOME });
+  const created = await chrome.tabs.create({ url: READR_HOME, windowId: sourceWindowId });
   if (created.id === undefined) throw new Error("Readr could not be opened.");
   await waitForTabLoad(created.id);
   await waitForBridge(created.id);
@@ -48,18 +51,45 @@ async function findOrOpenReadrTab() {
 
 function waitForTabLoad(tabId) {
   return new Promise((resolve, reject) => {
+    let settled = false;
     const timeout = setTimeout(() => {
+      if (settled) return;
+      settled = true;
       chrome.tabs.onUpdated.removeListener(handleUpdate);
       reject(new Error("Readr took too long to open."));
     }, 10_000);
-    function handleUpdate(updatedId, changeInfo) {
-      if (updatedId !== tabId || changeInfo.status !== "complete") return;
+    const finish = () => {
+      if (settled) return;
+      settled = true;
       clearTimeout(timeout);
       chrome.tabs.onUpdated.removeListener(handleUpdate);
       resolve();
+    };
+    function handleUpdate(updatedId, changeInfo) {
+      if (updatedId !== tabId || changeInfo.status !== "complete") return;
+      finish();
     }
     chrome.tabs.onUpdated.addListener(handleUpdate);
+    void chrome.tabs.get(tabId).then((tab) => {
+      if (tab.status === "complete") finish();
+    }).catch(() => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeout);
+      chrome.tabs.onUpdated.removeListener(handleUpdate);
+      reject(new Error("Readr could not be opened."));
+    });
   });
+}
+
+function compareReadrTabs(left, right, sourceWindowId) {
+  const leftSameWindow = left.windowId === sourceWindowId ? 1 : 0;
+  const rightSameWindow = right.windowId === sourceWindowId ? 1 : 0;
+  if (leftSameWindow !== rightSameWindow) return rightSameWindow - leftSameWindow;
+
+  const leftAccessed = typeof left.lastAccessed === "number" ? left.lastAccessed : 0;
+  const rightAccessed = typeof right.lastAccessed === "number" ? right.lastAccessed : 0;
+  return rightAccessed - leftAccessed;
 }
 
 async function waitForBridge(tabId) {

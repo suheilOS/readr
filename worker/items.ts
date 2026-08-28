@@ -348,6 +348,7 @@ type ItemRow = {
   finished_at: string | null;
   note: string | null;
   updated_at: string;
+  youtube_video_id?: string | null;
 };
 
 type MediaProgressRow = {

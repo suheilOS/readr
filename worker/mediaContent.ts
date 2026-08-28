@@ -32,34 +32,37 @@ export async function captureYouTubeContent(context: Context<AppEnv>): Promise<R
       return mediaContentError(context, "bad_request", "The captured video data is invalid.", 400);
     }
 
-    const existing = await findItemByVideoId(context.env.READR_DB, userId, body.videoId);
-    const itemId = existing?.id ?? crypto.randomUUID();
     const now = new Date().toISOString();
-    const mediaStatement = mediaUpsertStatement(context.env.READR_DB, itemId, body, now);
+    let existing = await findItemByVideoId(context.env.READR_DB, userId, body.videoId);
+    let created = false;
+    if (existing === null) {
+      const itemId = crypto.randomUUID();
+      const insertResult = await context.env.READR_DB.prepare(`
+        INSERT OR IGNORE INTO items (
+          id, user_id, title, url, youtube_video_id, type, status, added_at, finished_at, note, updated_at
+        ) VALUES (?, ?, ?, ?, ?, 'video', 'inbox', ?, NULL, NULL, ?)
+      `).bind(itemId, userId, body.title, body.sourceUrl, body.videoId, now, now).run();
+      created = insertResult.meta.changes === 1;
+      existing = await findItemByVideoId(context.env.READR_DB, userId, body.videoId);
+    }
 
-    const statements = existing === null
-      ? [
-          context.env.READR_DB.prepare(`
-            INSERT INTO items (
-              id, user_id, title, url, type, status, added_at, finished_at, note, updated_at
-            ) VALUES (?, ?, ?, ?, 'video', 'inbox', ?, NULL, NULL, ?)
-          `).bind(itemId, userId, body.title, body.sourceUrl, now, now),
-          mediaStatement,
-        ]
-      : [
-          context.env.READR_DB.prepare(
-            "UPDATE items SET updated_at = ? WHERE id = ? AND user_id = ?",
-          ).bind(now, itemId, userId),
-          mediaStatement,
-        ];
+    if (existing === null) {
+      return mediaContentError(context, "internal_error", "The captured video could not be saved.", 500);
+    }
 
-    await context.env.READR_DB.batch(statements);
-    const item = await findItem(context.env.READR_DB, userId, itemId);
+    await context.env.READR_DB.batch([
+      context.env.READR_DB.prepare(
+        "UPDATE items SET updated_at = ? WHERE id = ? AND user_id = ?",
+      ).bind(now, existing.id, userId),
+      mediaUpsertStatement(context.env.READR_DB, existing.id, body, now),
+    ]);
+
+    const item = await findItem(context.env.READR_DB, userId, existing.id);
     if (item === null) {
       return mediaContentError(context, "internal_error", "The captured video could not be saved.", 500);
     }
 
-    return mediaContentJson(context, { item: toItem(item), created: existing === null }, existing === null ? 201 : 200);
+    return mediaContentJson(context, { item: toItem(item), created }, created ? 201 : 200);
   } catch (error) {
     if (error instanceof ExtractionError) {
       return mediaContentError(context, error.code, error.message, error.status);
@@ -162,13 +165,13 @@ function mediaUpsertStatement(
 
 async function findItemByVideoId(db: D1Database, userId: string, videoId: string): Promise<ItemRow | null> {
   const rows = await db.prepare(`
-    SELECT id, user_id, title, url, type, status, added_at, finished_at, note, updated_at
+    SELECT id, user_id, title, url, type, status, added_at, finished_at, note, updated_at, youtube_video_id
     FROM items
-    WHERE user_id = ? AND url IS NOT NULL
-    ORDER BY added_at ASC, id ASC
-  `).bind(userId).all<ItemRow>();
+    WHERE user_id = ? AND (youtube_video_id = ? OR url IS NOT NULL)
+    ORDER BY youtube_video_id IS NULL ASC, added_at ASC, id ASC
+  `).bind(userId, videoId).all<ItemRow>();
 
-  return rows.results.find((row) => parseYouTubeUrl(row.url)?.videoId === videoId) ?? null;
+  return rows.results.find((row) => row.youtube_video_id === videoId || parseYouTubeUrl(row.url)?.videoId === videoId) ?? null;
 }
 
 function mediaContentError(

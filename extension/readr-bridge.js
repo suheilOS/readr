@@ -3,6 +3,9 @@
 
   let pendingContent = null;
   let ready = false;
+  let readinessTimer = null;
+
+  const READINESS_TIMEOUT_MS = 10_000;
 
   chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     if (message?.type === "readr-ping") {
@@ -11,11 +14,8 @@
     }
     if (!isBridgeMessage(message)) return;
     pendingContent = message.content;
+    scheduleReadinessFallback();
     deliverWhenReady();
-    setTimeout(() => {
-      ready = true;
-      deliverWhenReady();
-    }, 500);
     sendResponse({ ok: true });
     return false;
   });
@@ -24,6 +24,7 @@
     if (event.source !== window || event.origin !== window.location.origin) return;
     if (event.data?.type === "readr:capture-ready") {
       ready = true;
+      clearReadinessFallback();
       deliverWhenReady();
     }
   });
@@ -33,6 +34,21 @@
     const content = pendingContent;
     pendingContent = null;
     window.postMessage({ type: "readr:youtube-capture", content }, window.location.origin);
+  }
+
+  function scheduleReadinessFallback() {
+    if (readinessTimer !== null) return;
+    readinessTimer = setTimeout(() => {
+      readinessTimer = null;
+      ready = true;
+      deliverWhenReady();
+    }, READINESS_TIMEOUT_MS);
+  }
+
+  function clearReadinessFallback() {
+    if (readinessTimer === null) return;
+    clearTimeout(readinessTimer);
+    readinessTimer = null;
   }
 
   function isBridgeMessage(value) {

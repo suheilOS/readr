@@ -39,6 +39,39 @@ describe("Readr item API", () => {
     expect(names).not.toContain("user_id");
   });
 
+  it("enforces one captured YouTube item per user", async () => {
+    const columns = await env.READR_DB.prepare("PRAGMA table_info(items)").all<{ name: string }>();
+    expect(columns.results.map((column) => column.name)).toContain("youtube_video_id");
+
+    const userId = `capture-unique-${crypto.randomUUID()}`;
+    const capture = {
+      kind: "youtube_capture",
+      videoId: "dQw4w9WgXcQ",
+      sourceUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+      title: "Captured video",
+      author: null,
+      description: null,
+      thumbnailUrl: null,
+      transcript: { kind: "unavailable" },
+    };
+    const responses = await Promise.all([
+      request(userId, "/api/media/youtube/capture", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(capture),
+      }),
+      request(userId, "/api/media/youtube/capture", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(capture),
+      }),
+    ]);
+
+    expect(responses.map((response) => response.status).sort()).toEqual([200, 201]);
+    const items = await request(userId, "/api/items");
+    expect((await items.json() as { items: unknown[] }).items).toHaveLength(1);
+  });
+
   it("keeps item data isolated by authenticated user", async () => {
     const ownerId = `owner-${crypto.randomUUID()}`;
     const otherUserId = `other-${crypto.randomUUID()}`;

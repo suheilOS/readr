@@ -138,13 +138,17 @@ export function useItemLibrary(): ItemLibrary {
     return result?.item ?? null;
   }, [runMutation]);
 
+  const retry = useCallback(() => {
+    setReloadToken((current) => current + 1);
+  }, []);
+
   return {
     items,
     loading,
     pendingAction,
     error,
     unauthenticated,
-    retry: () => setReloadToken((current) => current + 1),
+    retry,
     addItem,
     moveToDesk,
     moveToInbox,
