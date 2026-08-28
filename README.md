@@ -68,7 +68,9 @@ POST   /api/items/:id/finish
 DELETE /api/items/:id
 POST   /api/items/:candidateId/swap
 POST   /api/extract
-POST   /api/media/youtube
+POST   /api/media/youtube/metadata
+POST   /api/media/youtube/transcript
+POST   /api/media/youtube       (legacy compatibility)
 GET    /api/items/:id/media-progress
 PUT    /api/items/:id/media-progress
 ```
@@ -88,7 +90,7 @@ Content-Type: application/json
 
 The Worker accepts public HTTP(S) page URLs, removes common tracking parameters, fetches the HTML server-side, and extracts the readable content with Defuddle. The client sanitizes the returned HTML before rendering it. The endpoint rejects unsafe URLs, unsupported content, oversized requests or pages, rate-limited clients, and upstream failures with structured error responses.
 
-The YouTube endpoint accepts watch, short, embed, live, and `youtu.be` URLs, reduces them to a validated video ID, and returns structured metadata and transcript data from Defuddle's asynchronous extractor. It never returns extracted iframe HTML. Transcript failures degrade to the player and original link. Playback progress lives in a separate `media_progress` table and saves periodically while playing and when playback pauses or the page closes.
+The YouTube metadata and transcript endpoints accept watch, short, embed, live, and `youtu.be` URLs, reduce them to a validated video ID, and run independently. Metadata comes from YouTube's oEmbed endpoint; transcript segments and chapters come from Defuddle's asynchronous YouTube extraction path, which fetches player and timed-text data directly without relying on watch-page HTML. Neither endpoint returns extracted iframe HTML. Transcript failures degrade to the player and original link, while metadata failures leave the stored item title in place. The old combined `POST /api/media/youtube` response remains temporarily for already-open tabs during deployment and should not be used by new clients. Playback progress lives in a separate `media_progress` table and saves periodically while playing and when the page closes.
 
 ## Project structure
 

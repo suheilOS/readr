@@ -1,8 +1,17 @@
 import { startTransition, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Item } from "../../shared/item";
-import { parseYouTubeUrl, type YouTubeReaderContent, type YouTubeUrl } from "../../shared/media";
+import {
+  parseYouTubeUrl,
+  type YouTubeMetadata,
+  type YouTubeTranscriptContent,
+  type YouTubeUrl,
+} from "../../shared/media";
 import { playError } from "../soundCues";
-import { extractYouTube, MediaExtractionError } from "./extractYouTube";
+import {
+  extractYouTubeMetadata,
+  extractYouTubeTranscript,
+  MediaExtractionError,
+} from "./extractYouTube";
 import { activeTimedEntryIndex, formatPlaybackTime } from "./transcriptSync";
 import { YouTubePlayer, type YouTubePlayerHandle } from "./YouTubePlayer";
 import { useMediaProgress } from "./useMediaProgress";
@@ -11,9 +20,9 @@ type YouTubeReaderProps = {
   item: Item;
 };
 
-type MediaState =
+type TranscriptState =
   | { status: "loading" }
-  | { status: "ready"; content: YouTubeReaderContent }
+  | { status: "ready"; content: YouTubeTranscriptContent }
   | { status: "degraded"; message: string };
 
 export function YouTubeReader({ item }: YouTubeReaderProps) {
@@ -24,7 +33,8 @@ export function YouTubeReader({ item }: YouTubeReaderProps) {
 }
 
 function YouTubeReaderContentView({ item, parsedUrl }: YouTubeReaderProps & { parsedUrl: YouTubeUrl }) {
-  const [state, setState] = useState<MediaState>({ status: "loading" });
+  const [metadata, setMetadata] = useState<YouTubeMetadata | null>(null);
+  const [transcriptState, setTranscriptState] = useState<TranscriptState>({ status: "loading" });
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [playing, setPlaying] = useState(false);
@@ -44,14 +54,21 @@ function YouTubeReaderContentView({ item, parsedUrl }: YouTubeReaderProps & { pa
 
   useEffect(() => {
     const controller = new AbortController();
-    setState({ status: "loading" });
-    void extractYouTube(parsedUrl.canonicalUrl, controller.signal).then((content) => {
+    setMetadata(null);
+    setTranscriptState({ status: "loading" });
+
+    void extractYouTubeMetadata(parsedUrl.canonicalUrl, controller.signal).then((content) => {
       if (controller.signal.aborted) return;
-      startTransition(() => setState({ status: "ready", content }));
+      startTransition(() => setMetadata(content));
+    }).catch(() => undefined);
+
+    void extractYouTubeTranscript(parsedUrl.canonicalUrl, controller.signal).then((content) => {
+      if (controller.signal.aborted) return;
+      startTransition(() => setTranscriptState({ status: "ready", content }));
     }).catch((error: unknown) => {
       if (controller.signal.aborted) return;
       playError();
-      setState({
+      setTranscriptState({
         status: "degraded",
         message: error instanceof MediaExtractionError
           ? error.message
@@ -61,8 +78,8 @@ function YouTubeReaderContentView({ item, parsedUrl }: YouTubeReaderProps & { pa
     return () => controller.abort();
   }, [item.id, parsedUrl.canonicalUrl]);
 
-  const transcript = state.status === "ready" && state.content.transcript.kind === "available"
-    ? state.content.transcript
+  const transcript = transcriptState.status === "ready" && transcriptState.content.transcript.kind === "available"
+    ? transcriptState.content.transcript
     : null;
   const activeSegmentIndex = useMemo(
     () => activeTimedEntryIndex(transcript?.segments ?? [], currentTime),
@@ -145,9 +162,9 @@ function YouTubeReaderContentView({ item, parsedUrl }: YouTubeReaderProps & { pa
     segmentRefs.current[activeSegmentIndex]?.scrollIntoView({ block: "center", behavior: "smooth" });
   }
 
-  const title = state.status === "ready" ? state.content.title : item.title;
-  const author = state.status === "ready" ? state.content.author : null;
-  const description = state.status === "ready" ? state.content.description : null;
+  const title = metadata?.title ?? item.title;
+  const author = metadata?.author ?? null;
+  const description = transcriptState.status === "ready" ? transcriptState.content.description : null;
 
   return (
     <article className="media-reader">
@@ -197,14 +214,14 @@ function YouTubeReaderContentView({ item, parsedUrl }: YouTubeReaderProps & { pa
             )}
           </div>
 
-          {state.status === "loading" && <p className="transcript-notice">Loading transcript…</p>}
-          {state.status === "degraded" && (
+          {transcriptState.status === "loading" && <p className="transcript-notice">Loading transcript…</p>}
+          {transcriptState.status === "degraded" && (
             <div className="transcript-notice" role="status">
               <p>Transcript unavailable.</p>
-              <span>{state.message} The video player still works.</span>
+              <span>{transcriptState.message} The video player still works.</span>
             </div>
           )}
-          {state.status === "ready" && transcript === null && (
+          {transcriptState.status === "ready" && transcript === null && (
             <div className="transcript-notice" role="status">
               <p>Transcript unavailable.</p>
               <span>You can still watch the video here.</span>

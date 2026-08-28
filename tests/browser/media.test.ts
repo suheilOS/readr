@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
-  isYouTubeReaderContent,
+  isYouTubeMetadata,
+  isYouTubeTranscriptContent,
   parseYouTubeUrl,
   youtubePlayerOrigin,
 } from "../../shared/media";
@@ -47,14 +48,11 @@ describe("YouTube media boundaries", () => {
   });
 
   it("validates structured transcript responses", () => {
-    expect(isYouTubeReaderContent({
-      kind: "youtube",
+    expect(isYouTubeTranscriptContent({
+      kind: "youtube_transcript",
       videoId: "dQw4w9WgXcQ",
       sourceUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
-      title: "A video",
-      author: null,
       description: null,
-      thumbnailUrl: null,
       transcript: {
         kind: "available",
         language: "en",
@@ -65,14 +63,11 @@ describe("YouTube media boundaries", () => {
   });
 
   it("rejects transcript data that would break binary search", () => {
-    expect(isYouTubeReaderContent({
-      kind: "youtube",
+    expect(isYouTubeTranscriptContent({
+      kind: "youtube_transcript",
       videoId: "dQw4w9WgXcQ",
       sourceUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
-      title: "A video",
-      author: null,
       description: null,
-      thumbnailUrl: null,
       transcript: {
         kind: "available",
         language: "en",
@@ -83,6 +78,17 @@ describe("YouTube media boundaries", () => {
         chapters: [],
       },
     })).toBe(false);
+  });
+
+  it("validates independent metadata responses", () => {
+    expect(isYouTubeMetadata({
+      kind: "youtube_metadata",
+      videoId: "dQw4w9WgXcQ",
+      sourceUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+      title: "A video",
+      author: "A channel",
+      thumbnailUrl: "https://i.ytimg.com/vi/dQw4w9WgXcQ/hqdefault.jpg",
+    })).toBe(true);
   });
 });
 

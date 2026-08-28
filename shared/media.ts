@@ -34,6 +34,27 @@ export type YouTubeTranscript =
       chapters: VideoChapter[];
     };
 
+export type YouTubeMetadata = {
+  kind: "youtube_metadata";
+  videoId: YouTubeVideoId;
+  sourceUrl: string;
+  title: string;
+  author: string | null;
+  thumbnailUrl: string | null;
+};
+
+export type YouTubeTranscriptContent = {
+  kind: "youtube_transcript";
+  videoId: YouTubeVideoId;
+  sourceUrl: string;
+  description: string | null;
+  transcript: YouTubeTranscript;
+};
+
+/**
+ * Response shape kept for tabs running the pre-split YouTube reader bundle.
+ * New clients should request metadata and transcript content independently.
+ */
 export type YouTubeReaderContent = {
   kind: "youtube";
   videoId: YouTubeVideoId;
@@ -121,8 +142,8 @@ export function parseMediaRequest(value: unknown): MediaRequest | null {
   };
 }
 
-export function isYouTubeReaderContent(value: unknown): value is YouTubeReaderContent {
-  if (!isRecord(value) || value.kind !== "youtube") return false;
+export function isYouTubeMetadata(value: unknown): value is YouTubeMetadata {
+  if (!isRecord(value) || value.kind !== "youtube_metadata") return false;
   const parsedUrl = parseYouTubeUrl(value.sourceUrl);
 
   return (
@@ -130,8 +151,18 @@ export function isYouTubeReaderContent(value: unknown): value is YouTubeReaderCo
     value.videoId === parsedUrl.videoId &&
     isNonEmptyString(value.title) &&
     (value.author === null || typeof value.author === "string") &&
+    (value.thumbnailUrl === null || isHttpsUrl(value.thumbnailUrl))
+  );
+}
+
+export function isYouTubeTranscriptContent(value: unknown): value is YouTubeTranscriptContent {
+  if (!isRecord(value) || value.kind !== "youtube_transcript") return false;
+  const parsedUrl = parseYouTubeUrl(value.sourceUrl);
+
+  return (
+    parsedUrl !== null &&
+    value.videoId === parsedUrl.videoId &&
     (value.description === null || typeof value.description === "string") &&
-    (value.thumbnailUrl === null || isHttpsUrl(value.thumbnailUrl)) &&
     isTranscript(value.transcript)
   );
 }
