@@ -20,6 +20,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
 });
 
 async function captureFromActiveYouTubeTab() {
+  reportCaptureProgress("reading");
   const [activeTab] = await chrome.tabs.query({ active: true, currentWindow: true });
   if (activeTab?.id === undefined) throw new Error("Select a YouTube video tab first.");
 
@@ -28,7 +29,9 @@ async function captureFromActiveYouTubeTab() {
     throw new Error(captured?.error || "The YouTube page could not be captured.");
   }
 
+  reportCaptureProgress("opening");
   const readrTab = await findOrOpenReadrTab(activeTab.windowId);
+  reportCaptureProgress("saving");
   const result = await chrome.tabs.sendMessage(readrTab.id, {
     type: "readr-capture",
     captureId: crypto.randomUUID(),
@@ -36,6 +39,18 @@ async function captureFromActiveYouTubeTab() {
   });
   if (!result?.ok) {
     throw new Error(result?.error || "Readr could not save the video.");
+  }
+}
+
+function reportCaptureProgress(stage) {
+  if (typeof chrome.runtime.sendMessage !== "function") return;
+  try {
+    const pending = chrome.runtime.sendMessage({ type: "capture-progress", stage });
+    if (pending !== undefined && typeof pending.catch === "function") {
+      void pending.catch(() => undefined);
+    }
+  } catch {
+    // The popup can close while Readr is opening; progress is best effort.
   }
 }
 

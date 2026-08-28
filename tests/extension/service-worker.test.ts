@@ -50,6 +50,19 @@ describe("Readr extension service worker", () => {
     });
   });
 
+  it("reports progress for each capture stage", async () => {
+    const progressMessages: string[] = [];
+    const result = await runServiceWorker({
+      sentMessages: [],
+      progressMessages,
+      readrTabs: [{ id: 2, windowId: 7, lastAccessed: 50 }],
+      captureResult: { ok: true },
+    });
+
+    expect(result).toEqual({ ok: true });
+    expect(progressMessages).toEqual(["reading", "opening", "saving"]);
+  });
+
   it("surfaces a failure when the newly opened Readr tab cannot be read", async () => {
     const result = await runServiceWorker({
       sentMessages: [],
@@ -65,6 +78,7 @@ describe("Readr extension service worker", () => {
 type Tab = { id: number; windowId: number; lastAccessed: number; status?: string };
 type ServiceWorkerOptions = {
   sentMessages: Array<{ tabId: number; message: Record<string, unknown> }>;
+  progressMessages?: string[];
   readrTabs: Tab[];
   captureResult: { ok: boolean; error?: string };
   tabLoadError?: boolean;
@@ -72,6 +86,7 @@ type ServiceWorkerOptions = {
 
 async function runServiceWorker(options: ServiceWorkerOptions): Promise<unknown> {
   const listeners: RuntimeListener[] = [];
+  const progressMessages = options.progressMessages ?? [];
   const activeTab: Tab = { id: 1, windowId: 7, lastAccessed: 200 };
   const tabs = {
     query: async (query: Record<string, unknown>) => {
@@ -94,7 +109,14 @@ async function runServiceWorker(options: ServiceWorkerOptions): Promise<unknown>
     onUpdated: { addListener: () => undefined, removeListener: () => undefined },
   };
   const chrome = {
-    runtime: { onMessage: { addListener: (listener: RuntimeListener) => listeners.push(listener) } },
+    runtime: {
+      onMessage: { addListener: (listener: RuntimeListener) => listeners.push(listener) },
+      sendMessage: async (message: { type?: string; stage?: string }) => {
+        if (message.type === "capture-progress" && message.stage !== undefined) {
+          progressMessages.push(message.stage);
+        }
+      },
+    },
     tabs,
   };
   vm.runInNewContext(serviceWorkerScript, {
