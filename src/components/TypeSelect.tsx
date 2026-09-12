@@ -1,6 +1,14 @@
 import { Select } from "@base-ui/react/select";
 import { TYPE_OPTIONS, type ItemType } from "../../shared/item";
-import { CheckIcon, ChevronDownIcon } from "./icons";
+import {
+  ArticleTypeIcon,
+  BookTypeIcon,
+  CheckIcon,
+  ChevronDownIcon,
+  PaperTypeIcon,
+  PodcastTypeIcon,
+  VideoTypeIcon,
+} from "./icons";
 
 type TypeSelectProps = {
   value: ItemType;
@@ -46,7 +54,14 @@ export function TypeSelect({ value, onChange, disabled = false }: TypeSelectProp
               <Select.List className="type-list">
                 {TYPE_OPTIONS.map((option) => (
                   <Select.Item key={option.value} value={option.value} className="type-option">
-                    <Select.ItemText>{option.label}</Select.ItemText>
+                    <span className="type-option-label">
+                      {option.value === "article" && <ArticleTypeIcon className="type-option-icon" />}
+                      {option.value === "book" && <BookTypeIcon className="type-option-icon" />}
+                      {option.value === "paper" && <PaperTypeIcon className="type-option-icon" />}
+                      {option.value === "video" && <VideoTypeIcon className="type-option-icon" />}
+                      {option.value === "podcast" && <PodcastTypeIcon className="type-option-icon" />}
+                      <Select.ItemText>{option.label}</Select.ItemText>
+                    </span>
                     <Select.ItemIndicator className="type-check">
                       <CheckIcon />
                     </Select.ItemIndicator>

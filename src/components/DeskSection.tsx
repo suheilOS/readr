@@ -10,6 +10,7 @@ import {
   InboxIcon,
   MoreVerticalIcon,
   TrashIcon,
+  VideoIcon,
 } from "./icons";
 
 type DeskSectionProps = {
@@ -93,7 +94,11 @@ export function DeskSection({
                       data-reader-item-id={item.id}
                       onClick={() => onRead(item)}
                     >
-                      <BookOpenIcon className="button-icon" />
+                      {readerKindFor(item) === "youtube" ? (
+                        <VideoIcon className="button-icon" />
+                      ) : (
+                        <BookOpenIcon className="button-icon" />
+                      )}
                       <span>{readerKindFor(item) === "youtube" ? "Watch" : "Read"}</span>
                     </button>
                   )}
