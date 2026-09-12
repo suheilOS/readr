@@ -18,9 +18,14 @@
   --color-background: var(--page-bg);
   --color-foreground: var(--text);
   --color-popover: var(--surface);
+  --color-success: var(--success-text);
+  --color-success-fill: var(--success-fill);
   --color-error: var(--danger);
-  --color-warning: var(--warning);
-  --color-info: var(--info);
+  --color-error-fill: var(--danger-fill);
+  --color-warning: var(--warning-text);
+  --color-warning-fill: var(--warning-fill);
+  --color-info: var(--info-text);
+  --color-info-fill: var(--info-fill);
   --color-shell-fg-faint: var(--muted);
   --color-shell-fg-muted: var(--muted-strong);
   --color-ring: var(--focus);

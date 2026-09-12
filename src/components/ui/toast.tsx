@@ -1,7 +1,6 @@
 /* eslint-disable react-refresh/only-export-components */
 
 import {
-  type CSSProperties,
   type ReactNode,
   useCallback,
   useEffect,
@@ -12,6 +11,7 @@ import {
 import { AnimatePresence, motion, MotionConfig } from "motion/react";
 import { cn } from "@/lib/utils";
 import { dissolve } from "@/lib/smoky-dissolve";
+import { CheckIcon } from "../icons";
 import {
   TOAST_DISMISS_EVENT,
   TOAST_EVENT,
@@ -117,27 +117,30 @@ export function fanSlot(index: number, heights: readonly number[]): StackSlot {
   return { y, scale: 1, opacity: 1 };
 }
 
-const TONE_INK: Record<Exclude<AlertTone, "success">, string> = {
-  error: "text-error",
-  warning: "text-warning",
-  info: "text-info",
+const TONE_STYLE: Record<ToastState, string> = {
+  pending: "bg-popover/80 text-foreground",
+  success: "bg-success-fill text-success",
+  error: "bg-error-fill text-error",
+  warning: "bg-warning-fill text-warning",
+  info: "bg-info-fill text-info",
 };
-
-const BADGE_SIZE = { "--check-size": "16px" } as CSSProperties;
 
 function ToastGlyph({ state }: { state: ToastState }) {
   switch (state) {
     case "pending":
-    case "success":
       return (
-        <span className="flex" style={BADGE_SIZE}>
-          <StatusBadge state={state === "success" ? "done" : "loading"} />
-        </span>
+        <span
+          className="size-4 animate-spin rounded-full border-2 border-current border-t-transparent motion-reduce:animate-none"
+          aria-label="Loading"
+        />
       );
+    case "success":
+      return <CheckIcon className="size-4" />;
     case "error":
+      return <ErrorIcon className="size-4" />;
     case "warning":
     case "info":
-      return <AlertMark tone={state} className={cn("size-4", TONE_INK[state])} />;
+      return <AlertMark tone={state} className="size-4" />;
     default: {
       const exhaustive: never = state;
       return exhaustive;
@@ -149,7 +152,7 @@ function AlertMark({
   tone,
   className,
 }: {
-  tone: Exclude<AlertTone, "success">;
+  tone: Exclude<AlertTone, "success" | "error">;
   className?: string;
 }) {
   return (
@@ -163,7 +166,6 @@ function AlertMark({
       strokeWidth={1.8}
       aria-hidden="true"
     >
-      {tone === "error" && <path d="m6 6 8 8m0-8-8 8" />}
       {tone === "warning" && <path d="m10 3 7 13H3L10 3Z" />}
       {tone === "warning" && <path d="M10 7.25v3.5m0 2.25v.1" />}
       {tone === "info" && <circle cx="10" cy="10" r="7" />}
@@ -172,28 +174,15 @@ function AlertMark({
   );
 }
 
-function StatusBadge({ state }: { state: "done" | "loading" }) {
-  if (state === "loading") {
-    return (
-      <span
-        className="size-full animate-spin rounded-full border-2 border-current border-t-transparent motion-reduce:animate-none"
-        aria-label="Loading"
-      />
-    );
-  }
-
+function ErrorIcon({ className }: { className?: string }) {
   return (
-    <svg
-      className="size-full"
-      viewBox="0 0 16 16"
-      fill="none"
-      stroke="currentColor"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      strokeWidth={2}
-      aria-hidden="true"
-    >
-      <path d="m3.25 8.25 3 3 6.5-6.5" />
+    <svg className={className} viewBox="0 0 24 24" fill="none" aria-hidden="true" focusable="false">
+      <path
+        fillRule="evenodd"
+        clipRule="evenodd"
+        d="M5.31171 10.7615C8.23007 5.58716 9.68925 3 12 3C14.3107 3 15.7699 5.58716 18.6883 10.7615L19.0519 11.4063C21.4771 15.7061 22.6897 17.856 21.5937 19.428C20.4978 21 17.7864 21 12.3637 21H11.6363C6.21356 21 3.50217 21 2.40626 19.428C1.31034 17.856 2.52291 15.7061 4.94805 11.4063L5.31171 10.7615ZM12 7.25C12.4142 7.25 12.75 7.58579 12.75 8V13C12.75 13.4142 12.4142 13.75 12 13.75C11.5858 13.75 11.25 13.4142 11.25 13V8C11.25 7.58579 11.5858 7.25 12 7.25ZM12 17C12.5523 17 13 16.5523 13 16C13 15.4477 12.5523 15 12 15C11.4477 15 11 15.4477 11 16C11 16.5523 11.4477 17 12 17Z"
+        fill="currentColor"
+      />
     </svg>
   );
 }
@@ -291,7 +280,8 @@ function ToastPill({
         else onDismiss();
       }}
       className={cn(
-        "toast-pill relative flex max-w-lg overflow-hidden bg-popover/80 text-sm text-foreground backdrop-blur-md",
+        "toast-pill relative flex max-w-lg overflow-hidden text-sm backdrop-blur-md",
+        state === undefined ? "bg-popover/80 text-foreground" : TONE_STYLE[state],
         behind
           ? "pointer-events-none"
           : "pointer-events-auto cursor-grab active:cursor-grabbing",

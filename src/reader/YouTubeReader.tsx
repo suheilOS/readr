@@ -231,11 +231,11 @@ function YouTubeReaderContentView({ item, parsedUrl }: YouTubeReaderProps & { pa
             </li>
             <li>
               <span className="shortcut-keys"><kbd>←</kbd><kbd>→</kbd></span>
-              <span>Skip 5 seconds</span>
+              <span>Skip 5s</span>
             </li>
             <li>
               <span className="shortcut-keys"><kbd>J</kbd><kbd>L</kbd></span>
-              <span>Skip 10 seconds</span>
+              <span>Skip 10s</span>
             </li>
           </ul>
           {description !== null && <p className="media-description">{description}</p>}
