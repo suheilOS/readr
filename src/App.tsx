@@ -27,7 +27,7 @@ import { selectItemGroups } from "./itemSelectors";
 import { useItemLibrary } from "./useItemLibrary";
 import { useReaderRoute } from "./useReaderRoute";
 import { pendingItemActionLabel } from "./pendingItemAction";
-import { focusAdjacentAction } from "./focusAdjacentAction";
+import { focusAdjacentAction, type FocusAdjacentAction } from "./focusAdjacentAction";
 import { ThemeToggle, type Theme } from "./components/ThemeToggle";
 import { UtilityDock } from "./components/UtilityDock";
 import { Spinner } from "./components/Spinner";
@@ -35,6 +35,7 @@ import { ArrowLeftIcon, PlusIcon } from "./components/icons";
 import { notify } from "./notifications";
 import { isYouTubeCapturedContent, type YouTubeCapturedContent } from "../shared/media";
 import { saveYouTubeContent } from "./itemApi";
+import { commitWithViewTransition } from "./viewTransition";
 
 const THEME_STORAGE_KEY = "reader:theme";
 
@@ -47,7 +48,7 @@ type AnnouncementInput = {
 
 type DiscardRequest = {
   item: Item;
-  trigger: HTMLButtonElement;
+  restoreFocus: FocusAdjacentAction;
 };
 
 const ReaderView = lazy(() =>
@@ -96,10 +97,13 @@ export default function App() {
     items,
     loading,
     pendingAction,
+    capturePending,
     error,
     unauthenticated,
     retry,
+    refreshSilently,
     addItem,
+    reconcileItem,
     moveToDesk,
     moveToInbox,
     finish,
@@ -126,6 +130,20 @@ export default function App() {
     },
     [],
   );
+
+  const cancelSwap = useCallback(() => {
+    if (pendingAction !== null) return;
+
+    setSwapCandidateId(null);
+    requestAnimationFrame(() => {
+      const heading = document.getElementById("desk-heading");
+      if (heading?.isConnected) {
+        heading.focus();
+        return;
+      }
+      document.querySelector<HTMLButtonElement>("[data-focus-fallback]")?.focus();
+    });
+  }, [pendingAction]);
 
   useEffect(() => {
     const root = document.documentElement;
@@ -161,8 +179,8 @@ export default function App() {
     }
 
     function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") {
-        setSwapCandidateId(null);
+      if (event.key === "Escape" && pendingAction === null) {
+        cancelSwap();
       }
     }
 
@@ -171,7 +189,7 @@ export default function App() {
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [swapCandidateId]);
+  }, [swapCandidateId, pendingAction, cancelSwap]);
 
   useEffect(() => {
     function handleCaptureMessage(event: MessageEvent<unknown>) {
@@ -186,7 +204,8 @@ export default function App() {
       const capture = event.data;
       void saveYouTubeContent(capture.content)
         .then(({ item, created }) => {
-          retry();
+          reconcileItem(item);
+          refreshSilently();
           announce({
             title: item.title,
             message: created ? "captured to your inbox." : "capture updated.",
@@ -214,7 +233,7 @@ export default function App() {
     window.addEventListener("message", handleCaptureMessage);
     window.postMessage({ type: "readr:capture-ready" }, window.location.origin);
     return () => window.removeEventListener("message", handleCaptureMessage);
-  }, [announce, retry]);
+  }, [announce, reconcileItem, refreshSilently]);
 
   const displayQuery = query.trim();
   const searching = displayQuery.length > 0;
@@ -226,11 +245,7 @@ export default function App() {
   } = useMemo(() => selectItemGroups(items, query), [items, query]);
 
   const deskFull = deskItems.length >= DESK_CAPACITY;
-  const addItemFormState: AddItemFormState = pendingAction === null
-    ? "idle"
-    : pendingAction.kind === "add"
-      ? "submitting"
-      : "blocked";
+  const addItemFormState: AddItemFormState = capturePending ? "submitting" : "idle";
 
   async function handleAdd(input: NewItemInput): Promise<boolean> {
     const item = await addItem(input);
@@ -247,10 +262,10 @@ export default function App() {
     return true;
   }
 
-  async function sendToDesk(item: Item) {
+  async function sendToDesk(item: Item): Promise<boolean> {
     if (deskFull) {
       setSwapCandidateId(item.id);
-      return;
+      return false;
     }
 
     const movedItem = await moveToDesk(item.id);
@@ -261,9 +276,10 @@ export default function App() {
         state: "success",
       });
     }
+    return movedItem !== null;
   }
 
-  async function sendToInbox(item: Item) {
+  async function sendToInbox(item: Item): Promise<boolean> {
     const movedItem = await moveToInbox(item.id);
     if (movedItem !== null) {
       announce({
@@ -275,11 +291,12 @@ export default function App() {
         setSwapCandidateId(null);
       }
     }
+    return movedItem !== null;
   }
 
-  async function replaceDeskItem(displaced: Item) {
+  async function replaceDeskItem(displaced: Item): Promise<boolean> {
     if (swapCandidateId === null) {
-      return;
+      return false;
     }
 
     const movedItem = await swap(swapCandidateId, displaced.id);
@@ -290,12 +307,19 @@ export default function App() {
         state: "success",
         sound: "success",
       });
+      commitWithViewTransition(() => setSwapCandidateId(null));
     }
-    setSwapCandidateId(null);
+    return movedItem !== null;
   }
 
   function requestDiscard(item: Item, trigger: HTMLButtonElement) {
-    discardRequestRef.current = { item, trigger };
+    discardRequestRef.current = {
+      item,
+      restoreFocus: focusAdjacentAction(
+        trigger,
+        item.status === "inbox" ? "inbox-heading" : "desk-heading",
+      ),
+    };
     setDiscardCandidate(item);
   }
 
@@ -313,10 +337,7 @@ export default function App() {
     });
 
     if (request !== null) {
-      focusAdjacentAction(
-        request.trigger,
-        item.status === "inbox" ? "inbox-heading" : "desk-heading",
-      );
+      request.restoreFocus();
     }
     discardRequestRef.current = null;
 
@@ -326,7 +347,7 @@ export default function App() {
     return true;
   }
 
-  async function finishItem(item: Item) {
+  async function finishItem(item: Item): Promise<boolean> {
     const finishedItem = await finish(item.id);
     if (finishedItem !== null) {
       announce({
@@ -336,6 +357,7 @@ export default function App() {
         sound: "success",
       });
     }
+    return finishedItem !== null;
   }
 
   const readerItem =
@@ -395,7 +417,7 @@ export default function App() {
         {announcement}
       </p>
       <p className="visually-hidden" role="status" aria-atomic="true">
-        {pendingItemActionLabel(pendingAction)}
+        {capturePending ? "Adding to inbox." : pendingItemActionLabel(pendingAction)}
       </p>
       <p className="visually-hidden" aria-live="polite" aria-atomic="true">
         {searchAnnouncement}
@@ -460,14 +482,15 @@ export default function App() {
             <>
               {(!searching || visibleDeskItems.length > 0 || swapCandidateId !== null) && (
                 <DeskSection
-                  items={visibleDeskItems}
+                  items={swapCandidateId === null ? visibleDeskItems : deskItems}
+                  deskCount={deskItems.length}
                   mode={swapCandidateId === null ? "normal" : "swap"}
                   onFinish={finishItem}
                   onSendToInbox={sendToInbox}
                   onDiscard={requestDiscard}
                   onRead={openReader}
                   onSelectSwapTarget={replaceDeskItem}
-                  onCancelSwap={() => setSwapCandidateId(null)}
+                  onCancelSwap={cancelSwap}
                   pendingAction={pendingAction}
                 />
               )}

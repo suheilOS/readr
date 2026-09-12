@@ -10,7 +10,7 @@ import {
 
 export type NewItemInput = Pick<Item, "title" | "url" | "type">;
 
-export type AddItemFormState = "idle" | "blocked" | "submitting";
+export type AddItemFormState = "idle" | "submitting";
 
 type AddItemFormProps = {
   onAdd: (input: NewItemInput) => Promise<boolean>;

@@ -704,7 +704,7 @@
   padding: 12px 10px;
   border-radius: var(--radius-compact);
   transition: background-color 160ms ease, color 160ms ease;
-  scroll-margin-block: 30vh;
+  scroll-margin-block: 20vh;
 }
 
 .transcript-list li.is-active {

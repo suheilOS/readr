@@ -1,7 +1,7 @@
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 import { Menu } from "@base-ui/react/menu";
 import { canReadInApp, DESK_CAPACITY, type Item, itemMetaLine, readerKindFor } from "../../shared/item";
-import { focusAdjacentAction } from "../focusAdjacentAction";
+import { runWithFocusRestoration } from "../focusAdjacentAction";
 import { isPendingItemAction, type PendingItemAction } from "../pendingItemAction";
 import {
   BookOpenIcon,
@@ -16,18 +16,20 @@ import {
 
 type DeskSectionProps = {
   items: Item[];
+  deskCount: number;
   mode: "normal" | "swap";
-  onFinish: (item: Item) => void;
-  onSendToInbox: (item: Item) => void;
+  onFinish: (item: Item) => Promise<boolean>;
+  onSendToInbox: (item: Item) => Promise<boolean>;
   onDiscard: (item: Item, trigger: HTMLButtonElement) => void;
   onRead: (item: Item) => void;
-  onSelectSwapTarget: (item: Item) => void;
+  onSelectSwapTarget: (item: Item) => Promise<boolean>;
   onCancelSwap: () => void;
   pendingAction: PendingItemAction | null;
 };
 
 export function DeskSection({
   items,
+  deskCount,
   mode,
   onFinish,
   onSendToInbox,
@@ -39,13 +41,19 @@ export function DeskSection({
 }: DeskSectionProps) {
   const swapActive = mode === "swap";
   const busy = pendingAction !== null;
+  const firstSwapTargetRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    if (swapActive) firstSwapTargetRef.current?.focus();
+  }, [swapActive]);
+
 
   return (
     <section className="desk" aria-labelledby="desk-heading">
       <div className="section-header">
         <h2 id="desk-heading" tabIndex={-1}>On your desk</h2>
         <span className="counter">
-          {items.length} / {DESK_CAPACITY}
+          {deskCount} / {DESK_CAPACITY}
         </span>
       </div>
       {swapActive && (
@@ -57,18 +65,22 @@ export function DeskSection({
         </p>
       )}
       <ul className="desk-list">
-        {items.map((item) => (
+        {items.map((item, index) => (
           <li key={item.id} style={{ viewTransitionName: `item-${item.id}` }}>
             {swapActive ? (
               <button
+                ref={index === 0 ? firstSwapTargetRef : undefined}
                 type="button"
                 className="desk-card swappable"
                 aria-label={`Replace ${item.title}`}
                 aria-busy={isPendingItemAction(pendingAction, item.id, "replace")}
                 disabled={busy}
                 onClick={(event) => {
-                  focusAdjacentAction(event.currentTarget, "desk-heading");
-                  onSelectSwapTarget(item);
+                  runWithFocusRestoration(
+                    event.currentTarget,
+                    "desk-heading",
+                    () => onSelectSwapTarget(item),
+                  );
                 }}
               >
                 {isPendingItemAction(pendingAction, item.id, "replace") && (
@@ -120,8 +132,11 @@ export function DeskSection({
                     aria-busy={isPendingItemAction(pendingAction, item.id, "finish")}
                     disabled={busy}
                     onClick={(event) => {
-                      focusAdjacentAction(event.currentTarget, "desk-heading");
-                      onFinish(item);
+                      runWithFocusRestoration(
+                        event.currentTarget,
+                        "desk-heading",
+                        () => onFinish(item),
+                      );
                     }}
                   >
                     {isPendingItemAction(pendingAction, item.id, "finish") ? (
@@ -157,7 +172,7 @@ export function DeskSection({
 
 type DeskActionsMenuProps = {
   item: Item;
-  onSendToInbox: (item: Item) => void;
+  onSendToInbox: (item: Item) => Promise<boolean>;
   onDiscard: (item: Item, trigger: HTMLButtonElement) => void;
   pendingAction: PendingItemAction | null;
 };
@@ -171,12 +186,11 @@ function DeskActionsMenu({
   const triggerRef = useRef<HTMLButtonElement>(null);
   const busy = pendingAction !== null;
 
-  function runAction(action: (item: Item) => void) {
-    if (triggerRef.current !== null) {
-      focusAdjacentAction(triggerRef.current, "desk-heading");
-    }
+  function runAction(action: (item: Item) => Promise<boolean>) {
+    const trigger = triggerRef.current;
+    if (trigger === null) return;
 
-    action(item);
+    runWithFocusRestoration(trigger, "desk-heading", () => action(item));
   }
 
   return (

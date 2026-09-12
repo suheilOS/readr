@@ -1,5 +1,5 @@
 import { itemMetaLine, type Item } from "../../shared/item";
-import { focusAdjacentAction } from "../focusAdjacentAction";
+import { runWithFocusRestoration } from "../focusAdjacentAction";
 import { ArrowUpIcon, TrashIcon } from "./icons";
 import { isPendingItemAction, type PendingItemAction } from "../pendingItemAction";
 
@@ -7,7 +7,7 @@ import { isPendingItemAction, type PendingItemAction } from "../pendingItemActio
 type InboxSectionProps = {
   items: Item[];
   highlightId?: string | null;
-  onSendToDesk: (item: Item) => void;
+  onSendToDesk: (item: Item) => Promise<boolean>;
   onDiscard: (item: Item, trigger: HTMLButtonElement) => void;
   pendingAction: PendingItemAction | null;
 };
@@ -46,8 +46,11 @@ export function InboxSection({
                 aria-busy={isPendingItemAction(pendingAction, item.id, "move-to-desk")}
                 disabled={busy}
                 onClick={(event) => {
-                  focusAdjacentAction(event.currentTarget, "inbox-heading");
-                  onSendToDesk(item);
+                  runWithFocusRestoration(
+                    event.currentTarget,
+                    "inbox-heading",
+                    () => onSendToDesk(item),
+                  );
                 }}
               >
                 {isPendingItemAction(pendingAction, item.id, "move-to-desk") ? (

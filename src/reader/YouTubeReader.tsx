@@ -20,6 +20,11 @@ import { useMediaProgress } from "./useMediaProgress";
 import { fetchYouTubeContent } from "../itemApi";
 import { notify } from "../notifications";
 import { ChevronDownIcon } from "../components/icons";
+import {
+  getTranscriptSafeZone,
+  transcriptScrollBehavior,
+  transcriptScrollDirection,
+} from "./transcriptFollow";
 
 type YouTubeReaderProps = {
   item: Item;
@@ -47,6 +52,8 @@ function YouTubeReaderContentView({ item, parsedUrl }: YouTubeReaderProps & { pa
   const [activeVisible, setActiveVisible] = useState(true);
   const playerRef = useRef<YouTubePlayerHandle>(null);
   const headingRef = useRef<HTMLHeadingElement>(null);
+  const transcriptPanelRef = useRef<HTMLElement>(null);
+  const programmaticScrollRef = useRef(false);
   const playerPaneId = useId();
   const transcriptPaneId = useId();
   const segmentRefs = useRef<Array<HTMLLIElement | null>>([]);
@@ -56,6 +63,10 @@ function YouTubeReaderContentView({ item, parsedUrl }: YouTubeReaderProps & { pa
     recordDuration,
     recordPlaying,
   } = useMediaProgress(item.id);
+  const stopAutoFollow = useCallback(() => {
+    programmaticScrollRef.current = false;
+    setAutoFollow(false);
+  }, []);
 
   useEffect(() => headingRef.current?.focus(), [item.id]);
 
@@ -126,10 +137,16 @@ function YouTubeReaderContentView({ item, parsedUrl }: YouTubeReaderProps & { pa
       return;
     }
 
-    if (autoFollow && (playing || activeSegmentIndex > 0)) {
+    const shouldScroll = autoFollow && (playing || activeSegmentIndex > 0) &&
+      getActiveSegmentScrollDirection(activeElement) !== null;
+
+    if (shouldScroll) {
+      programmaticScrollRef.current = true;
       activeElement.scrollIntoView({
-        block: "center",
-        behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
+        block: "nearest",
+        behavior: transcriptScrollBehavior(
+          window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false,
+        ),
       });
     }
 
@@ -141,7 +158,47 @@ function YouTubeReaderContentView({ item, parsedUrl }: YouTubeReaderProps & { pa
   }, [activeSegmentIndex, autoFollow, playing]);
 
   useEffect(() => {
+    function handleScroll() {
+      if (!programmaticScrollRef.current) {
+        stopAutoFollow();
+        return;
+      }
+
+      const activeElement = segmentRefs.current[activeSegmentIndex];
+      if (activeElement === null || activeElement === undefined) {
+        programmaticScrollRef.current = false;
+        return;
+      }
+
+      if (getActiveSegmentScrollDirection(activeElement) === null) {
+        programmaticScrollRef.current = false;
+      }
+    }
+
+    function handlePointerDown(event: PointerEvent) {
+      if (event.target === document || event.target === document.documentElement || event.target === document.body) {
+        stopAutoFollow();
+      }
+    }
+
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    window.addEventListener("wheel", stopAutoFollow, { passive: true });
+    window.addEventListener("touchmove", stopAutoFollow, { passive: true });
+    window.addEventListener("pointerdown", handlePointerDown, { passive: true });
+    return () => {
+      window.removeEventListener("scroll", handleScroll);
+      window.removeEventListener("wheel", stopAutoFollow);
+      window.removeEventListener("touchmove", stopAutoFollow);
+      window.removeEventListener("pointerdown", handlePointerDown);
+    };
+  }, [activeSegmentIndex, stopAutoFollow]);
+
+  useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
+      if (isManualScrollKey(event.key)) {
+        stopAutoFollow();
+        return;
+      }
       if (event.defaultPrevented || isTypingTarget(event.target)) return;
       const player = playerRef.current;
       if (player === null) return;
@@ -166,7 +223,7 @@ function YouTubeReaderContentView({ item, parsedUrl }: YouTubeReaderProps & { pa
     }
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [playing]);
+  }, [playing, stopAutoFollow]);
 
   const handleTimeChange = useCallback((seconds: number) => {
     setCurrentTime(seconds);
@@ -186,9 +243,36 @@ function YouTubeReaderContentView({ item, parsedUrl }: YouTubeReaderProps & { pa
     playerRef.current?.seekTo(seconds);
   }
 
+  function scrollToCurrentPosition() {
+    const activeElement = segmentRefs.current[activeSegmentIndex];
+    if (activeElement === null || activeElement === undefined) return;
+
+    programmaticScrollRef.current = true;
+    activeElement.scrollIntoView({
+      block: "center",
+      behavior: transcriptScrollBehavior(
+        window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false,
+      ),
+    });
+  }
+
+  function followPlayback() {
+    setAutoFollow(true);
+    scrollToCurrentPosition();
+  }
+
   function returnToCurrentPosition() {
     setAutoFollow(true);
-    segmentRefs.current[activeSegmentIndex]?.scrollIntoView({ block: "center", behavior: "smooth" });
+    scrollToCurrentPosition();
+  }
+
+  function getActiveSegmentScrollDirection(activeElement: HTMLLIElement) {
+    const readingArea = transcriptPanelRef.current?.getBoundingClientRect() ?? {
+      top: 0,
+      bottom: window.innerHeight,
+    };
+    const safeZone = getTranscriptSafeZone(window.innerHeight, readingArea);
+    return transcriptScrollDirection(activeElement.getBoundingClientRect(), safeZone);
   }
 
   const title = metadata?.title ?? item.title;
@@ -243,11 +327,10 @@ function YouTubeReaderContentView({ item, parsedUrl }: YouTubeReaderProps & { pa
         )}
         transcript={(
         <section
+          ref={transcriptPanelRef}
           id={transcriptPaneId}
           className="transcript-panel"
           aria-labelledby="transcript-heading"
-          onWheel={() => setAutoFollow(false)}
-          onTouchMove={() => setAutoFollow(false)}
         >
           <div className="transcript-heading-row">
             <div>
@@ -255,7 +338,7 @@ function YouTubeReaderContentView({ item, parsedUrl }: YouTubeReaderProps & { pa
               <h2 id="transcript-heading">Follow along</h2>
             </div>
             {transcript !== null && !autoFollow && (
-              <button type="button" className="transcript-follow" onClick={() => setAutoFollow(true)}>
+              <button type="button" className="transcript-follow" onClick={followPlayback}>
                 Follow playback
               </button>
             )}
@@ -336,6 +419,11 @@ function YouTubeReaderContentView({ item, parsedUrl }: YouTubeReaderProps & { pa
       />
     </article>
   );
+}
+
+function isManualScrollKey(key: string): boolean {
+  return key === "PageDown" || key === "PageUp" || key === "Home" || key === "End" ||
+    key === "ArrowDown" || key === "ArrowUp";
 }
 
 function isTypingTarget(target: EventTarget | null): boolean {

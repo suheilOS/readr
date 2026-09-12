@@ -4,7 +4,7 @@ readr is a minimal reading and personal library app built around intentional con
 
 The app gives users a small space to collect things they want to read, watch, or otherwise consume, decide what deserves their attention now, and keep a simple record of what they have finished.
 
-Articles and papers with readable URLs can be viewed directly inside the app through a clean, distraction-free reader. Books, podcasts, and videos remain external, with the app acting as the place where the user's intention to consume them is managed.
+Articles and papers with readable URLs can be viewed directly inside the app through a clean, distraction-free reader. Supported YouTube videos open in a media reader; books, podcasts, and other videos remain external, with the app acting as the place where the user's intention to consume them is managed.
 
 At the center of the experience is a limited active reading area: a small number of items the user has deliberately chosen to focus on. New items can wait in an inbox, move onto the active desk, be discarded, or eventually enter the library once completed.
 

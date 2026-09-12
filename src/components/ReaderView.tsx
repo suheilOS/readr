@@ -65,7 +65,7 @@ function ArticleReader({ item, onClose }: ReaderViewProps) {
           message:
             itemUrl === null
               ? "This item does not have an original URL."
-              : "readr is only available for articles and papers.",
+              : "This item can’t be opened in Readr.",
         });
         return;
       }

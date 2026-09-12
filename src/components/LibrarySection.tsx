@@ -2,15 +2,15 @@ import { useRef } from "react";
 import { Menu } from "@base-ui/react/menu";
 import { itemMetaLine, type Item } from "../../shared/item";
 import { formatDate } from "../formatDate";
-import { focusAdjacentAction } from "../focusAdjacentAction";
+import { runWithFocusRestoration } from "../focusAdjacentAction";
 import { isPendingItemAction, type PendingItemAction } from "../pendingItemAction";
 import { ArrowUpIcon, InboxIcon, MoreVerticalIcon } from "./icons";
 
 
 type LibrarySectionProps = {
   items: Item[];
-  onSendToDesk: (item: Item) => void;
-  onSendToInbox: (item: Item) => void;
+  onSendToDesk: (item: Item) => Promise<boolean>;
+  onSendToInbox: (item: Item) => Promise<boolean>;
   pendingAction: PendingItemAction | null;
 };
 
@@ -59,8 +59,8 @@ export function LibrarySection({
 
 type LibraryActionsMenuProps = {
   item: Item;
-  onSendToDesk: (item: Item) => void;
-  onSendToInbox: (item: Item) => void;
+  onSendToDesk: (item: Item) => Promise<boolean>;
+  onSendToInbox: (item: Item) => Promise<boolean>;
   pendingAction: PendingItemAction | null;
 };
 
@@ -73,12 +73,11 @@ function LibraryActionsMenu({
   const triggerRef = useRef<HTMLButtonElement>(null);
   const busy = pendingAction !== null;
 
-  function runAction(action: (item: Item) => void) {
-    if (triggerRef.current !== null) {
-      focusAdjacentAction(triggerRef.current, "library-heading");
-    }
+  function runAction(action: (item: Item) => Promise<boolean>) {
+    const trigger = triggerRef.current;
+    if (trigger === null) return;
 
-    action(item);
+    runWithFocusRestoration(trigger, "library-heading", () => action(item));
   }
 
   return (

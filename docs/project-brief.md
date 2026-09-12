@@ -114,7 +114,7 @@ On your desk                     3 / 5
 Inbox 7                 Library 42
 ```
 
-Desk cards show title, link hostname when available, type, and a Read action for supported URLs. The inbox collapses to a count until opened. Three interaction principles apply everywhere:
+Desk cards show title, link hostname when available, type, and a Read action for supported URLs. The Inbox stays visible alongside the Desk and Library so captured items remain available for deliberate decisions without an extra open step. Three interaction principles apply everywhere:
 
 - **Capture fast**: focus the add control, type, press Enter
 - **Decide deliberately**: moving an item onto the full desk carries visible weight
@@ -142,7 +142,7 @@ Version 1 excludes the following unless this brief is revised first:
 - ratings, reviews, highlights, annotations
 - reading statistics, goals, streaks, challenges
 - recommendation feeds, social features
-- browser extension for Version 1; planned as Phase 12
+- additional browser-extension capture formats or cross-browser packaging
 - PDF upload or storage
 - per-site extraction overrides
 - configurable desk capacity, multiple desks
