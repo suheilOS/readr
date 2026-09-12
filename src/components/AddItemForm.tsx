@@ -1,6 +1,7 @@
 import { useState, type FormEvent, type Ref } from "react";
 import { TypeSelect } from "./TypeSelect";
 import { notify } from "../notifications";
+import type { CaptureInput } from "../../shared/capture";
 import {
   DEFAULT_ITEM_TYPE,
   parseItemUrl,
@@ -14,16 +15,18 @@ export type AddItemFormState = "idle" | "submitting";
 
 type AddItemFormProps = {
   onAdd: (input: NewItemInput) => Promise<boolean>;
+  onCapture: (input: CaptureInput) => Promise<boolean>;
   onCancel: () => void;
   state: AddItemFormState;
   formId?: string;
   titleRef?: Ref<HTMLInputElement>;
 };
 
-export function AddItemForm({ onAdd, onCancel, state, formId, titleRef }: AddItemFormProps) {
+export function AddItemForm({ onAdd, onCapture, onCancel, state, formId, titleRef }: AddItemFormProps) {
   const [title, setTitle] = useState("");
   const [url, setUrl] = useState("");
   const [type, setType] = useState<ItemType>(DEFAULT_ITEM_TYPE);
+  const [typeSelected, setTypeSelected] = useState(false);
   const [titleError, setTitleError] = useState(false);
   const [urlError, setUrlError] = useState(false);
   const submitting = state === "submitting";
@@ -34,19 +37,9 @@ export function AddItemForm({ onAdd, onCancel, state, formId, titleRef }: AddIte
     event.preventDefault();
     if (state !== "idle") return;
 
-    const trimmedTitle = title.trim();
-    if (trimmedTitle.length === 0) {
-      notify({ message: "Enter a title.", state: "error" });
-      setTitleError(true);
-      const titleInput = event.currentTarget.elements.namedItem("title");
-      if (titleInput instanceof HTMLInputElement) {
-        titleInput.focus();
-      }
-      return;
-    }
-
-    const parsedUrl = url.trim().length === 0 ? null : parseItemUrl(url);
-    if (url.trim().length > 0 && parsedUrl === null) {
+    const trimmedUrl = url.trim();
+    const parsedUrl = trimmedUrl.length === 0 ? null : parseItemUrl(trimmedUrl);
+    if (trimmedUrl.length > 0 && parsedUrl === null) {
       notify({
         message: "Enter a complete http or https link without a username or password.",
         state: "error",
@@ -54,6 +47,34 @@ export function AddItemForm({ onAdd, onCancel, state, formId, titleRef }: AddIte
       setUrlError(true);
       const urlInput = event.currentTarget.elements.namedItem("url");
       if (urlInput instanceof HTMLInputElement) urlInput.focus();
+      return;
+    }
+
+    const trimmedTitle = title.trim();
+    if (parsedUrl !== null) {
+      const captureInput: CaptureInput = { url: parsedUrl };
+      if (trimmedTitle.length > 0) captureInput.title = trimmedTitle;
+      if (typeSelected) captureInput.type = type;
+
+      const captured = await onCapture(captureInput);
+      if (!captured) return;
+
+      setTitle("");
+      setUrl("");
+      setType(DEFAULT_ITEM_TYPE);
+      setTypeSelected(false);
+      setTitleError(false);
+      setUrlError(false);
+      return;
+    }
+
+    if (trimmedTitle.length === 0) {
+      notify({ message: "Enter a title.", state: "error" });
+      setTitleError(true);
+      const titleInput = event.currentTarget.elements.namedItem("title");
+      if (titleInput instanceof HTMLInputElement) {
+        titleInput.focus();
+      }
       return;
     }
 
@@ -66,6 +87,8 @@ export function AddItemForm({ onAdd, onCancel, state, formId, titleRef }: AddIte
 
     setTitle("");
     setUrl("");
+    setType(DEFAULT_ITEM_TYPE);
+    setTypeSelected(false);
     setTitleError(false);
     setUrlError(false);
   }
@@ -94,7 +117,7 @@ export function AddItemForm({ onAdd, onCancel, state, formId, titleRef }: AddIte
         className="add-title"
         type="text"
         autoComplete="off"
-        placeholder="Title"
+        placeholder="Title (optional for links)"
         aria-describedby={titleError ? titleErrorId : undefined}
         aria-invalid={titleError}
         required
@@ -134,7 +157,14 @@ export function AddItemForm({ onAdd, onCancel, state, formId, titleRef }: AddIte
           Enter a complete http or https link without a username or password.
         </p>
       )}
-      <TypeSelect value={type} onChange={setType} disabled={submitting} />
+      <TypeSelect
+        value={type}
+        onChange={(nextType) => {
+          setTypeSelected(true);
+          setType(nextType);
+        }}
+        disabled={submitting}
+      />
       <span className="visually-hidden" role="status" aria-atomic="true">
         {submitting ? "Adding to inbox." : ""}
       </span>

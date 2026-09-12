@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Item } from "../shared/item";
+import type { CaptureInput, CaptureResult } from "../shared/capture";
 import type { PendingItemAction } from "./pendingItemAction";
 import { commitWithViewTransition } from "./viewTransition";
 import {
+  captureUrl as requestCaptureUrl,
   createItem,
   discardItem,
   fetchItems,
@@ -26,7 +28,9 @@ export type ItemLibrary = {
   retry: () => void;
   refreshSilently: () => void;
   addItem: (input: NewItemInput) => Promise<Item | null>;
+  captureUrl: (input: CaptureInput) => Promise<CaptureResult | null>;
   reconcileItem: (item: Item) => void;
+  reconcileItemMetadata: (item: Pick<Item, "id" | "title" | "type">) => void;
   moveToDesk: (id: string) => Promise<Item | null>;
   moveToInbox: (id: string) => Promise<Item | null>;
   finish: (id: string) => Promise<Item | null>;
@@ -97,7 +101,10 @@ export function useItemLibrary(): ItemLibrary {
     }
   }, []);
 
-  const addItem = useCallback(async (input: NewItemInput): Promise<Item | null> => {
+  const runCapture = useCallback(async <T,>(
+    operation: () => Promise<T>,
+    apply: (result: T) => void,
+  ): Promise<T | null> => {
     if (capturePendingRef.current) return null;
 
     capturePendingRef.current = true;
@@ -105,10 +112,10 @@ export function useItemLibrary(): ItemLibrary {
     dataGenerationRef.current += 1;
     setError(null);
     try {
-      const item = await createItem(input);
+      const result = await operation();
       dataGenerationRef.current += 1;
-      setItems((current) => [item, ...current]);
-      return item;
+      apply(result);
+      return result;
     } catch (error: unknown) {
       handleError(error, setError, setUnauthenticated);
       return null;
@@ -118,14 +125,32 @@ export function useItemLibrary(): ItemLibrary {
     }
   }, []);
 
+  const addItem = useCallback(
+    (input: NewItemInput): Promise<Item | null> => runCapture(
+      () => createItem(input),
+      (item) => setItems((current) => upsertItem(current, item)),
+    ),
+    [runCapture],
+  );
+
+  const captureUrl = useCallback(
+    (input: CaptureInput): Promise<CaptureResult | null> => runCapture(
+      () => requestCaptureUrl(input),
+      ({ item }) => setItems((current) => upsertItem(current, item)),
+    ),
+    [runCapture],
+  );
+
   const reconcileItem = useCallback((item: Item): void => {
     dataGenerationRef.current += 1;
-    setItems((current) => {
-      const index = current.findIndex((currentItem) => currentItem.id === item.id);
-      if (index === -1) return [item, ...current];
+    setItems((current) => upsertItem(current, item));
+  }, []);
 
-      return current.map((currentItem) => currentItem.id === item.id ? item : currentItem);
-    });
+  const reconcileItemMetadata = useCallback((item: Pick<Item, "id" | "title" | "type">): void => {
+    dataGenerationRef.current += 1;
+    setItems((current) => current.map((currentItem) => currentItem.id === item.id
+      ? { ...currentItem, title: item.title, type: item.type }
+      : currentItem));
   }, []);
 
   const updateItem = useCallback(async (
@@ -201,13 +226,21 @@ export function useItemLibrary(): ItemLibrary {
     retry,
     refreshSilently,
     addItem,
+    captureUrl,
     reconcileItem,
+    reconcileItemMetadata,
     moveToDesk,
     moveToInbox,
     finish,
     discard,
     swap,
   };
+}
+
+function upsertItem(items: Item[], item: Item): Item[] {
+  const index = items.findIndex((currentItem) => currentItem.id === item.id);
+  if (index === -1) return [item, ...items];
+  return items.map((currentItem) => currentItem.id === item.id ? item : currentItem);
 }
 
 function handleError(

@@ -1,11 +1,12 @@
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { Item } from "../../shared/item";
+import { parseItemUrl, type Item } from "../../shared/item";
 import { useItemLibrary, type ItemLibrary } from "../../src/useItemLibrary";
 
 const api = vi.hoisted(() => ({
   createItem: vi.fn(),
+  captureUrl: vi.fn(),
   discardItem: vi.fn(),
   fetchItems: vi.fn(),
   finishItem: vi.fn(),
@@ -181,6 +182,68 @@ describe("useItemLibrary mutation state", () => {
     expect(getLibrary().pendingAction).toBeNull();
     expect(getLibrary().error).toBe("Could not save item.");
   });
+
+  it("keeps a lifecycle mutation independent from URL capture", async () => {
+    const movement = deferred<Item>();
+    const capture = deferred<{ item: Item; created: boolean }>();
+    api.moveItemToDesk.mockReturnValue(movement.promise);
+    api.captureUrl.mockReturnValue(capture.promise);
+
+    let movePromise: Promise<Item | null> | null = null;
+    let capturePromise: Promise<{ item: Item; created: boolean } | null> | null = null;
+    await act(async () => {
+      getLibrary().reconcileItem(item);
+      movePromise = getLibrary().moveToDesk(item.id);
+      await Promise.resolve();
+      capturePromise = getLibrary().captureUrl({ url: "https://example.com/article" });
+      await Promise.resolve();
+    });
+
+    expect(getLibrary().pendingAction).toEqual({ kind: "move-to-desk", itemId: item.id });
+    expect(getLibrary().capturePending).toBe(true);
+    expect(api.moveItemToDesk).toHaveBeenCalledOnce();
+    expect(api.captureUrl).toHaveBeenCalledOnce();
+
+    const capturedUrl = parseItemUrl("https://example.com/article");
+    if (capturedUrl === null) throw new Error("Test URL should be valid.");
+    const capturedItem = { ...item, id: "item-2", url: capturedUrl };
+    await act(async () => {
+      capture.resolve({ item: capturedItem, created: true });
+      await capturePromise;
+    });
+    expect(getLibrary().capturePending).toBe(false);
+    expect(getLibrary().pendingAction).toEqual({ kind: "move-to-desk", itemId: item.id });
+    expect(getLibrary().items).toEqual([capturedItem, item]);
+
+    await act(async () => {
+      movement.resolve({ ...item, status: "desk" });
+      await movePromise;
+    });
+    expect(getLibrary().items).toEqual([capturedItem, { ...item, status: "desk" }]);
+  });
+
+  it("prevents simultaneous URL captures", async () => {
+    const capture = deferred<{ item: Item; created: boolean }>();
+    api.captureUrl.mockReturnValue(capture.promise);
+
+    let firstCapture: Promise<{ item: Item; created: boolean } | null> | null = null;
+    let secondResult: { item: Item; created: boolean } | null = { item, created: true };
+    await act(async () => {
+      firstCapture = getLibrary().captureUrl({ url: "https://example.com/article" });
+      await Promise.resolve();
+      secondResult = await getLibrary().captureUrl({ url: "https://example.com/article" });
+    });
+
+    expect(secondResult).toBeNull();
+    expect(api.captureUrl).toHaveBeenCalledOnce();
+    expect(getLibrary().capturePending).toBe(true);
+
+    await act(async () => {
+      capture.resolve({ item, created: true });
+      await firstCapture;
+    });
+    expect(getLibrary().capturePending).toBe(false);
+  });
 });
 
 describe("useItemLibrary reconciliation", () => {
@@ -202,6 +265,24 @@ describe("useItemLibrary reconciliation", () => {
 
     expect(getLibrary().items).toEqual([updatedItem]);
     expect(api.fetchItems).toHaveBeenCalledOnce();
+  });
+
+  it("updates metadata without overwriting lifecycle fields", async () => {
+    const deskItem = { ...item, status: "desk" as const, note: "Keep this note." };
+    await act(async () => {
+      getLibrary().reconcileItem(deskItem);
+      getLibrary().reconcileItemMetadata({
+        id: item.id,
+        title: "Enriched title",
+        type: "video",
+      });
+    });
+
+    expect(getLibrary().items).toEqual([{
+      ...deskItem,
+      title: "Enriched title",
+      type: "video",
+    }]);
   });
 
   it("does not let an initial fetch overwrite a capture during a silent refresh", async () => {

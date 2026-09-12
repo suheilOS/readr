@@ -11,6 +11,7 @@ import { Collapsible } from "@base-ui/react/collapsible";
 import {
   canReadInApp,
   DESK_CAPACITY,
+  type ItemStatus,
   type Item,
 } from "../shared/item";
 import {
@@ -34,15 +35,18 @@ import { Spinner } from "./components/Spinner";
 import { ArrowLeftIcon, PlusIcon } from "./components/icons";
 import { notify } from "./notifications";
 import { isYouTubeCapturedContent, type YouTubeCapturedContent } from "../shared/media";
+import type { CaptureInput } from "../shared/capture";
 import { saveYouTubeContent } from "./itemApi";
 import { commitWithViewTransition } from "./viewTransition";
+import { readPasteCaptureUrl } from "./pasteCapture";
+import { useEnrichmentRefresh } from "./useEnrichmentRefresh";
 
 const THEME_STORAGE_KEY = "reader:theme";
 
 type AnnouncementInput = {
   title?: string;
   message: string;
-  state?: "success" | "error";
+  state?: "success" | "error" | "info";
   sound?: "success";
 };
 
@@ -103,7 +107,9 @@ export default function App() {
     retry,
     refreshSilently,
     addItem,
+    captureUrl,
     reconcileItem,
+    reconcileItemMetadata,
     moveToDesk,
     moveToInbox,
     finish,
@@ -130,6 +136,50 @@ export default function App() {
     },
     [],
   );
+  const closeCapture = useCallback(() => {
+    setCaptureOpen(false);
+    requestAnimationFrame(() => addButtonRef.current?.focus());
+  }, []);
+  const { watch: watchEnrichment } = useEnrichmentRefresh(items, reconcileItemMetadata);
+
+  const handleQuickCapture = useCallback(async (input: CaptureInput): Promise<boolean> => {
+    if (capturePending) {
+      announce({ message: "A capture is already in progress. Try again in a moment.", state: "info" });
+      return false;
+    }
+
+    const result = await captureUrl(input);
+    if (result === null) {
+      announce({ message: "That link could not be saved. Try again.", state: "error" });
+      return false;
+    }
+
+    const { item, created } = result;
+    if (created) {
+      setLastAddedId(item.id);
+      announce({
+        title: item.title,
+        message: "saved to your inbox.",
+        state: "success",
+        sound: "success",
+      });
+    } else {
+      announce({
+        title: item.title,
+        message: `already in ${captureSectionLabel(item.status)}.`,
+        state: "info",
+      });
+    }
+
+    watchEnrichment(item.id);
+    return true;
+  }, [announce, capturePending, captureUrl, watchEnrichment]);
+
+  const handleFormCapture = useCallback(async (input: CaptureInput): Promise<boolean> => {
+    const captured = await handleQuickCapture(input);
+    if (captured) closeCapture();
+    return captured;
+  }, [closeCapture, handleQuickCapture]);
 
   const cancelSwap = useCallback(() => {
     if (pendingAction !== null) return;
@@ -234,6 +284,20 @@ export default function App() {
     window.postMessage({ type: "readr:capture-ready" }, window.location.origin);
     return () => window.removeEventListener("message", handleCaptureMessage);
   }, [announce, reconcileItem, refreshSilently]);
+
+  useEffect(() => {
+    function handlePaste(event: ClipboardEvent): void {
+      if (loading || unauthenticated) return;
+      const url = readPasteCaptureUrl(event);
+      if (url === null) return;
+
+      event.preventDefault();
+      void handleQuickCapture({ url });
+    }
+
+    window.addEventListener("paste", handlePaste);
+    return () => window.removeEventListener("paste", handlePaste);
+  }, [handleQuickCapture, loading, unauthenticated]);
 
   const displayQuery = query.trim();
   const searching = displayQuery.length > 0;
@@ -370,11 +434,6 @@ export default function App() {
     ? `${visibleItemCount} result${visibleItemCount === 1 ? "" : "s"} found.`
     : "";
 
-  function closeCapture() {
-    setCaptureOpen(false);
-    requestAnimationFrame(() => addButtonRef.current?.focus());
-  }
-
   function openReader(item: Item) {
     if (!canReadInApp(item)) {
       return;
@@ -464,6 +523,7 @@ export default function App() {
                 <div className="capture-content">
                   <AddItemForm
                     onAdd={handleAdd}
+                    onCapture={handleFormCapture}
                     onCancel={closeCapture}
                     state={addItemFormState}
                     formId="capture-form"
@@ -560,6 +620,21 @@ function isYouTubeCaptureMessage(value: unknown): value is {
 
 function isCaptureId(value: unknown): value is string {
   return typeof value === "string" && value.length > 0 && value.length <= 100;
+}
+
+function captureSectionLabel(status: ItemStatus): string {
+  switch (status) {
+    case "inbox":
+      return "your Inbox";
+    case "desk":
+      return "your Desk";
+    case "library":
+      return "your Library";
+    default: {
+      const exhaustive: never = status;
+      return exhaustive;
+    }
+  }
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
