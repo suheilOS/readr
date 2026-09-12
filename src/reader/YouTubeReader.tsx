@@ -1,4 +1,5 @@
-import { startTransition, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { startTransition, useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
+import { Collapsible } from "@base-ui/react/collapsible";
 import type { Item } from "../../shared/item";
 import {
   parseYouTubeUrl,
@@ -13,10 +14,12 @@ import {
   MediaExtractionError,
 } from "./extractYouTube";
 import { activeTimedEntryIndex, formatPlaybackTime } from "./transcriptSync";
+import { MediaTranscriptSplit } from "./MediaTranscriptSplit";
 import { YouTubePlayer, type YouTubePlayerHandle } from "./YouTubePlayer";
 import { useMediaProgress } from "./useMediaProgress";
 import { fetchYouTubeContent } from "../itemApi";
 import { notify } from "../notifications";
+import { ChevronDownIcon } from "../components/icons";
 
 type YouTubeReaderProps = {
   item: Item;
@@ -44,6 +47,8 @@ function YouTubeReaderContentView({ item, parsedUrl }: YouTubeReaderProps & { pa
   const [activeVisible, setActiveVisible] = useState(true);
   const playerRef = useRef<YouTubePlayerHandle>(null);
   const headingRef = useRef<HTMLHeadingElement>(null);
+  const playerPaneId = useId();
+  const transcriptPaneId = useId();
   const segmentRefs = useRef<Array<HTMLLIElement | null>>([]);
   const {
     initialPosition,
@@ -198,8 +203,11 @@ function YouTubeReaderContentView({ item, parsedUrl }: YouTubeReaderProps & { pa
         {author !== null && <p className="reader-meta">{author}</p>}
       </header>
 
-      <div className="media-reader-layout">
-        <section className="media-player-column" aria-label="Video player">
+      <MediaTranscriptSplit
+        playerPaneId={playerPaneId}
+        transcriptPaneId={transcriptPaneId}
+        player={(
+        <section id={playerPaneId} className="media-player-column" aria-label="Video player">
           {initialPosition === null ? (
             <div className="youtube-player-shell"><span className="youtube-player-status">Loading player…</span></div>
           ) : (
@@ -216,11 +224,26 @@ function YouTubeReaderContentView({ item, parsedUrl }: YouTubeReaderProps & { pa
           <p className="media-player-time" aria-live="off">
             {formatPlaybackTime(currentTime)}{duration > 0 && ` / ${formatPlaybackTime(duration)}`}
           </p>
-          <p className="media-shortcuts">K or Space to pause · ←/→ 5 seconds · J/L 10 seconds</p>
+          <ul className="media-shortcuts" aria-label="Video keyboard shortcuts">
+            <li>
+              <span className="shortcut-keys"><kbd>K</kbd><span>or</span><kbd>Space</kbd></span>
+              <span>Play or pause</span>
+            </li>
+            <li>
+              <span className="shortcut-keys"><kbd>←</kbd><kbd>→</kbd></span>
+              <span>Skip 5 seconds</span>
+            </li>
+            <li>
+              <span className="shortcut-keys"><kbd>J</kbd><kbd>L</kbd></span>
+              <span>Skip 10 seconds</span>
+            </li>
+          </ul>
           {description !== null && <p className="media-description">{description}</p>}
         </section>
-
+        )}
+        transcript={(
         <section
+          id={transcriptPaneId}
           className="transcript-panel"
           aria-labelledby="transcript-heading"
           onWheel={() => setAutoFollow(false)}
@@ -255,22 +278,30 @@ function YouTubeReaderContentView({ item, parsedUrl }: YouTubeReaderProps & { pa
           {transcript !== null && (
             <>
               {transcript.chapters.length > 0 && (
-                <nav className="chapter-outline" aria-label="Video chapters">
-                  <ol>
-                    {transcript.chapters.map((chapter, index) => (
-                      <li key={`${chapter.startSeconds}-${chapter.title}`}>
-                        <button
-                          type="button"
-                          aria-current={index === activeChapterIndex ? "true" : undefined}
-                          onClick={() => seekTo(chapter.startSeconds)}
-                        >
-                          <span>{chapter.title}</span>
-                          <time>{formatPlaybackTime(chapter.startSeconds)}</time>
-                        </button>
-                      </li>
-                    ))}
-                  </ol>
-                </nav>
+                <Collapsible.Root className="chapter-outline">
+                  <Collapsible.Trigger type="button" className="chapter-outline-trigger">
+                    <span>Timestamps</span>
+                    <ChevronDownIcon aria-hidden="true" />
+                  </Collapsible.Trigger>
+                  <Collapsible.Panel className="chapter-outline-panel">
+                    <nav aria-label="Video chapters">
+                      <ol>
+                        {transcript.chapters.map((chapter, index) => (
+                          <li key={`${chapter.startSeconds}-${chapter.title}`}>
+                            <button
+                              type="button"
+                              aria-current={index === activeChapterIndex ? "true" : undefined}
+                              onClick={() => seekTo(chapter.startSeconds)}
+                            >
+                              <span>{chapter.title}</span>
+                              <time>{formatPlaybackTime(chapter.startSeconds)}</time>
+                            </button>
+                          </li>
+                        ))}
+                      </ol>
+                    </nav>
+                  </Collapsible.Panel>
+                </Collapsible.Root>
               )}
               <ol className="transcript-list">
                 {transcript.segments.map((segment, index) => (
@@ -301,7 +332,8 @@ function YouTubeReaderContentView({ item, parsedUrl }: YouTubeReaderProps & { pa
             </button>
           )}
         </section>
-      </div>
+        )}
+      />
     </article>
   );
 }
