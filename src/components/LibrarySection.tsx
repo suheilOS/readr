@@ -6,6 +6,7 @@ import { focusAdjacentAction } from "../focusAdjacentAction";
 import { isPendingItemAction, type PendingItemAction } from "../pendingItemAction";
 import { ArrowUpIcon, InboxIcon, MoreVerticalIcon } from "./icons";
 
+
 type LibrarySectionProps = {
   items: Item[];
   onSendToDesk: (item: Item) => void;
@@ -27,7 +28,11 @@ export function LibrarySection({
       </div>
       <ul className="row-list">
         {items.map((item) => (
-          <li key={item.id} className="row finished">
+          <li
+            key={item.id}
+            className="row finished"
+            style={{ viewTransitionName: `item-${item.id}` }}
+          >
             <div className="row-text">
               <span className="row-title">{item.title}</span>
               <span className="meta-line">

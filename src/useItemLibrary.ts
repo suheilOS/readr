@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Item } from "../shared/item";
 import type { PendingItemAction } from "./pendingItemAction";
+import { commitWithViewTransition } from "./viewTransition";
 import {
   createItem,
   discardItem,
@@ -98,7 +99,9 @@ export function useItemLibrary(): ItemLibrary {
   ): Promise<Item | null> => {
     const item = await runMutation({ kind, itemId: id }, () => operation(id));
     if (item !== null) {
-      setItems((current) => current.map((currentItem) => currentItem.id === item.id ? item : currentItem));
+      commitWithViewTransition(() => {
+        setItems((current) => current.map((currentItem) => currentItem.id === item.id ? item : currentItem));
+      });
     }
     return item;
   }, [runMutation]);
@@ -131,9 +134,11 @@ export function useItemLibrary(): ItemLibrary {
       () => swapItems(candidateId, displacedId),
     );
     if (result !== null) {
-      setItems((current) => current
-        .filter((item) => item.id !== result.displacedId)
-        .map((item) => item.id === result.item.id ? result.item : item));
+      commitWithViewTransition(() => {
+        setItems((current) => current
+          .filter((item) => item.id !== result.displacedId)
+          .map((item) => item.id === result.item.id ? result.item : item));
+      });
     }
     return result?.item ?? null;
   }, [runMutation]);

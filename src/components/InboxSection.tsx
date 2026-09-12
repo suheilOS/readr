@@ -3,6 +3,7 @@ import { focusAdjacentAction } from "../focusAdjacentAction";
 import { ArrowUpIcon, TrashIcon } from "./icons";
 import { isPendingItemAction, type PendingItemAction } from "../pendingItemAction";
 
+
 type InboxSectionProps = {
   items: Item[];
   highlightId?: string | null;
@@ -31,6 +32,7 @@ export function InboxSection({
           <li
             key={item.id}
             className={item.id === highlightId ? "row row-new" : "row"}
+            style={{ viewTransitionName: `item-${item.id}` }}
           >
             <div className="row-text">
               <span className="row-title">{item.title}</span>

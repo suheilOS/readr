@@ -13,6 +13,7 @@ import {
   VideoIcon,
 } from "./icons";
 
+
 type DeskSectionProps = {
   items: Item[];
   mode: "normal" | "swap";
@@ -56,9 +57,9 @@ export function DeskSection({
         </p>
       )}
       <ul className="desk-list">
-        {items.map((item) =>
-          swapActive ? (
-            <li key={item.id}>
+        {items.map((item) => (
+          <li key={item.id} style={{ viewTransitionName: `item-${item.id}` }}>
+            {swapActive ? (
               <button
                 type="button"
                 className="desk-card swappable"
@@ -79,9 +80,7 @@ export function DeskSection({
                 <span className="card-title">{item.title}</span>
                 <span className="meta-line">{itemMetaLine(item)}</span>
               </button>
-            </li>
-          ) : (
-            <li key={item.id}>
+            ) : (
               <article className="desk-card">
                 <h3 className="card-title">{item.title}</h3>
                 <p className="meta-line">{itemMetaLine(item)}</p>
@@ -145,9 +144,9 @@ export function DeskSection({
                   />
                 </div>
               </article>
-            </li>
-          ),
-        )}
+            )}
+          </li>
+        ))}
       </ul>
       {!swapActive && items.length === 0 && (
         <p className="empty-note">No items on your desk yet. Move one here from your inbox.</p>
