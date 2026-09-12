@@ -210,7 +210,7 @@ const TEXT_SLIDE = {
   exit: { opacity: 0, x: -6, transition: EXIT },
 } as const;
 
-function ToastLine({ message }: { message: string }) {
+function ToastLine({ title, message }: { title?: string; message: string }) {
   return (
     <motion.div
       initial={{ width: 0 }}
@@ -224,7 +224,13 @@ function ToastLine({ message }: { message: string }) {
         transition={MORPH}
         className="w-max max-w-lg shrink-0 truncate"
       >
-        {message}
+        {title === undefined ? (
+          message
+        ) : (
+          <>
+            <strong className="font-semibold">"{title}"</strong> {message}
+          </>
+        )}
       </motion.span>
     </motion.div>
   );
@@ -251,6 +257,7 @@ function ToastActionButton({
 
 function ToastPill({
   state,
+  title,
   message,
   action,
   onAction,
@@ -258,6 +265,7 @@ function ToastPill({
   behind,
 }: {
   state?: ToastState;
+  title?: string;
   message: string;
   action?: ToastAction;
   onAction: () => void;
@@ -312,7 +320,11 @@ function ToastPill({
 
           <div className="flex items-center">
             <AnimatePresence initial={false}>
-              <ToastLine key={message} message={message} />
+              <ToastLine
+                key={`${title ?? ""}:${message}`}
+                title={title}
+                message={message}
+              />
             </AnimatePresence>
           </div>
         </div>
@@ -622,6 +634,7 @@ export function Toasts({ position = "top-center" }: { position?: ToastPosition }
             render: (behind: boolean) => (
               <ToastPill
                 state={note.state}
+                title={note.title}
                 message={note.message}
                 action={note.action}
                 onAction={act}

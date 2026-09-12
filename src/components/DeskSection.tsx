@@ -17,7 +17,7 @@ type DeskSectionProps = {
   mode: "normal" | "swap";
   onFinish: (item: Item) => void;
   onSendToInbox: (item: Item) => void;
-  onDiscard: (item: Item) => void;
+  onDiscard: (item: Item, trigger: HTMLButtonElement) => void;
   onRead: (item: Item) => void;
   onSelectSwapTarget: (item: Item) => void;
   onCancelSwap: () => void;
@@ -154,7 +154,7 @@ export function DeskSection({
 type DeskActionsMenuProps = {
   item: Item;
   onSendToInbox: (item: Item) => void;
-  onDiscard: (item: Item) => void;
+  onDiscard: (item: Item, trigger: HTMLButtonElement) => void;
   pendingAction: PendingItemAction | null;
 };
 
@@ -207,7 +207,10 @@ function DeskActionsMenu({
               className="library-menu-item discard-menu-item"
               data-variant="destructive"
               disabled={busy}
-              onClick={() => runAction(onDiscard)}
+              onClick={() => {
+                const trigger = triggerRef.current;
+                if (trigger !== null) onDiscard(item, trigger);
+              }}
             >
               <TrashIcon className="button-icon" />
               <span>Discard</span>

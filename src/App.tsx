@@ -19,6 +19,7 @@ import {
   type NewItemInput,
 } from "./components/AddItemForm";
 import { DeskSection } from "./components/DeskSection";
+import { DiscardConfirmationDialog } from "./components/DiscardConfirmationDialog";
 import { InboxSection } from "./components/InboxSection";
 import { LibrarySection } from "./components/LibrarySection";
 import { SearchBar } from "./components/SearchBar";
@@ -26,6 +27,7 @@ import { selectItemGroups } from "./itemSelectors";
 import { useItemLibrary } from "./useItemLibrary";
 import { useReaderRoute } from "./useReaderRoute";
 import { pendingItemActionLabel } from "./pendingItemAction";
+import { focusAdjacentAction } from "./focusAdjacentAction";
 import { ThemeToggle, type Theme } from "./components/ThemeToggle";
 import { UtilityDock } from "./components/UtilityDock";
 import { TwinOrbit } from "./components/TwinOrbit";
@@ -35,6 +37,18 @@ import { isYouTubeCapturedContent, type YouTubeCapturedContent } from "../shared
 import { saveYouTubeContent } from "./itemApi";
 
 const THEME_STORAGE_KEY = "reader:theme";
+
+type AnnouncementInput = {
+  title?: string;
+  message: string;
+  state?: "success" | "error";
+  sound?: "success";
+};
+
+type DiscardRequest = {
+  item: Item;
+  trigger: HTMLButtonElement;
+};
 
 const ReaderView = lazy(() =>
   import("./components/ReaderView").then(({ ReaderView: Component }) => ({
@@ -94,6 +108,7 @@ export default function App() {
   } = useItemLibrary();
   const busy = pendingAction !== null;
   const [query, setQuery] = useState("");
+  const [discardCandidate, setDiscardCandidate] = useState<Item | null>(null);
   const [swapCandidateId, setSwapCandidateId] = useState<string | null>(null);
   const [captureOpen, setCaptureOpen] = useState(false);
   const [lastAddedId, setLastAddedId] = useState<string | null>(null);
@@ -102,14 +117,12 @@ export default function App() {
   const { readerItemId, openReaderRoute, closeReaderRoute } = useReaderRoute();
   const addButtonRef = useRef<HTMLButtonElement>(null);
   const titleInputRef = useRef<HTMLInputElement>(null);
+  const discardRequestRef = useRef<DiscardRequest | null>(null);
   const announce = useCallback(
-    (
-      message: string,
-      state?: "success" | "error",
-      sound?: "success",
-    ) => {
-      setAnnouncement(message);
-      notify({ message, state, sound });
+    ({ title, message, state, sound }: AnnouncementInput) => {
+      const announcement = title === undefined ? message : `"${title}" ${message}`;
+      setAnnouncement(announcement);
+      notify({ title, message, state, sound });
     },
     [],
   );
@@ -174,13 +187,12 @@ export default function App() {
       void saveYouTubeContent(capture.content)
         .then(({ item, created }) => {
           retry();
-          announce(
-            created
-              ? `${item.title} captured to your inbox.`
-              : `${item.title} capture updated.`,
-            "success",
-            "success",
-          );
+          announce({
+            title: item.title,
+            message: created ? "captured to your inbox." : "capture updated.",
+            state: "success",
+            sound: "success",
+          });
           window.postMessage({
             type: "readr:capture-result",
             captureId: capture.captureId,
@@ -189,7 +201,7 @@ export default function App() {
         })
         .catch((error: unknown) => {
           const message = error instanceof Error ? error.message : "The video could not be captured.";
-          announce(message, "error");
+          announce({ message, state: "error" });
           window.postMessage({
             type: "readr:capture-result",
             captureId: capture.captureId,
@@ -225,7 +237,12 @@ export default function App() {
     if (item === null) return false;
 
     setLastAddedId(item.id);
-    announce(`${item.title} added to your inbox.`, "success", "success");
+    announce({
+      title: item.title,
+      message: "added to your inbox.",
+      state: "success",
+      sound: "success",
+    });
     closeCapture();
     return true;
   }
@@ -238,14 +255,22 @@ export default function App() {
 
     const movedItem = await moveToDesk(item.id);
     if (movedItem !== null) {
-      announce(`${movedItem.title} moved to your desk.`, "success");
+      announce({
+        title: movedItem.title,
+        message: "moved to your desk.",
+        state: "success",
+      });
     }
   }
 
   async function sendToInbox(item: Item) {
     const movedItem = await moveToInbox(item.id);
     if (movedItem !== null) {
-      announce(`${movedItem.title} returned to your inbox.`, "success");
+      announce({
+        title: movedItem.title,
+        message: "returned to your inbox.",
+        state: "success",
+      });
       if (swapCandidateId === item.id) {
         setSwapCandidateId(null);
       }
@@ -259,26 +284,57 @@ export default function App() {
 
     const movedItem = await swap(swapCandidateId, displaced.id);
     if (movedItem !== null) {
-      announce(`${movedItem.title} moved to your desk.`, "success", "success");
+      announce({
+        title: movedItem.title,
+        message: "moved to your desk.",
+        state: "success",
+        sound: "success",
+      });
     }
     setSwapCandidateId(null);
   }
 
-  async function discardItem(item: Item) {
-    const discarded = await discard(item.id);
-    if (!discarded) return;
+  function requestDiscard(item: Item, trigger: HTMLButtonElement) {
+    discardRequestRef.current = { item, trigger };
+    setDiscardCandidate(item);
+  }
 
-    announce(`${item.title} discarded.`, "success");
+  async function discardItem(item: Item): Promise<boolean> {
+    const request = discardRequestRef.current?.item.id === item.id
+      ? discardRequestRef.current
+      : null;
+    const discarded = await discard(item.id);
+    if (!discarded) return false;
+
+    announce({
+      title: item.title,
+      message: "discarded.",
+      state: "success",
+    });
+
+    if (request !== null) {
+      focusAdjacentAction(
+        request.trigger,
+        item.status === "inbox" ? "inbox-heading" : "desk-heading",
+      );
+    }
+    discardRequestRef.current = null;
 
     if (swapCandidateId === item.id) {
       setSwapCandidateId(null);
     }
+    return true;
   }
 
   async function finishItem(item: Item) {
     const finishedItem = await finish(item.id);
     if (finishedItem !== null) {
-      announce(`${finishedItem.title} moved to your library.`, "success", "success");
+      announce({
+        title: finishedItem.title,
+        message: "moved to your library.",
+        state: "success",
+        sound: "success",
+      });
     }
   }
 
@@ -376,6 +432,7 @@ export default function App() {
                 className="add-toggle"
                 aria-label={captureOpen ? "Close add form" : "Add to inbox"}
                 data-slot="collapsible-trigger"
+                data-focus-fallback
               >
                 <PlusIcon />
               </Collapsible.Trigger>
@@ -407,7 +464,7 @@ export default function App() {
                   mode={swapCandidateId === null ? "normal" : "swap"}
                   onFinish={finishItem}
                   onSendToInbox={sendToInbox}
-                  onDiscard={discardItem}
+                  onDiscard={requestDiscard}
                   onRead={openReader}
                   onSelectSwapTarget={replaceDeskItem}
                   onCancelSwap={() => setSwapCandidateId(null)}
@@ -419,7 +476,7 @@ export default function App() {
                   items={visibleInboxItems}
                   highlightId={lastAddedId}
                   onSendToDesk={sendToDesk}
-                  onDiscard={discardItem}
+                  onDiscard={requestDiscard}
                   pendingAction={pendingAction}
                 />
               )}
@@ -436,6 +493,14 @@ export default function App() {
         </div>
       )}
       <UtilityDock theme={theme} onToggleTheme={toggleTheme} />
+      <DiscardConfirmationDialog
+        item={discardCandidate}
+        onCancel={() => {
+          discardRequestRef.current = null;
+          setDiscardCandidate(null);
+        }}
+        onConfirm={discardItem}
+      />
     </main>
   );
 }

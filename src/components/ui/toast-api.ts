@@ -5,6 +5,7 @@ export type ToastState = "pending" | AlertTone;
 export type ToastAction = { label: string; run: () => void };
 export type ToastInput = {
   id?: string;
+  title?: string;
   message: string;
   state?: ToastState;
   action?: ToastAction;

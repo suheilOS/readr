@@ -14,6 +14,12 @@ export function focusAdjacentAction(button: HTMLButtonElement, headingId: string
       return;
     }
 
-    document.getElementById(headingId)?.focus();
+    const heading = document.getElementById(headingId);
+    if (heading !== null) {
+      heading.focus();
+      return;
+    }
+
+    document.querySelector<HTMLButtonElement>("[data-focus-fallback]")?.focus();
   });
 }

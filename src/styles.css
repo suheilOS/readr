@@ -11,6 +11,7 @@
 @import "./styles/actions.css";
 @import "./styles/utility-dock.css";
 @import "./styles/adaptations.css";
+@import "./styles/discard-dialog.css";
 
 @theme inline {
   --color-background: var(--page-bg);

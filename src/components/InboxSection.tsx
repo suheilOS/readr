@@ -7,7 +7,7 @@ type InboxSectionProps = {
   items: Item[];
   highlightId?: string | null;
   onSendToDesk: (item: Item) => void;
-  onDiscard: (item: Item) => void;
+  onDiscard: (item: Item, trigger: HTMLButtonElement) => void;
   pendingAction: PendingItemAction | null;
 };
 
@@ -68,8 +68,7 @@ export function InboxSection({
                 aria-busy={isPendingItemAction(pendingAction, item.id, "discard")}
                 disabled={busy}
                 onClick={(event) => {
-                  focusAdjacentAction(event.currentTarget, "inbox-heading");
-                  onDiscard(item);
+                  onDiscard(item, event.currentTarget);
                 }}
               >
                 {isPendingItemAction(pendingAction, item.id, "discard") ? (
