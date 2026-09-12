@@ -11,7 +11,7 @@ import {
   type YouTubeTranscriptContent,
   type YouTubeUrl,
 } from "../shared/media";
-import { ExtractionError, readJsonRequestBody } from "./extract";
+import { ExtractionError, readBodyWithLimit, readJsonRequestBody } from "./extract";
 
 const METADATA_TIMEOUT_MS = 4_000;
 const TRANSCRIPT_TIMEOUT_MS = 8_000;
@@ -26,7 +26,7 @@ export async function extractYouTubeMetadataFromRequest(request: Request): Promi
   return extractYouTubeMetadata(input, url);
 }
 
-async function extractYouTubeMetadata(input: MediaRequest, url: YouTubeUrl): Promise<YouTubeMetadata> {
+export async function extractYouTubeMetadata(input: MediaRequest, url: YouTubeUrl): Promise<YouTubeMetadata> {
   const startedAt = performance.now();
   const endpoint = new URL("https://www.youtube.com/oembed");
   endpoint.searchParams.set("url", url.canonicalUrl);
@@ -39,6 +39,7 @@ async function extractYouTubeMetadata(input: MediaRequest, url: YouTubeUrl): Pro
         ...(input.language === null ? {} : { "Accept-Language": input.language }),
       },
       signal: AbortSignal.timeout(METADATA_TIMEOUT_MS),
+      redirect: 'manual',
     });
     if (!response.ok) {
       await response.body?.cancel();
@@ -46,7 +47,7 @@ async function extractYouTubeMetadata(input: MediaRequest, url: YouTubeUrl): Pro
       throw upstreamError("The video details could not be loaded.");
     }
 
-    const value: unknown = await response.json();
+    const value: unknown = JSON.parse(await readBodyWithLimit(response.body, 64 * 1024, 'response_too_large'));
     const metadata = adaptOEmbedMetadata(value, url);
     if (metadata === null) {
       logYouTubeStage(url.videoId, "metadata", startedAt, "invalid_metadata", response.status);

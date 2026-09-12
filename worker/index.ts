@@ -13,6 +13,8 @@ import {
   extractYouTubeTranscriptFromRequest,
 } from "./media";
 import { captureYouTubeContent, getYouTubeContent } from "./mediaContent";
+import { captureRoutes } from './capture';
+import { recoverEnrichment } from './enrichment';
 
 export const app = new Hono<AppEnv>();
 
@@ -26,6 +28,7 @@ app.all("/api/auth/sign-out", () => jsonError({
   },
 }, 405, { Allow: "POST" }));
 
+app.route('/api', captureRoutes);
 app.route("/api", itemRoutes);
 
 app.post("/api/extract", requireAuth, requireSameOrigin, handleExtraction);
@@ -96,7 +99,12 @@ app.onError((error, context) => {
   }, 500);
 });
 
-export default app;
+export default {
+  fetch: app.fetch,
+  scheduled: async (_controller, env) => {
+    await recoverEnrichment(env.READR_DB);
+  },
+} satisfies ExportedHandler<AppEnv['Bindings']>;
 
 async function handleExtraction(context: Context<AppEnv>): Promise<Response> {
   const clientKey = context.req.header("CF-Connecting-IP") ?? "unidentified";

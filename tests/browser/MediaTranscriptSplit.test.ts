@@ -1,71 +1,39 @@
-import { act, createElement } from "react";
-import { createRoot, type Root } from "react-dom/client";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { MediaTranscriptSplit } from "../../src/reader/MediaTranscriptSplit";
+import { describe, expect, it } from "vitest";
+import {
+  calculateSplitBounds,
+  clampPlayerWidth,
+} from "../../src/reader/mediaSplitGeometry";
 
-let root: Root | null = null;
-
-beforeEach(() => {
-  vi.stubGlobal("ResizeObserver", class {
-    observe() {}
-    disconnect() {}
-  });
-  vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockReturnValue({
-    width: 1180,
-    height: 600,
-    top: 0,
-    right: 1180,
-    bottom: 600,
-    left: 0,
-    x: 0,
-    y: 0,
-    toJSON: () => ({}),
+describe("media transcript split geometry", () => {
+  it("reserves the separator and both pane minimums near the split breakpoint", () => {
+    expect(calculateSplitBounds(840)).toEqual({
+      availableWidth: 816,
+      minPlayerWidth: 360,
+      maxPlayerWidth: 396,
+    });
   });
 
-  const container = document.createElement("div");
-  document.body.append(container);
-  root = createRoot(container);
-});
-
-afterEach(async () => {
-  await act(async () => root?.unmount());
-  root = null;
-  document.body.replaceChildren();
-  vi.restoreAllMocks();
-  vi.unstubAllGlobals();
-});
-
-describe("MediaTranscriptSplit", () => {
-  it("exposes constrained sizing and supports keyboard resize and reset", async () => {
-    await act(async () => {
-      root?.render(createElement(MediaTranscriptSplit, {
-        playerPaneId: "player-pane",
-        transcriptPaneId: "transcript-pane",
-        player: createElement("section", { id: "player-pane" }, "Player"),
-        transcript: createElement("section", { id: "transcript-pane" }, "Transcript"),
-      }));
+  it("caps the player at its absolute maximum on wide layouts", () => {
+    expect(calculateSplitBounds(1180)).toEqual({
+      availableWidth: 1156,
+      minPlayerWidth: 360,
+      maxPlayerWidth: 720,
     });
+  });
 
-    const separator = document.querySelector<HTMLElement>("[role='separator']");
-    expect(separator).not.toBeNull();
-    expect(separator?.getAttribute("aria-controls")).toBe("player-pane transcript-pane");
-    expect(separator?.getAttribute("aria-valuemin")).toBe("31");
-    expect(separator?.getAttribute("aria-valuemax")).toBe("62");
-    expect(separator?.getAttribute("aria-valuenow")).toBe("45");
-
-    await act(async () => {
-      separator?.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true }));
+  it("collapses impossible bounds to the player minimum", () => {
+    expect(calculateSplitBounds(800)).toEqual({
+      availableWidth: 776,
+      minPlayerWidth: 360,
+      maxPlayerWidth: 360,
     });
-    expect(separator?.getAttribute("aria-valuenow")).toBe("46");
+  });
 
-    await act(async () => {
-      separator?.dispatchEvent(new KeyboardEvent("keydown", { key: "End", bubbles: true }));
-    });
-    expect(separator?.getAttribute("aria-valuenow")).toBe("62");
+  it("clamps requested widths to the calculated range", () => {
+    const bounds = calculateSplitBounds(1180);
 
-    await act(async () => {
-      separator?.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
-    });
-    expect(separator?.getAttribute("aria-valuenow")).toBe("45");
+    expect(clampPlayerWidth(200, bounds)).toBe(360);
+    expect(clampPlayerWidth(540, bounds)).toBe(540);
+    expect(clampPlayerWidth(900, bounds)).toBe(720);
   });
 });

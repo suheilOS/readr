@@ -153,7 +153,17 @@ export async function readJsonRequestBody(
 }
 
 export async function fetchHtml(initialUrl: URL): Promise<{ html: string; sourceUrl: string }> {
+  const page = await fetchPage(initialUrl);
+  if (page.kind !== 'html') throw new Error('Expected HTML');
+  return page;
+}
+
+export async function fetchPage(
+  initialUrl: URL,
+  { allowPdf = false, maxBytes = MAX_HTML_BYTES }: { allowPdf?: boolean; maxBytes?: number } = {},
+): Promise<{ kind: 'html'; html: string; sourceUrl: string } | { kind: 'pdf'; sourceUrl: string }> {
   let currentUrl = initialUrl;
+  const signal = AbortSignal.timeout(FETCH_TIMEOUT_MS);
 
   for (let redirect = 0; redirect <= MAX_REDIRECTS; redirect += 1) {
     let response: Response;
@@ -165,7 +175,7 @@ export async function fetchHtml(initialUrl: URL): Promise<{ html: string; source
           "User-Agent": "readr/1.0",
         },
         redirect: "manual",
-        signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+        signal,
       });
     } catch (error) {
       if (error instanceof DOMException && error.name === "TimeoutError") {
@@ -217,6 +227,10 @@ export async function fetchHtml(initialUrl: URL): Promise<{ html: string; source
     }
 
     const contentType = response.headers.get("content-type")?.toLowerCase() ?? "";
+    if (allowPdf && contentType.split(';')[0].trim() === 'application/pdf') {
+      await response.body?.cancel();
+      return { kind: 'pdf', sourceUrl: currentUrl.href };
+    }
     if (!contentType.includes("text/html") && !contentType.includes("application/xhtml+xml")) {
       const responseBody = response.body;
       if (responseBody !== null) {
@@ -231,7 +245,7 @@ export async function fetchHtml(initialUrl: URL): Promise<{ html: string; source
     }
 
     const contentLength = Number(response.headers.get("content-length"));
-    if (Number.isFinite(contentLength) && contentLength > MAX_HTML_BYTES) {
+    if (Number.isFinite(contentLength) && contentLength > maxBytes) {
       const responseBody = response.body;
       if (responseBody !== null) {
         await responseBody.cancel();
@@ -245,9 +259,10 @@ export async function fetchHtml(initialUrl: URL): Promise<{ html: string; source
     }
 
     return {
+      kind: 'html',
       html: await readBodyWithLimit(
         response.body,
-        MAX_HTML_BYTES,
+        maxBytes,
         "response_too_large",
         parseCharset(contentType),
       ),
@@ -262,7 +277,7 @@ export async function fetchHtml(initialUrl: URL): Promise<{ html: string; source
   });
 }
 
-async function readBodyWithLimit(
+export async function readBodyWithLimit(
   body: ReadableStream<Uint8Array> | null,
   maxBytes: number,
   tooLargeCode: SizeErrorCode,

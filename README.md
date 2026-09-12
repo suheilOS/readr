@@ -63,6 +63,9 @@ All item and extraction requests require an Overhawl session. The Worker exposes
 ```http
 GET    /api/items
 POST   /api/items
+POST   /api/capture
+GET    /api/items/:id/metadata
+POST   /api/items/:id/enrichment/retry
 POST   /api/items/:id/move-to-desk
 POST   /api/items/:id/move-to-inbox
 POST   /api/items/:id/finish
@@ -79,6 +82,16 @@ PUT    /api/items/:id/media-progress
 ```
 
 The item API owns IDs, timestamps, ownership checks, validation, desk capacity, lifecycle changes, and swaps. Discard is permanent.
+
+### URL capture foundation
+
+`POST /api/capture` accepts `{"url":"https://example.com/article"}` with optional explicit `title` and `type`. It saves an Inbox item and pending enrichment atomically, then returns `{ item, created }` without waiting for the source website. Provider URL rules supply a provisional type and the hostname supplies a fallback title. An existing normalized URL returns its item with `created: false` and preserves its current section, note, and progress. Historical duplicate rows are retained.
+
+Metadata runs after the response. `item_metadata` stores source title, author, site, description, visual, inference evidence, and processing status separately from lifecycle data. Automatically generated titles and types can be updated; manually supplied fields and all pre-existing titles/types are protected. `GET /api/items/:id/metadata` returns `{ item, metadata }`, including the current authoritative item; metadata is `null` for items not yet enrolled in enrichment. Failed enrichment can be retried with `POST /api/items/:id/enrichment/retry`. These routes use the existing session and same-origin write protection.
+
+The D1 job record survives request termination. A one-minute scheduled handler recovers pending jobs and expired leases, processes at most ten jobs with concurrency two, and stops after three attempts. Source requests have a ten-second total timeout, a 1 MiB HTML limit, and public-URL checks on redirects. YouTube uses the existing oEmbed path with a four-second timeout and a 64 KiB response limit. PDF MIME detection cancels the body. Enrichment does not run reader extraction or fetch transcripts.
+
+Apply migration `0006_capture_metadata.sql` before deploying this Worker. Local immediate enrichment works with the normal development server; scheduled recovery can be exercised with Wrangler's scheduled-event testing. Deployment does not bulk-enrich old items. This is the API foundation; the web form, paste shortcut, and one-click extension are subsequent phases in [the capture roadmap](docs/capture-roadmap.md).
 
 ### Reader endpoint
 

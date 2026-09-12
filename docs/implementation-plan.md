@@ -2,6 +2,8 @@
 
 ## Status
 
+The next capture and discovery work is tracked in [capture-roadmap.md](capture-roadmap.md). It supersedes phase 12's original extension scope and sequences URL-only capture, paste capture, the one-click extension, visual metadata, Quick Look, book enrichment, and the iOS Shortcut. The original launch implementation below remains historical context.
+
 Complete for the current launch. Overhawl Auth is deployed, its D1 schema is applied, and Email Sending is enabled for `overhawl.app`. Readr is deployed with its own D1 schema, Auth Service Binding, authenticated Hono API, and server-backed client. The production app is live and in use.
 
 No user data exists, so this is a clean launch. There is no account migration, item migration, localStorage recovery flow, or anonymous-data merge to support.
