@@ -6,13 +6,13 @@ import type { AudioPatch, SoundPatch } from "@web-kits/audio";
 import { SoundProvider, usePatch } from "@web-kits/audio/react";
 import {
   useEffect,
-  useId,
   useRef,
   useSyncExternalStore,
   type ComponentProps,
   type ReactNode,
 } from "react";
 import { cn } from "@/lib/utils";
+import { SoundOffIcon, SoundOnIcon } from "../icons";
 
 const STORAGE_KEY = "kobra-sound-muted";
 const LEGACY_STORAGE_KEY = "reader:sounds";
@@ -674,15 +674,8 @@ export function SoundEffects({ children }: { children: ReactNode }) {
   );
 }
 
-const SPEAKER =
-  "M11 4.702a.705.705 0 0 0-1.203-.498L6.413 7.587A1.4 1.4 0 0 1 5.416 8H3a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2.416a1.4 1.4 0 0 1 .997.413l3.383 3.384A.705.705 0 0 0 11 19.298z";
-const WAVE_INNER = "M16 9a5 5 0 0 1 0 6";
-const WAVE_OUTER = "M19.364 18.364a9 9 0 0 0 0-12.728";
-const SLASH = "M2 2 22 22";
-
 export function SoundToggle({ className, onClick, ...props }: ComponentProps<"button">) {
   const muted = useSoundMuted();
-  const maskId = useId();
 
   return (
     <button
@@ -700,42 +693,11 @@ export function SoundToggle({ className, onClick, ...props }: ComponentProps<"bu
         className,
       )}
     >
-      <svg
-        data-muted={muted}
-        viewBox="0 0 24 24"
-        width={17}
-        height={17}
-        fill="none"
-        stroke="currentColor"
-        strokeWidth={1.8}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        aria-hidden="true"
-      >
-        <mask id={maskId}>
-          <rect width="24" height="24" fill="white" />
-          <path className="sound-slash" d={SLASH} pathLength={1} stroke="black" strokeWidth={4} />
-        </mask>
-        <g
-          mask={`url(#${maskId})`}
-          className={cn(
-            "transition-[opacity,filter,scale] duration-150 ease-out motion-reduce:transition-none",
-            muted && "scale-75 opacity-0 blur-[4px]",
-          )}
-        >
-          <path className="sound-speaker" d={SPEAKER} />
-          <path className="sound-wave sound-wave-inner" d={WAVE_INNER} />
-          <path className="sound-wave sound-wave-outer" d={WAVE_OUTER} />
-        </g>
-        <path
-          className={cn(
-            "sound-slash transition-[opacity,filter,scale] duration-150 ease-out motion-reduce:transition-none",
-            muted ? "scale-100 opacity-100" : "scale-75 opacity-0 blur-[4px]",
-          )}
-          d={SLASH}
-          pathLength={1}
-        />
-      </svg>
+      {muted ? (
+        <SoundOffIcon className="size-[17px]" />
+      ) : (
+        <SoundOnIcon className="size-[17px]" />
+      )}
     </button>
   );
 }

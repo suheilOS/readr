@@ -3,7 +3,6 @@ import { TYPE_OPTIONS, type ItemType } from "../../shared/item";
 import {
   ArticleTypeIcon,
   BookTypeIcon,
-  CheckIcon,
   ChevronDownIcon,
   PaperTypeIcon,
   PodcastTypeIcon,
@@ -63,7 +62,7 @@ export function TypeSelect({ value, onChange, disabled = false }: TypeSelectProp
                       <Select.ItemText>{option.label}</Select.ItemText>
                     </span>
                     <Select.ItemIndicator className="type-check">
-                      <CheckIcon />
+                      <span className="type-selected-dot" />
                     </Select.ItemIndicator>
                   </Select.Item>
                 ))}
