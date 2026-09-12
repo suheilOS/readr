@@ -30,7 +30,7 @@ import { pendingItemActionLabel } from "./pendingItemAction";
 import { focusAdjacentAction } from "./focusAdjacentAction";
 import { ThemeToggle, type Theme } from "./components/ThemeToggle";
 import { UtilityDock } from "./components/UtilityDock";
-import { TwinOrbit } from "./components/TwinOrbit";
+import { Spinner } from "./components/Spinner";
 import { ArrowLeftIcon, PlusIcon } from "./components/icons";
 import { notify } from "./notifications";
 import { isYouTubeCapturedContent, type YouTubeCapturedContent } from "../shared/media";
@@ -67,7 +67,7 @@ function ReaderLoadingFallback({ onClose }: { onClose: () => void }) {
       </header>
       <div className="reader-column">
         <div className="reader-loading">
-          <TwinOrbit label="Opening reader" />
+          <Spinner label="Opening reader" />
           <span aria-hidden="true">Opening reader…</span>
         </div>
       </div>
@@ -375,7 +375,7 @@ export default function App() {
         <section className="app-state__content" aria-labelledby="loading-heading">
           <h1 className="app-state__title" id="loading-heading">Readr</h1>
           <div className="app-loading">
-            <TwinOrbit label="Loading your library" />
+            <Spinner label="Loading your library" />
             <p className="app-state__message" aria-hidden="true">Loading your library…</p>
           </div>
         </section>

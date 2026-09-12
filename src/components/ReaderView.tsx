@@ -7,7 +7,7 @@ import {
 } from "../reader/extractArticle";
 import { sanitizeArticleHtml } from "../reader/sanitizeArticle";
 import { ArrowLeftIcon } from "./icons";
-import { TwinOrbit } from "./TwinOrbit";
+import { Spinner } from "./Spinner";
 import { YouTubeReader } from "../reader/YouTubeReader";
 import { notify } from "../notifications";
 
@@ -128,7 +128,7 @@ function ArticleReader({ item, onClose }: ReaderViewProps) {
           </header>
           {state.status === "loading" && (
             <div className="reader-loading">
-              <TwinOrbit label="Opening article" />
+              <Spinner label="Opening article" />
               <span aria-hidden="true">Opening article…</span>
             </div>
           )}

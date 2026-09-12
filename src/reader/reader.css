@@ -137,7 +137,7 @@
 }
 
 .reader-title {
-  max-width: 18ch;
+  max-width: 20ch;
   margin: 0;
   font-size: clamp(32px, 5vw, 36px);
   font-weight: 600;
@@ -190,7 +190,7 @@
   gap: 14px;
 }
 
-.reader-loading .twin-orbit {
+.reader-loading .spinner {
   width: 22px;
 }
 
