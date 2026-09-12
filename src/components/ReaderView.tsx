@@ -1,4 +1,3 @@
-import { playError } from "../soundCues";
 import { startTransition, useEffect, useRef, useState } from "react";
 import { canReadInApp, itemMetaLine, readerKindFor, type Item } from "../../shared/item";
 import type { ExtractedArticle } from "../../shared/extraction";
@@ -8,8 +7,9 @@ import {
 } from "../reader/extractArticle";
 import { sanitizeArticleHtml } from "../reader/sanitizeArticle";
 import { ArrowLeftIcon } from "./icons";
-import { TwinOrbit } from "./TwinOrbit";
+import { Spinner } from "./Spinner";
 import { YouTubeReader } from "../reader/YouTubeReader";
+import { notify } from "../notifications";
 
 type ReaderViewProps = {
   item: Item;
@@ -65,7 +65,7 @@ function ArticleReader({ item, onClose }: ReaderViewProps) {
           message:
             itemUrl === null
               ? "This item does not have an original URL."
-              : "readr is only available for articles and papers.",
+              : "This item can’t be opened in Readr.",
         });
         return;
       }
@@ -92,14 +92,12 @@ function ArticleReader({ item, onClose }: ReaderViewProps) {
           return;
         }
 
-        playError();
-        setState({
-          status: "error",
-          message:
-            error instanceof ArticleExtractionError
-              ? error.message
-              : "The page could not be opened. Please try the original link.",
-        });
+        const message =
+          error instanceof ArticleExtractionError
+            ? error.message
+            : "The page could not be opened. Please try the original link.";
+        notify({ message, state: "error", sound: "error" });
+        setState({ status: "error", message });
       }
     }
 
@@ -130,7 +128,7 @@ function ArticleReader({ item, onClose }: ReaderViewProps) {
           </header>
           {state.status === "loading" && (
             <div className="reader-loading">
-              <TwinOrbit label="Opening article" />
+              <Spinner label="Opening article" />
               <span aria-hidden="true">Opening article…</span>
             </div>
           )}

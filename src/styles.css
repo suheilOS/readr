@@ -1,3 +1,4 @@
+@import "tailwindcss";
 @import "./styles/reset.css";
 @import "./styles/recovery.css";
 @import "./styles/base.css";
@@ -10,3 +11,22 @@
 @import "./styles/actions.css";
 @import "./styles/utility-dock.css";
 @import "./styles/adaptations.css";
+@import "./styles/discard-dialog.css";
+@import "./styles/item-transitions.css";
+
+@theme inline {
+  --color-background: var(--page-bg);
+  --color-foreground: var(--text);
+  --color-popover: var(--surface);
+  --color-success: var(--success-text);
+  --color-success-fill: var(--success-fill);
+  --color-error: var(--danger);
+  --color-error-fill: var(--danger-fill);
+  --color-warning: var(--warning-text);
+  --color-warning-fill: var(--warning-fill);
+  --color-info: var(--info-text);
+  --color-info-fill: var(--info-fill);
+  --color-shell-fg-faint: var(--muted);
+  --color-shell-fg-muted: var(--muted-strong);
+  --color-ring: var(--focus);
+}

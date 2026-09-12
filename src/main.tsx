@@ -1,4 +1,3 @@
-import { bind, setVolume } from "cuelume";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import "@fontsource/open-runde/400.css";
@@ -8,9 +7,10 @@ import "@fontsource/open-runde/700.css";
 import "./styles.css";
 import "./reader/reader.css";
 import App from "./App";
+import { migrateSoundPreference, SoundEffects } from "./components/ui/sound";
+import { ToastHost } from "./components/ui/toast-host";
 
-bind();
-setVolume(0.7);
+migrateSoundPreference();
 
 const root = document.getElementById("root");
 if (root === null) {
@@ -19,6 +19,9 @@ if (root === null) {
 
 createRoot(root).render(
   <StrictMode>
-    <App />
+    <SoundEffects>
+      <App />
+      <ToastHost />
+    </SoundEffects>
   </StrictMode>,
 );

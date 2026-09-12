@@ -54,7 +54,7 @@ function deferred<T>() {
 }
 
 beforeEach(async () => {
-  vi.clearAllMocks();
+  vi.resetAllMocks();
   api.fetchItems.mockResolvedValue([]);
   const container = document.createElement("div");
   document.body.append(container);
@@ -75,12 +75,17 @@ afterEach(async () => {
 });
 
 describe("useItemLibrary mutation state", () => {
-  it("identifies the pending mutation and rejects overlapping work", async () => {
+  it("keeps capture available while a lifecycle mutation is pending", async () => {
+    const movement = deferred<Item>();
     const creation = deferred<Item>();
+    api.moveItemToDesk.mockReturnValue(movement.promise);
     api.createItem.mockReturnValue(creation.promise);
 
+    let movePromise: Promise<Item | null> | null = null;
     let addPromise: Promise<Item | null> | null = null;
     await act(async () => {
+      movePromise = getLibrary().moveToDesk(item.id);
+      await Promise.resolve();
       addPromise = getLibrary().addItem({
         title: item.title,
         url: item.url,
@@ -89,26 +94,77 @@ describe("useItemLibrary mutation state", () => {
       await Promise.resolve();
     });
 
-    expect(getLibrary().pendingAction).toEqual({ kind: "add" });
-
-    let discarded = true;
-    await act(async () => {
-      discarded = await getLibrary().discard("item-2");
-    });
-
-    expect(discarded).toBe(false);
-    expect(api.discardItem).not.toHaveBeenCalled();
+    expect(getLibrary().pendingAction).toEqual({ kind: "move-to-desk", itemId: item.id });
+    expect(getLibrary().capturePending).toBe(true);
+    expect(api.moveItemToDesk).toHaveBeenCalledOnce();
+    expect(api.createItem).toHaveBeenCalledOnce();
 
     await act(async () => {
       creation.resolve(item);
       await addPromise;
     });
+    expect(getLibrary().capturePending).toBe(false);
+    expect(getLibrary().pendingAction).toEqual({ kind: "move-to-desk", itemId: item.id });
 
+    await act(async () => {
+      movement.resolve({ ...item, status: "desk" });
+      await movePromise;
+    });
+    expect(getLibrary().pendingAction).toBeNull();
+    expect(getLibrary().items).toEqual([{ ...item, status: "desk" }]);
+  });
+
+  it("prevents a second conflicting lifecycle mutation", async () => {
+    const movement = deferred<Item>();
+    api.moveItemToDesk.mockReturnValue(movement.promise);
+
+    let movePromise: Promise<Item | null> | null = null;
+    await act(async () => {
+      movePromise = getLibrary().moveToDesk(item.id);
+      await Promise.resolve();
+    });
+
+    let secondResult: Item | null = item;
+    await act(async () => {
+      secondResult = await getLibrary().finish(item.id);
+    });
+
+    expect(secondResult).toBeNull();
+    expect(api.finishItem).not.toHaveBeenCalled();
+    expect(getLibrary().pendingAction).toEqual({ kind: "move-to-desk", itemId: item.id });
+
+    await act(async () => {
+      movement.resolve({ ...item, status: "desk" });
+      await movePromise;
+    });
+  });
+
+  it("prevents duplicate add submissions and reports add loading state", async () => {
+    const creation = deferred<Item>();
+    api.createItem.mockReturnValue(creation.promise);
+
+    let firstAdd: Promise<Item | null> | null = null;
+    let secondResult: Item | null = item;
+    await act(async () => {
+      firstAdd = getLibrary().addItem({ title: item.title, url: item.url, type: item.type });
+      await Promise.resolve();
+      secondResult = await getLibrary().addItem({ title: item.title, url: item.url, type: item.type });
+    });
+
+    expect(secondResult).toBeNull();
+    expect(api.createItem).toHaveBeenCalledOnce();
+    expect(getLibrary().capturePending).toBe(true);
+
+    await act(async () => {
+      creation.resolve(item);
+      await firstAdd;
+    });
+    expect(getLibrary().capturePending).toBe(false);
     expect(getLibrary().pendingAction).toBeNull();
     expect(getLibrary().items).toEqual([item]);
   });
 
-  it("clears pending state after a failed mutation", async () => {
+  it("clears capture pending state after a failed add", async () => {
     api.createItem.mockRejectedValue(new Error("Could not save item."));
 
     let result: Item | null = item;
@@ -121,7 +177,89 @@ describe("useItemLibrary mutation state", () => {
     });
 
     expect(result).toBeNull();
+    expect(getLibrary().capturePending).toBe(false);
     expect(getLibrary().pendingAction).toBeNull();
     expect(getLibrary().error).toBe("Could not save item.");
+  });
+});
+
+describe("useItemLibrary reconciliation", () => {
+  it("inserts new server items and updates existing server items without reloading", async () => {
+    await act(async () => {
+      getLibrary().reconcileItem(item);
+    });
+    expect(getLibrary().items).toEqual([item]);
+
+    const updatedItem: Item = {
+      ...item,
+      title: "Updated captured title",
+      status: "library",
+      finishedAt: "2026-08-24T12:00:00.000Z",
+    };
+    await act(async () => {
+      getLibrary().reconcileItem(updatedItem);
+    });
+
+    expect(getLibrary().items).toEqual([updatedItem]);
+    expect(api.fetchItems).toHaveBeenCalledOnce();
+  });
+
+  it("does not let an initial fetch overwrite a capture during a silent refresh", async () => {
+    const initialFetch = deferred<Item[]>();
+    const silentFetch = deferred<Item[]>();
+    api.fetchItems.mockReset();
+    api.fetchItems.mockReturnValueOnce(initialFetch.promise).mockReturnValueOnce(silentFetch.promise);
+
+    await act(async () => {
+      root?.unmount();
+      document.body.replaceChildren();
+      const container = document.createElement("div");
+      document.body.append(container);
+      root = createRoot(container);
+      root.render(createElement(Probe));
+      await Promise.resolve();
+    });
+
+    await act(async () => {
+      getLibrary().reconcileItem(item);
+      getLibrary().refreshSilently();
+      await Promise.resolve();
+    });
+    expect(api.fetchItems).toHaveBeenCalledTimes(2);
+
+    await act(async () => {
+      initialFetch.resolve([{ ...item, title: "Stale library response" }]);
+      silentFetch.resolve([item]);
+      await Promise.all([initialFetch.promise, silentFetch.promise]);
+    });
+
+    expect(getLibrary().items).toEqual([item]);
+    expect(getLibrary().loading).toBe(false);
+  });
+
+  it("does not let a silent refresh overwrite a newer lifecycle response", async () => {
+    const silentFetch = deferred<Item[]>();
+    const movement = deferred<Item>();
+    api.fetchItems.mockReturnValue(silentFetch.promise);
+    api.moveItemToDesk.mockReturnValue(movement.promise);
+
+    await act(async () => {
+      getLibrary().reconcileItem(item);
+      getLibrary().refreshSilently();
+      await Promise.resolve();
+    });
+    let movePromise: Promise<Item | null> | null = null;
+    await act(async () => {
+      movePromise = getLibrary().moveToDesk(item.id);
+      await Promise.resolve();
+    });
+
+    await act(async () => {
+      silentFetch.resolve([{ ...item, status: "inbox" }]);
+      movement.resolve({ ...item, status: "desk" });
+      await Promise.all([silentFetch.promise, movePromise]);
+    });
+
+    expect(getLibrary().items).toEqual([{ ...item, status: "desk" }]);
   });
 });

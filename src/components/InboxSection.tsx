@@ -1,13 +1,14 @@
 import { itemMetaLine, type Item } from "../../shared/item";
-import { focusAdjacentAction } from "../focusAdjacentAction";
+import { runWithFocusRestoration } from "../focusAdjacentAction";
 import { ArrowUpIcon, TrashIcon } from "./icons";
 import { isPendingItemAction, type PendingItemAction } from "../pendingItemAction";
+
 
 type InboxSectionProps = {
   items: Item[];
   highlightId?: string | null;
-  onSendToDesk: (item: Item) => void;
-  onDiscard: (item: Item) => void;
+  onSendToDesk: (item: Item) => Promise<boolean>;
+  onDiscard: (item: Item, trigger: HTMLButtonElement) => void;
   pendingAction: PendingItemAction | null;
 };
 
@@ -31,6 +32,7 @@ export function InboxSection({
           <li
             key={item.id}
             className={item.id === highlightId ? "row row-new" : "row"}
+            style={{ viewTransitionName: `item-${item.id}` }}
           >
             <div className="row-text">
               <span className="row-title">{item.title}</span>
@@ -44,8 +46,11 @@ export function InboxSection({
                 aria-busy={isPendingItemAction(pendingAction, item.id, "move-to-desk")}
                 disabled={busy}
                 onClick={(event) => {
-                  focusAdjacentAction(event.currentTarget, "inbox-heading");
-                  onSendToDesk(item);
+                  runWithFocusRestoration(
+                    event.currentTarget,
+                    "inbox-heading",
+                    () => onSendToDesk(item),
+                  );
                 }}
               >
                 {isPendingItemAction(pendingAction, item.id, "move-to-desk") ? (
@@ -63,12 +68,12 @@ export function InboxSection({
               <button
                 type="button"
                 className="quiet-button discard"
+                data-variant="destructive"
                 aria-label={`Discard: ${item.title}`}
                 aria-busy={isPendingItemAction(pendingAction, item.id, "discard")}
                 disabled={busy}
                 onClick={(event) => {
-                  focusAdjacentAction(event.currentTarget, "inbox-heading");
-                  onDiscard(item);
+                  onDiscard(item, event.currentTarget);
                 }}
               >
                 {isPendingItemAction(pendingAction, item.id, "discard") ? (

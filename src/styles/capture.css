@@ -126,6 +126,18 @@
   cursor: pointer;
 }
 
+.type-option-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.type-option-icon {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+
 .type-option:focus:not(:focus-visible) {
   outline: none;
 }
@@ -151,15 +163,12 @@
   flex-shrink: 0;
 }
 
-.type-check svg {
+.type-selected-dot {
   display: block;
-  width: 14px;
-  height: 14px;
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 2.2;
-  stroke-linecap: round;
-  stroke-linejoin: round;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: currentColor;
 }
 
 .add-submit {

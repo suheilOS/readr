@@ -215,7 +215,8 @@ Replace local item persistence with a small same-origin API client.
 ### Keep
 
 - `reader:theme` for the theme preference.
-- `reader:sounds` for the sound preference.
+- Kobra Sound's `kobra-sound-muted` and `kobra-sound-volume` for sound preferences.
+- Migrate the legacy `reader:sounds` value once, then remove it.
 - Item selectors and presentation types where they remain useful.
 - Pure lifecycle tests that describe the product rules.
 - The existing reader route and extraction UI.

@@ -63,6 +63,69 @@ test("reads sanitized content under the production security policy", async ({ pa
   expect(cspErrors).toEqual([]);
 });
 
+test("keeps full-desk replacement mode open while a swap is pending", async ({ page }) => {
+  const deskItems = Array.from({ length: 5 }, (_, index) => ({
+    id: `desk-${index + 1}`,
+    title: `Desk item ${index + 1}`,
+    url: null,
+    type: "article",
+    status: "desk",
+    addedAt: "2026-08-22T00:00:00.000Z",
+    finishedAt: null,
+    note: null,
+  }));
+  const candidate = {
+    id: "candidate",
+    title: "Inbox candidate",
+    url: null,
+    type: "article",
+    status: "inbox",
+    addedAt: "2026-08-23T00:00:00.000Z",
+    finishedAt: null,
+    note: null,
+  };
+  let releaseSwap!: () => void;
+  const swapResponse = new Promise<void>((resolve) => {
+    releaseSwap = resolve;
+  });
+
+  await page.route("**/api/items", async (route) => {
+    if (route.request().method() !== "GET") {
+      await route.continue();
+      return;
+    }
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ items: [...deskItems, candidate] }),
+    });
+  });
+  await page.route("**/api/items/candidate/swap", async (route) => {
+    await swapResponse;
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ item: { ...candidate, status: "desk" }, displacedId: "desk-1" }),
+    });
+  });
+
+  await page.goto("/");
+  await page.getByRole("searchbox", { name: "Search titles and links" }).fill("Inbox candidate");
+  await page.getByRole("button", { name: "Move to desk: Inbox candidate" }).click();
+  await expect(page.locator(".swap-banner")).toContainText("Desk is full");
+  expect(await page.locator(".desk-card.swappable").count()).toBe(5);
+
+  const replacement = page.getByRole("button", { name: "Replace Desk item 1" });
+  await replacement.click();
+  await expect(replacement).toBeDisabled();
+  await page.keyboard.press("Escape");
+  await expect(page.locator(".swap-banner")).toBeVisible();
+
+  releaseSwap();
+  await expect(page.locator(".swap-banner")).toHaveCount(0);
+  await expect(page.getByText("Inbox candidate", { exact: true })).toBeVisible();
+});
+
 test("plays a YouTube item with synchronized transcript controls", async ({ page }) => {
   const progressWrites: SaveMediaProgressInput[] = [];
   await installMockYouTubePlayer(page);
@@ -308,31 +371,33 @@ test("uses a stored browser capture before live YouTube extraction", async ({ pa
 
 test("acknowledges browser capture only after persistence succeeds", async ({ page }) => {
   let captureRequests = 0;
+  let itemRequests = 0;
+  let captureSaved = false;
+  const capturedItem = {
+    id: "captured-e2e",
+    title: "Captured from browser",
+    url: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+    type: "video",
+    status: "inbox",
+    addedAt: "2026-08-28T00:00:00.000Z",
+    finishedAt: null,
+    note: null,
+  };
   await page.route("**/api/items", async (route) => {
+    itemRequests += 1;
     await route.fulfill({
       status: 200,
       contentType: "application/json",
-      body: JSON.stringify({ items: [] }),
+      body: JSON.stringify({ items: captureSaved ? [capturedItem] : [] }),
     });
   });
   await page.route("**/api/media/youtube/capture", async (route) => {
     captureRequests += 1;
+    captureSaved = true;
     await route.fulfill({
       status: 201,
       contentType: "application/json",
-      body: JSON.stringify({
-        created: true,
-        item: {
-          id: "captured-e2e",
-          title: "Captured from browser",
-          url: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
-          type: "video",
-          status: "inbox",
-          addedAt: "2026-08-28T00:00:00.000Z",
-          finishedAt: null,
-          note: null,
-        },
-      }),
+      body: JSON.stringify({ created: true, item: capturedItem }),
     });
   });
 
@@ -374,7 +439,10 @@ test("acknowledges browser capture only after persistence succeeds", async ({ pa
   });
 
   expect(result).toEqual({ type: "readr:capture-result", captureId: "e2e-capture", ok: true });
+  await expect(page.getByText("Captured from browser", { exact: true })).toBeVisible();
+  await expect(page.getByText("Loading your library…")).toHaveCount(0);
   expect(captureRequests).toBe(1);
+  await expect.poll(() => itemRequests).toBe(2);
 });
 
 async function installMockYouTubePlayer(page: Page): Promise<void> {

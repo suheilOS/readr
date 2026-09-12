@@ -1,6 +1,6 @@
-import { playError } from "../soundCues";
 import { useState, type FormEvent, type Ref } from "react";
 import { TypeSelect } from "./TypeSelect";
+import { notify } from "../notifications";
 import {
   DEFAULT_ITEM_TYPE,
   parseItemUrl,
@@ -10,7 +10,7 @@ import {
 
 export type NewItemInput = Pick<Item, "title" | "url" | "type">;
 
-export type AddItemFormState = "idle" | "blocked" | "submitting";
+export type AddItemFormState = "idle" | "submitting";
 
 type AddItemFormProps = {
   onAdd: (input: NewItemInput) => Promise<boolean>;
@@ -36,7 +36,7 @@ export function AddItemForm({ onAdd, onCancel, state, formId, titleRef }: AddIte
 
     const trimmedTitle = title.trim();
     if (trimmedTitle.length === 0) {
-      playError();
+      notify({ message: "Enter a title.", state: "error" });
       setTitleError(true);
       const titleInput = event.currentTarget.elements.namedItem("title");
       if (titleInput instanceof HTMLInputElement) {
@@ -47,7 +47,10 @@ export function AddItemForm({ onAdd, onCancel, state, formId, titleRef }: AddIte
 
     const parsedUrl = url.trim().length === 0 ? null : parseItemUrl(url);
     if (url.trim().length > 0 && parsedUrl === null) {
-      playError();
+      notify({
+        message: "Enter a complete http or https link without a username or password.",
+        state: "error",
+      });
       setUrlError(true);
       const urlInput = event.currentTarget.elements.namedItem("url");
       if (urlInput instanceof HTMLInputElement) urlInput.focus();

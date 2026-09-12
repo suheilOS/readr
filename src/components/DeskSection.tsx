@@ -1,7 +1,7 @@
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 import { Menu } from "@base-ui/react/menu";
 import { canReadInApp, DESK_CAPACITY, type Item, itemMetaLine, readerKindFor } from "../../shared/item";
-import { focusAdjacentAction } from "../focusAdjacentAction";
+import { runWithFocusRestoration } from "../focusAdjacentAction";
 import { isPendingItemAction, type PendingItemAction } from "../pendingItemAction";
 import {
   BookOpenIcon,
@@ -10,22 +10,26 @@ import {
   InboxIcon,
   MoreVerticalIcon,
   TrashIcon,
+  VideoIcon,
 } from "./icons";
+
 
 type DeskSectionProps = {
   items: Item[];
+  deskCount: number;
   mode: "normal" | "swap";
-  onFinish: (item: Item) => void;
-  onSendToInbox: (item: Item) => void;
-  onDiscard: (item: Item) => void;
+  onFinish: (item: Item) => Promise<boolean>;
+  onSendToInbox: (item: Item) => Promise<boolean>;
+  onDiscard: (item: Item, trigger: HTMLButtonElement) => void;
   onRead: (item: Item) => void;
-  onSelectSwapTarget: (item: Item) => void;
+  onSelectSwapTarget: (item: Item) => Promise<boolean>;
   onCancelSwap: () => void;
   pendingAction: PendingItemAction | null;
 };
 
 export function DeskSection({
   items,
+  deskCount,
   mode,
   onFinish,
   onSendToInbox,
@@ -37,13 +41,19 @@ export function DeskSection({
 }: DeskSectionProps) {
   const swapActive = mode === "swap";
   const busy = pendingAction !== null;
+  const firstSwapTargetRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    if (swapActive) firstSwapTargetRef.current?.focus();
+  }, [swapActive]);
+
 
   return (
     <section className="desk" aria-labelledby="desk-heading">
       <div className="section-header">
         <h2 id="desk-heading" tabIndex={-1}>On your desk</h2>
         <span className="counter">
-          {items.length} / {DESK_CAPACITY}
+          {deskCount} / {DESK_CAPACITY}
         </span>
       </div>
       {swapActive && (
@@ -55,18 +65,22 @@ export function DeskSection({
         </p>
       )}
       <ul className="desk-list">
-        {items.map((item) =>
-          swapActive ? (
-            <li key={item.id}>
+        {items.map((item, index) => (
+          <li key={item.id} style={{ viewTransitionName: `item-${item.id}` }}>
+            {swapActive ? (
               <button
+                ref={index === 0 ? firstSwapTargetRef : undefined}
                 type="button"
                 className="desk-card swappable"
                 aria-label={`Replace ${item.title}`}
                 aria-busy={isPendingItemAction(pendingAction, item.id, "replace")}
                 disabled={busy}
                 onClick={(event) => {
-                  focusAdjacentAction(event.currentTarget, "desk-heading");
-                  onSelectSwapTarget(item);
+                  runWithFocusRestoration(
+                    event.currentTarget,
+                    "desk-heading",
+                    () => onSelectSwapTarget(item),
+                  );
                 }}
               >
                 {isPendingItemAction(pendingAction, item.id, "replace") && (
@@ -78,9 +92,7 @@ export function DeskSection({
                 <span className="card-title">{item.title}</span>
                 <span className="meta-line">{itemMetaLine(item)}</span>
               </button>
-            </li>
-          ) : (
-            <li key={item.id}>
+            ) : (
               <article className="desk-card">
                 <h3 className="card-title">{item.title}</h3>
                 <p className="meta-line">{itemMetaLine(item)}</p>
@@ -93,7 +105,11 @@ export function DeskSection({
                       data-reader-item-id={item.id}
                       onClick={() => onRead(item)}
                     >
-                      <BookOpenIcon className="button-icon" />
+                      {readerKindFor(item) === "youtube" ? (
+                        <VideoIcon className="button-icon" />
+                      ) : (
+                        <BookOpenIcon className="button-icon" />
+                      )}
                       <span>{readerKindFor(item) === "youtube" ? "Watch" : "Read"}</span>
                     </button>
                   )}
@@ -116,8 +132,11 @@ export function DeskSection({
                     aria-busy={isPendingItemAction(pendingAction, item.id, "finish")}
                     disabled={busy}
                     onClick={(event) => {
-                      focusAdjacentAction(event.currentTarget, "desk-heading");
-                      onFinish(item);
+                      runWithFocusRestoration(
+                        event.currentTarget,
+                        "desk-heading",
+                        () => onFinish(item),
+                      );
                     }}
                   >
                     {isPendingItemAction(pendingAction, item.id, "finish") ? (
@@ -140,9 +159,9 @@ export function DeskSection({
                   />
                 </div>
               </article>
-            </li>
-          ),
-        )}
+            )}
+          </li>
+        ))}
       </ul>
       {!swapActive && items.length === 0 && (
         <p className="empty-note">No items on your desk yet. Move one here from your inbox.</p>
@@ -153,8 +172,8 @@ export function DeskSection({
 
 type DeskActionsMenuProps = {
   item: Item;
-  onSendToInbox: (item: Item) => void;
-  onDiscard: (item: Item) => void;
+  onSendToInbox: (item: Item) => Promise<boolean>;
+  onDiscard: (item: Item, trigger: HTMLButtonElement) => void;
   pendingAction: PendingItemAction | null;
 };
 
@@ -167,12 +186,11 @@ function DeskActionsMenu({
   const triggerRef = useRef<HTMLButtonElement>(null);
   const busy = pendingAction !== null;
 
-  function runAction(action: (item: Item) => void) {
-    if (triggerRef.current !== null) {
-      focusAdjacentAction(triggerRef.current, "desk-heading");
-    }
+  function runAction(action: (item: Item) => Promise<boolean>) {
+    const trigger = triggerRef.current;
+    if (trigger === null) return;
 
-    action(item);
+    runWithFocusRestoration(trigger, "desk-heading", () => action(item));
   }
 
   return (
@@ -186,7 +204,7 @@ function DeskActionsMenu({
           : `More actions for ${item.title}`}
         aria-busy={isPendingItemAction(pendingAction, item.id)}
         disabled={busy}
-        data-cuelume-toggle=""
+        data-slot="menu-trigger"
       >
         {isPendingItemAction(pendingAction, item.id)
           ? <span className="button-spinner" aria-hidden="true" />
@@ -205,8 +223,12 @@ function DeskActionsMenu({
             </Menu.Item>
             <Menu.Item
               className="library-menu-item discard-menu-item"
+              data-variant="destructive"
               disabled={busy}
-              onClick={() => runAction(onDiscard)}
+              onClick={() => {
+                const trigger = triggerRef.current;
+                if (trigger !== null) onDiscard(item, trigger);
+              }}
             >
               <TrashIcon className="button-icon" />
               <span>Discard</span>

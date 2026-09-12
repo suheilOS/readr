@@ -1,4 +1,3 @@
-import { setEnabled } from "cuelume";
 import {
   lazy,
   Suspense,
@@ -20,6 +19,7 @@ import {
   type NewItemInput,
 } from "./components/AddItemForm";
 import { DeskSection } from "./components/DeskSection";
+import { DiscardConfirmationDialog } from "./components/DiscardConfirmationDialog";
 import { InboxSection } from "./components/InboxSection";
 import { LibrarySection } from "./components/LibrarySection";
 import { SearchBar } from "./components/SearchBar";
@@ -27,21 +27,29 @@ import { selectItemGroups } from "./itemSelectors";
 import { useItemLibrary } from "./useItemLibrary";
 import { useReaderRoute } from "./useReaderRoute";
 import { pendingItemActionLabel } from "./pendingItemAction";
+import { focusAdjacentAction, type FocusAdjacentAction } from "./focusAdjacentAction";
 import { ThemeToggle, type Theme } from "./components/ThemeToggle";
 import { UtilityDock } from "./components/UtilityDock";
-import { TwinOrbit } from "./components/TwinOrbit";
+import { Spinner } from "./components/Spinner";
 import { ArrowLeftIcon, PlusIcon } from "./components/icons";
-import {
-  playCompletion,
-  playDismissal,
-  playPageChange,
-  playToggle,
-} from "./soundCues";
+import { notify } from "./notifications";
 import { isYouTubeCapturedContent, type YouTubeCapturedContent } from "../shared/media";
 import { saveYouTubeContent } from "./itemApi";
+import { commitWithViewTransition } from "./viewTransition";
 
 const THEME_STORAGE_KEY = "reader:theme";
-const SOUND_STORAGE_KEY = "reader:sounds";
+
+type AnnouncementInput = {
+  title?: string;
+  message: string;
+  state?: "success" | "error";
+  sound?: "success";
+};
+
+type DiscardRequest = {
+  item: Item;
+  restoreFocus: FocusAdjacentAction;
+};
 
 const ReaderView = lazy(() =>
   import("./components/ReaderView").then(({ ReaderView: Component }) => ({
@@ -60,7 +68,7 @@ function ReaderLoadingFallback({ onClose }: { onClose: () => void }) {
       </header>
       <div className="reader-column">
         <div className="reader-loading">
-          <TwinOrbit label="Opening reader" />
+          <Spinner label="Opening reader" />
           <span aria-hidden="true">Opening reader…</span>
         </div>
       </div>
@@ -68,13 +76,6 @@ function ReaderLoadingFallback({ onClose }: { onClose: () => void }) {
   );
 }
 
-function getInitialSoundEnabled(): boolean {
-  try {
-    return localStorage.getItem(SOUND_STORAGE_KEY) !== "off";
-  } catch {
-    return true;
-  }
-}
 
 function getInitialTheme(): Theme {
   try {
@@ -96,10 +97,13 @@ export default function App() {
     items,
     loading,
     pendingAction,
+    capturePending,
     error,
     unauthenticated,
     retry,
+    refreshSilently,
     addItem,
+    reconcileItem,
     moveToDesk,
     moveToInbox,
     finish,
@@ -108,25 +112,38 @@ export default function App() {
   } = useItemLibrary();
   const busy = pendingAction !== null;
   const [query, setQuery] = useState("");
+  const [discardCandidate, setDiscardCandidate] = useState<Item | null>(null);
   const [swapCandidateId, setSwapCandidateId] = useState<string | null>(null);
   const [captureOpen, setCaptureOpen] = useState(false);
   const [lastAddedId, setLastAddedId] = useState<string | null>(null);
   const [announcement, setAnnouncement] = useState("");
-  const [soundsEnabled, setSoundsEnabled] = useState(getInitialSoundEnabled);
   const [theme, setTheme] = useState<Theme>(getInitialTheme);
   const { readerItemId, openReaderRoute, closeReaderRoute } = useReaderRoute();
   const addButtonRef = useRef<HTMLButtonElement>(null);
   const titleInputRef = useRef<HTMLInputElement>(null);
+  const discardRequestRef = useRef<DiscardRequest | null>(null);
+  const announce = useCallback(
+    ({ title, message, state, sound }: AnnouncementInput) => {
+      const announcement = title === undefined ? message : `"${title}" ${message}`;
+      setAnnouncement(announcement);
+      notify({ title, message, state, sound });
+    },
+    [],
+  );
 
-  useEffect(() => {
-    setEnabled(soundsEnabled);
+  const cancelSwap = useCallback(() => {
+    if (pendingAction !== null) return;
 
-    try {
-      localStorage.setItem(SOUND_STORAGE_KEY, soundsEnabled ? "on" : "off");
-    } catch {
-      // Keep the selected sound preference for this session if storage is unavailable.
-    }
-  }, [soundsEnabled]);
+    setSwapCandidateId(null);
+    requestAnimationFrame(() => {
+      const heading = document.getElementById("desk-heading");
+      if (heading?.isConnected) {
+        heading.focus();
+        return;
+      }
+      document.querySelector<HTMLButtonElement>("[data-focus-fallback]")?.focus();
+    });
+  }, [pendingAction]);
 
   useEffect(() => {
     const root = document.documentElement;
@@ -162,8 +179,8 @@ export default function App() {
     }
 
     function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") {
-        setSwapCandidateId(null);
+      if (event.key === "Escape" && pendingAction === null) {
+        cancelSwap();
       }
     }
 
@@ -172,7 +189,7 @@ export default function App() {
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [swapCandidateId]);
+  }, [swapCandidateId, pendingAction, cancelSwap]);
 
   useEffect(() => {
     function handleCaptureMessage(event: MessageEvent<unknown>) {
@@ -187,11 +204,14 @@ export default function App() {
       const capture = event.data;
       void saveYouTubeContent(capture.content)
         .then(({ item, created }) => {
-          retry();
-          setAnnouncement(created
-            ? `${item.title} captured to your inbox.`
-            : `${item.title} capture updated.`);
-          playCompletion();
+          reconcileItem(item);
+          refreshSilently();
+          announce({
+            title: item.title,
+            message: created ? "captured to your inbox." : "capture updated.",
+            state: "success",
+            sound: "success",
+          });
           window.postMessage({
             type: "readr:capture-result",
             captureId: capture.captureId,
@@ -200,7 +220,7 @@ export default function App() {
         })
         .catch((error: unknown) => {
           const message = error instanceof Error ? error.message : "The video could not be captured.";
-          setAnnouncement(message);
+          announce({ message, state: "error" });
           window.postMessage({
             type: "readr:capture-result",
             captureId: capture.captureId,
@@ -213,7 +233,7 @@ export default function App() {
     window.addEventListener("message", handleCaptureMessage);
     window.postMessage({ type: "readr:capture-ready" }, window.location.origin);
     return () => window.removeEventListener("message", handleCaptureMessage);
-  }, [retry]);
+  }, [announce, reconcileItem, refreshSilently]);
 
   const displayQuery = query.trim();
   const searching = displayQuery.length > 0;
@@ -225,76 +245,119 @@ export default function App() {
   } = useMemo(() => selectItemGroups(items, query), [items, query]);
 
   const deskFull = deskItems.length >= DESK_CAPACITY;
-  const addItemFormState: AddItemFormState = pendingAction === null
-    ? "idle"
-    : pendingAction.kind === "add"
-      ? "submitting"
-      : "blocked";
+  const addItemFormState: AddItemFormState = capturePending ? "submitting" : "idle";
 
   async function handleAdd(input: NewItemInput): Promise<boolean> {
     const item = await addItem(input);
     if (item === null) return false;
 
-    playCompletion();
     setLastAddedId(item.id);
-    setAnnouncement(`${item.title} added to your inbox.`);
+    announce({
+      title: item.title,
+      message: "added to your inbox.",
+      state: "success",
+      sound: "success",
+    });
     closeCapture();
     return true;
   }
 
-  async function sendToDesk(item: Item) {
+  async function sendToDesk(item: Item): Promise<boolean> {
     if (deskFull) {
       setSwapCandidateId(item.id);
-      return;
+      return false;
     }
 
     const movedItem = await moveToDesk(item.id);
     if (movedItem !== null) {
-      setAnnouncement(`${movedItem.title} moved to your desk.`);
+      announce({
+        title: movedItem.title,
+        message: "moved to your desk.",
+        state: "success",
+      });
     }
+    return movedItem !== null;
   }
 
-  async function sendToInbox(item: Item) {
+  async function sendToInbox(item: Item): Promise<boolean> {
     const movedItem = await moveToInbox(item.id);
     if (movedItem !== null) {
-      setAnnouncement(`${movedItem.title} returned to your inbox.`);
+      announce({
+        title: movedItem.title,
+        message: "returned to your inbox.",
+        state: "success",
+      });
       if (swapCandidateId === item.id) {
         setSwapCandidateId(null);
       }
     }
+    return movedItem !== null;
   }
 
-  async function replaceDeskItem(displaced: Item) {
+  async function replaceDeskItem(displaced: Item): Promise<boolean> {
     if (swapCandidateId === null) {
-      return;
+      return false;
     }
 
     const movedItem = await swap(swapCandidateId, displaced.id);
     if (movedItem !== null) {
-      playCompletion();
-      setAnnouncement(`${movedItem.title} moved to your desk.`);
+      announce({
+        title: movedItem.title,
+        message: "moved to your desk.",
+        state: "success",
+        sound: "success",
+      });
+      commitWithViewTransition(() => setSwapCandidateId(null));
     }
-    setSwapCandidateId(null);
+    return movedItem !== null;
   }
 
-  async function discardItem(item: Item) {
-    const discarded = await discard(item.id);
-    if (!discarded) return;
+  function requestDiscard(item: Item, trigger: HTMLButtonElement) {
+    discardRequestRef.current = {
+      item,
+      restoreFocus: focusAdjacentAction(
+        trigger,
+        item.status === "inbox" ? "inbox-heading" : "desk-heading",
+      ),
+    };
+    setDiscardCandidate(item);
+  }
 
-    playDismissal();
-    setAnnouncement(`${item.title} discarded.`);
+  async function discardItem(item: Item): Promise<boolean> {
+    const request = discardRequestRef.current?.item.id === item.id
+      ? discardRequestRef.current
+      : null;
+    const discarded = await discard(item.id);
+    if (!discarded) return false;
+
+    announce({
+      title: item.title,
+      message: "discarded.",
+      state: "success",
+    });
+
+    if (request !== null) {
+      request.restoreFocus();
+    }
+    discardRequestRef.current = null;
 
     if (swapCandidateId === item.id) {
       setSwapCandidateId(null);
     }
+    return true;
   }
 
-  async function finishItem(item: Item) {
+  async function finishItem(item: Item): Promise<boolean> {
     const finishedItem = await finish(item.id);
     if (finishedItem !== null) {
-      playCompletion();
-      setAnnouncement(`${finishedItem.title} moved to your library.`);
+      announce({
+        title: finishedItem.title,
+        message: "moved to your library.",
+        state: "success",
+        sound: "success",
+      });
     }
+    return finishedItem !== null;
   }
 
   const readerItem =
@@ -317,31 +380,15 @@ export default function App() {
       return;
     }
 
-    playPageChange();
     openReaderRoute(item.id);
   }
 
   const closeReader = useCallback(() => {
-    playPageChange();
     closeReaderRoute();
   }, [closeReaderRoute]);
 
   function toggleTheme() {
     setTheme((current) => (current === "dark" ? "light" : "dark"));
-  }
-
-  function toggleSounds() {
-    const nextEnabled = !soundsEnabled;
-
-    if (nextEnabled) {
-      setEnabled(true);
-      playToggle();
-    } else {
-      playToggle();
-      setEnabled(false);
-    }
-
-    setSoundsEnabled(nextEnabled);
   }
 
   if (loading) {
@@ -350,7 +397,7 @@ export default function App() {
         <section className="app-state__content" aria-labelledby="loading-heading">
           <h1 className="app-state__title" id="loading-heading">Readr</h1>
           <div className="app-loading">
-            <TwinOrbit label="Loading your library" />
+            <Spinner label="Loading your library" />
             <p className="app-state__message" aria-hidden="true">Loading your library…</p>
           </div>
         </section>
@@ -370,7 +417,7 @@ export default function App() {
         {announcement}
       </p>
       <p className="visually-hidden" role="status" aria-atomic="true">
-        {pendingItemActionLabel(pendingAction)}
+        {capturePending ? "Adding to inbox." : pendingItemActionLabel(pendingAction)}
       </p>
       <p className="visually-hidden" aria-live="polite" aria-atomic="true">
         {searchAnnouncement}
@@ -406,7 +453,8 @@ export default function App() {
                 type="button"
                 className="add-toggle"
                 aria-label={captureOpen ? "Close add form" : "Add to inbox"}
-                data-cuelume-toggle=""
+                data-slot="collapsible-trigger"
+                data-focus-fallback
               >
                 <PlusIcon />
               </Collapsible.Trigger>
@@ -434,14 +482,15 @@ export default function App() {
             <>
               {(!searching || visibleDeskItems.length > 0 || swapCandidateId !== null) && (
                 <DeskSection
-                  items={visibleDeskItems}
+                  items={swapCandidateId === null ? visibleDeskItems : deskItems}
+                  deskCount={deskItems.length}
                   mode={swapCandidateId === null ? "normal" : "swap"}
                   onFinish={finishItem}
                   onSendToInbox={sendToInbox}
-                  onDiscard={discardItem}
+                  onDiscard={requestDiscard}
                   onRead={openReader}
                   onSelectSwapTarget={replaceDeskItem}
-                  onCancelSwap={() => setSwapCandidateId(null)}
+                  onCancelSwap={cancelSwap}
                   pendingAction={pendingAction}
                 />
               )}
@@ -450,7 +499,7 @@ export default function App() {
                   items={visibleInboxItems}
                   highlightId={lastAddedId}
                   onSendToDesk={sendToDesk}
-                  onDiscard={discardItem}
+                  onDiscard={requestDiscard}
                   pendingAction={pendingAction}
                 />
               )}
@@ -466,11 +515,14 @@ export default function App() {
           )}
         </div>
       )}
-      <UtilityDock
-        theme={theme}
-        soundEnabled={soundsEnabled}
-        onToggleSound={toggleSounds}
-        onToggleTheme={toggleTheme}
+      <UtilityDock theme={theme} onToggleTheme={toggleTheme} />
+      <DiscardConfirmationDialog
+        item={discardCandidate}
+        onCancel={() => {
+          discardRequestRef.current = null;
+          setDiscardCandidate(null);
+        }}
+        onConfirm={discardItem}
       />
     </main>
   );

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Item } from "../shared/item";
 import type { PendingItemAction } from "./pendingItemAction";
+import { commitWithViewTransition } from "./viewTransition";
 import {
   createItem,
   discardItem,
@@ -19,10 +20,13 @@ export type ItemLibrary = {
   items: Item[];
   loading: boolean;
   pendingAction: PendingItemAction | null;
+  capturePending: boolean;
   error: string | null;
   unauthenticated: boolean;
   retry: () => void;
+  refreshSilently: () => void;
   addItem: (input: NewItemInput) => Promise<Item | null>;
+  reconcileItem: (item: Item) => void;
   moveToDesk: (id: string) => Promise<Item | null>;
   moveToInbox: (id: string) => Promise<Item | null>;
   finish: (id: string) => Promise<Item | null>;
@@ -34,17 +38,23 @@ export function useItemLibrary(): ItemLibrary {
   const [items, setItems] = useState<Item[]>([]);
   const [loading, setLoading] = useState(true);
   const [pendingAction, setPendingAction] = useState<PendingItemAction | null>(null);
+  const [capturePending, setCapturePending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [unauthenticated, setUnauthenticated] = useState(false);
-  const [reloadToken, setReloadToken] = useState(0);
+  const [loadRequest, setLoadRequest] = useState({ token: 0, showLoading: true });
   const dataGenerationRef = useRef(0);
   const pendingActionRef = useRef<PendingItemAction | null>(null);
+  const capturePendingRef = useRef(false);
+
+  const requestLoad = useCallback((showLoading: boolean): void => {
+    setLoadRequest((current) => ({ token: current.token + 1, showLoading }));
+  }, []);
 
   useEffect(() => {
     const generation = dataGenerationRef.current + 1;
     dataGenerationRef.current = generation;
     const controller = new AbortController();
-    setLoading(true);
+    setLoading(loadRequest.showLoading);
     setError(null);
 
     void fetchItems(controller.signal)
@@ -54,15 +64,17 @@ export function useItemLibrary(): ItemLibrary {
         setUnauthenticated(false);
       })
       .catch((error: unknown) => {
-        if (controller.signal.aborted) return;
+        if (controller.signal.aborted || generation !== dataGenerationRef.current) return;
         handleError(error, setError, setUnauthenticated);
       })
       .finally(() => {
-        if (!controller.signal.aborted) setLoading(false);
+        if (!controller.signal.aborted && generation === dataGenerationRef.current) {
+          setLoading(false);
+        }
       });
 
     return () => controller.abort();
-  }, [reloadToken]);
+  }, [loadRequest]);
 
   const runMutation = useCallback(async <T,>(
     action: PendingItemAction,
@@ -86,10 +98,35 @@ export function useItemLibrary(): ItemLibrary {
   }, []);
 
   const addItem = useCallback(async (input: NewItemInput): Promise<Item | null> => {
-    const item = await runMutation({ kind: "add" }, () => createItem(input));
-    if (item !== null) setItems((current) => [item, ...current]);
-    return item;
-  }, [runMutation]);
+    if (capturePendingRef.current) return null;
+
+    capturePendingRef.current = true;
+    setCapturePending(true);
+    dataGenerationRef.current += 1;
+    setError(null);
+    try {
+      const item = await createItem(input);
+      dataGenerationRef.current += 1;
+      setItems((current) => [item, ...current]);
+      return item;
+    } catch (error: unknown) {
+      handleError(error, setError, setUnauthenticated);
+      return null;
+    } finally {
+      capturePendingRef.current = false;
+      setCapturePending(false);
+    }
+  }, []);
+
+  const reconcileItem = useCallback((item: Item): void => {
+    dataGenerationRef.current += 1;
+    setItems((current) => {
+      const index = current.findIndex((currentItem) => currentItem.id === item.id);
+      if (index === -1) return [item, ...current];
+
+      return current.map((currentItem) => currentItem.id === item.id ? item : currentItem);
+    });
+  }, []);
 
   const updateItem = useCallback(async (
     kind: "move-to-desk" | "move-to-inbox" | "finish",
@@ -98,7 +135,10 @@ export function useItemLibrary(): ItemLibrary {
   ): Promise<Item | null> => {
     const item = await runMutation({ kind, itemId: id }, () => operation(id));
     if (item !== null) {
-      setItems((current) => current.map((currentItem) => currentItem.id === item.id ? item : currentItem));
+      dataGenerationRef.current += 1;
+      commitWithViewTransition(() => {
+        setItems((current) => current.map((currentItem) => currentItem.id === item.id ? item : currentItem));
+      });
     }
     return item;
   }, [runMutation]);
@@ -121,7 +161,10 @@ export function useItemLibrary(): ItemLibrary {
       await discardItem(id);
       return true;
     });
-    if (result) setItems((current) => current.filter((item) => item.id !== id));
+    if (result) {
+      dataGenerationRef.current += 1;
+      setItems((current) => current.filter((item) => item.id !== id));
+    }
     return result ?? false;
   }, [runMutation]);
 
@@ -131,25 +174,34 @@ export function useItemLibrary(): ItemLibrary {
       () => swapItems(candidateId, displacedId),
     );
     if (result !== null) {
-      setItems((current) => current
-        .filter((item) => item.id !== result.displacedId)
-        .map((item) => item.id === result.item.id ? result.item : item));
+      dataGenerationRef.current += 1;
+      commitWithViewTransition(() => {
+        setItems((current) => current
+          .filter((item) => item.id !== result.displacedId)
+          .map((item) => item.id === result.item.id ? result.item : item));
+      });
     }
     return result?.item ?? null;
   }, [runMutation]);
 
   const retry = useCallback(() => {
-    setReloadToken((current) => current + 1);
-  }, []);
+    requestLoad(true);
+  }, [requestLoad]);
+  const refreshSilently = useCallback(() => {
+    requestLoad(false);
+  }, [requestLoad]);
 
   return {
     items,
     loading,
     pendingAction,
+    capturePending,
     error,
     unauthenticated,
     retry,
+    refreshSilently,
     addItem,
+    reconcileItem,
     moveToDesk,
     moveToInbox,
     finish,

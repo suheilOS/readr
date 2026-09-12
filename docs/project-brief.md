@@ -114,7 +114,7 @@ On your desk                     3 / 5
 Inbox 7                 Library 42
 ```
 
-Desk cards show title, link hostname when available, type, and a Read action for supported URLs. The inbox collapses to a count until opened. Three interaction principles apply everywhere:
+Desk cards show title, link hostname when available, type, and a Read action for supported URLs. The Inbox stays visible alongside the Desk and Library so captured items remain available for deliberate decisions without an extra open step. Three interaction principles apply everywhere:
 
 - **Capture fast**: focus the add control, type, press Enter
 - **Decide deliberately**: moving an item onto the full desk carries visible weight
@@ -126,13 +126,13 @@ Mobile stacks the same layout with the desk first. Every control stays reachable
 
 Open Runde loads locally as the primary typeface. Prefer generous whitespace, soft neutral surfaces, minimal borders, rounded controls, calm transitions, and system-aware dark and light themes. Avoid dashboard aesthetics, dense metadata, and decoration without function.
 
-Cuelume provides short runtime sound cues for key interactions. Sounds follow the house style established in Horizons: generated at runtime, with no audio files. Users can disable sounds, and the preference is stored locally.
+Kobra Sound provides short runtime sound cues for key interactions. Sounds are generated at runtime, with no audio files. Users can disable sounds, and the preference is stored locally under Kobra's sound settings.
 
 ## Persistence
 
 Readr stores the item collection in its Readr D1 database, keyed by the opaque Overhawl user ID. The Worker owns IDs, timestamps, validation, ownership checks, desk capacity, lifecycle changes, and swaps. The browser treats API responses as authoritative.
 
-The browser stores only `reader:theme` and `reader:sounds` as local preferences. Item data does not live in localStorage and follows the account across devices.
+The browser stores only `reader:theme` and Kobra's `kobra-sound-muted` and `kobra-sound-volume` preferences locally. Existing `reader:sounds` values are migrated once. Item data does not live in localStorage and follows the account across devices.
 
 ## Explicitly out of scope
 
@@ -142,7 +142,7 @@ Version 1 excludes the following unless this brief is revised first:
 - ratings, reviews, highlights, annotations
 - reading statistics, goals, streaks, challenges
 - recommendation feeds, social features
-- browser extension for Version 1; planned as Phase 12
+- additional browser-extension capture formats or cross-browser packaging
 - PDF upload or storage
 - per-site extraction overrides
 - configurable desk capacity, multiple desks
@@ -150,9 +150,9 @@ Version 1 excludes the following unless this brief is revised first:
 ## Technology stack
 
 - React 19 + TypeScript + Vite, built with Bun
-- Vanilla CSS, no framework
+- Tailwind CSS v4 utilities alongside the existing CSS layers
 - Cloudflare Workers static assets plus authenticated Hono API routes
-- Runtime dependencies: react, react-dom, @base-ui/react, @fontsource/open-runde, cuelume, defuddle, linkedom, dompurify
+- Runtime dependencies: react, react-dom, @base-ui/react, @fontsource/open-runde, @web-kits/audio, motion, defuddle, linkedom, dompurify
 
 Interface minimalism does not demand architectural austerity. The Worker exists because reading is core functionality, not complexity.
 
