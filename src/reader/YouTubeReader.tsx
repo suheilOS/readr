@@ -7,7 +7,6 @@ import {
   type YouTubeTranscriptContent,
   type YouTubeUrl,
 } from "../../shared/media";
-import { playError } from "../soundCues";
 import {
   extractYouTubeMetadata,
   extractYouTubeTranscript,
@@ -17,6 +16,7 @@ import { activeTimedEntryIndex, formatPlaybackTime } from "./transcriptSync";
 import { YouTubePlayer, type YouTubePlayerHandle } from "./YouTubePlayer";
 import { useMediaProgress } from "./useMediaProgress";
 import { fetchYouTubeContent } from "../itemApi";
+import { notify } from "../notifications";
 
 type YouTubeReaderProps = {
   item: Item;
@@ -92,13 +92,11 @@ function YouTubeReaderContentView({ item, parsedUrl }: YouTubeReaderProps & { pa
       startTransition(() => setTranscriptState({ status: "ready", content }));
     }).catch((error: unknown) => {
       if (signal.aborted) return;
-      playError();
-      setTranscriptState({
-        status: "degraded",
-        message: error instanceof MediaExtractionError
-          ? error.message
-          : "The transcript could not be loaded.",
-      });
+      const message = error instanceof MediaExtractionError
+        ? error.message
+        : "The transcript could not be loaded.";
+      notify({ message, state: "error", sound: "error" });
+      setTranscriptState({ status: "degraded", message });
     });
 
     await Promise.all([metadataPromise, transcriptPromise]);

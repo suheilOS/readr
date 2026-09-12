@@ -26,7 +26,7 @@ export function TypeSelect({ value, onChange, disabled = false }: TypeSelectProp
         <Select.Trigger
           className="type-trigger"
           aria-label="Type"
-          data-cuelume-toggle=""
+          data-slot="select-trigger"
         >
           <span className="type-value">
             <span className="type-prefix">Type:</span>

@@ -186,7 +186,7 @@ function DeskActionsMenu({
           : `More actions for ${item.title}`}
         aria-busy={isPendingItemAction(pendingAction, item.id)}
         disabled={busy}
-        data-cuelume-toggle=""
+        data-slot="menu-trigger"
       >
         {isPendingItemAction(pendingAction, item.id)
           ? <span className="button-spinner" aria-hidden="true" />
@@ -205,6 +205,7 @@ function DeskActionsMenu({
             </Menu.Item>
             <Menu.Item
               className="library-menu-item discard-menu-item"
+              data-variant="destructive"
               disabled={busy}
               onClick={() => runAction(onDiscard)}
             >

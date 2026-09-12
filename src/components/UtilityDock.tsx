@@ -2,22 +2,15 @@ import { Popover } from "@base-ui/react/popover";
 import { useState } from "react";
 import "./UtilityDock.css";
 import { SlidersIcon, UserIcon } from "./icons";
-import { SoundToggle } from "./SoundToggle";
+import { SoundToggle } from "./ui/sound";
 import { ThemeToggle, type Theme } from "./ThemeToggle";
 
 type UtilityDockProps = {
   theme: Theme;
-  soundEnabled: boolean;
   onToggleTheme: () => void;
-  onToggleSound: () => void;
 };
 
-export function UtilityDock({
-  theme,
-  soundEnabled,
-  onToggleTheme,
-  onToggleSound,
-}: UtilityDockProps) {
+export function UtilityDock({ theme, onToggleTheme }: UtilityDockProps) {
   const [customizationOpen, setCustomizationOpen] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
   const [signOutError, setSignOutError] = useState<string | null>(null);
@@ -66,7 +59,7 @@ export function UtilityDock({
           className="utility-toggle account-trigger"
           type="button"
           aria-label="Account"
-          data-cuelume-toggle=""
+          data-slot="popover-trigger"
         >
           <UserIcon className="utility-toggle__icon" />
         </Popover.Trigger>
@@ -112,7 +105,7 @@ export function UtilityDock({
           aria-label={customizationOpen
             ? "Hide appearance and sound controls"
             : "Show appearance and sound controls"}
-          data-cuelume-toggle=""
+          data-slot="popover-trigger"
         >
           <SlidersIcon className="utility-toggle__icon" />
         </Popover.Trigger>
@@ -128,7 +121,7 @@ export function UtilityDock({
                 Appearance and sound controls
               </Popover.Title>
               <ThemeToggle theme={theme} onToggle={onToggleTheme} />
-              <SoundToggle enabled={soundEnabled} onToggle={onToggleSound} />
+              <SoundToggle className="utility-toggle sound-toggle" />
             </Popover.Popup>
           </Popover.Positioner>
         </Popover.Portal>

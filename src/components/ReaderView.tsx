@@ -1,4 +1,3 @@
-import { playError } from "../soundCues";
 import { startTransition, useEffect, useRef, useState } from "react";
 import { canReadInApp, itemMetaLine, readerKindFor, type Item } from "../../shared/item";
 import type { ExtractedArticle } from "../../shared/extraction";
@@ -10,6 +9,7 @@ import { sanitizeArticleHtml } from "../reader/sanitizeArticle";
 import { ArrowLeftIcon } from "./icons";
 import { TwinOrbit } from "./TwinOrbit";
 import { YouTubeReader } from "../reader/YouTubeReader";
+import { notify } from "../notifications";
 
 type ReaderViewProps = {
   item: Item;
@@ -92,14 +92,12 @@ function ArticleReader({ item, onClose }: ReaderViewProps) {
           return;
         }
 
-        playError();
-        setState({
-          status: "error",
-          message:
-            error instanceof ArticleExtractionError
-              ? error.message
-              : "The page could not be opened. Please try the original link.",
-        });
+        const message =
+          error instanceof ArticleExtractionError
+            ? error.message
+            : "The page could not be opened. Please try the original link.";
+        notify({ message, state: "error", sound: "error" });
+        setState({ status: "error", message });
       }
     }
 

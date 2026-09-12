@@ -16,7 +16,7 @@ export function ThemeToggle({ theme, onToggle }: ThemeToggleProps) {
       type="button"
       aria-label={`Switch to ${nextTheme} mode`}
       aria-pressed={theme === "dark"}
-      data-cuelume-toggle=""
+      data-slot="toggle"
       onClick={onToggle}
     >
       <ThemeIcon className="utility-toggle__icon" />

@@ -115,15 +115,6 @@ export function SlidersIcon(props: IconProps) {
   );
 }
 
-export function SoundIcon(props: IconProps) {
-  return (
-    <BaseIcon {...props}>
-      <path d="M9 4.5 5.75 7.25H3.5v5.5h2.25L9 15.5v-11Z" />
-      <path className="sound-toggle__enabled" d="M12.25 7.25a4 4 0 0 1 0 5.5m2.25-7.5a6.75 6.75 0 0 1 0 9.5" />
-      <path className="sound-toggle__muted" d="m12.5 7.5 4.5 5m0-5-4.5 5" />
-    </BaseIcon>
-  );
-}
 
 export function ThemeIcon(props: IconProps) {
   return (

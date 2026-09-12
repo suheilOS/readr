@@ -1,4 +1,3 @@
-import { setEnabled } from "cuelume";
 import {
   lazy,
   Suspense,
@@ -31,17 +30,11 @@ import { ThemeToggle, type Theme } from "./components/ThemeToggle";
 import { UtilityDock } from "./components/UtilityDock";
 import { TwinOrbit } from "./components/TwinOrbit";
 import { ArrowLeftIcon, PlusIcon } from "./components/icons";
-import {
-  playCompletion,
-  playDismissal,
-  playPageChange,
-  playToggle,
-} from "./soundCues";
+import { notify } from "./notifications";
 import { isYouTubeCapturedContent, type YouTubeCapturedContent } from "../shared/media";
 import { saveYouTubeContent } from "./itemApi";
 
 const THEME_STORAGE_KEY = "reader:theme";
-const SOUND_STORAGE_KEY = "reader:sounds";
 
 const ReaderView = lazy(() =>
   import("./components/ReaderView").then(({ ReaderView: Component }) => ({
@@ -68,13 +61,6 @@ function ReaderLoadingFallback({ onClose }: { onClose: () => void }) {
   );
 }
 
-function getInitialSoundEnabled(): boolean {
-  try {
-    return localStorage.getItem(SOUND_STORAGE_KEY) !== "off";
-  } catch {
-    return true;
-  }
-}
 
 function getInitialTheme(): Theme {
   try {
@@ -112,21 +98,21 @@ export default function App() {
   const [captureOpen, setCaptureOpen] = useState(false);
   const [lastAddedId, setLastAddedId] = useState<string | null>(null);
   const [announcement, setAnnouncement] = useState("");
-  const [soundsEnabled, setSoundsEnabled] = useState(getInitialSoundEnabled);
   const [theme, setTheme] = useState<Theme>(getInitialTheme);
   const { readerItemId, openReaderRoute, closeReaderRoute } = useReaderRoute();
   const addButtonRef = useRef<HTMLButtonElement>(null);
   const titleInputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    setEnabled(soundsEnabled);
-
-    try {
-      localStorage.setItem(SOUND_STORAGE_KEY, soundsEnabled ? "on" : "off");
-    } catch {
-      // Keep the selected sound preference for this session if storage is unavailable.
-    }
-  }, [soundsEnabled]);
+  const announce = useCallback(
+    (
+      message: string,
+      state?: "success" | "error",
+      sound?: "success",
+    ) => {
+      setAnnouncement(message);
+      notify({ message, state, sound });
+    },
+    [],
+  );
 
   useEffect(() => {
     const root = document.documentElement;
@@ -188,10 +174,13 @@ export default function App() {
       void saveYouTubeContent(capture.content)
         .then(({ item, created }) => {
           retry();
-          setAnnouncement(created
-            ? `${item.title} captured to your inbox.`
-            : `${item.title} capture updated.`);
-          playCompletion();
+          announce(
+            created
+              ? `${item.title} captured to your inbox.`
+              : `${item.title} capture updated.`,
+            "success",
+            "success",
+          );
           window.postMessage({
             type: "readr:capture-result",
             captureId: capture.captureId,
@@ -200,7 +189,7 @@ export default function App() {
         })
         .catch((error: unknown) => {
           const message = error instanceof Error ? error.message : "The video could not be captured.";
-          setAnnouncement(message);
+          announce(message, "error");
           window.postMessage({
             type: "readr:capture-result",
             captureId: capture.captureId,
@@ -213,7 +202,7 @@ export default function App() {
     window.addEventListener("message", handleCaptureMessage);
     window.postMessage({ type: "readr:capture-ready" }, window.location.origin);
     return () => window.removeEventListener("message", handleCaptureMessage);
-  }, [retry]);
+  }, [announce, retry]);
 
   const displayQuery = query.trim();
   const searching = displayQuery.length > 0;
@@ -235,9 +224,8 @@ export default function App() {
     const item = await addItem(input);
     if (item === null) return false;
 
-    playCompletion();
     setLastAddedId(item.id);
-    setAnnouncement(`${item.title} added to your inbox.`);
+    announce(`${item.title} added to your inbox.`, "success", "success");
     closeCapture();
     return true;
   }
@@ -250,14 +238,14 @@ export default function App() {
 
     const movedItem = await moveToDesk(item.id);
     if (movedItem !== null) {
-      setAnnouncement(`${movedItem.title} moved to your desk.`);
+      announce(`${movedItem.title} moved to your desk.`, "success");
     }
   }
 
   async function sendToInbox(item: Item) {
     const movedItem = await moveToInbox(item.id);
     if (movedItem !== null) {
-      setAnnouncement(`${movedItem.title} returned to your inbox.`);
+      announce(`${movedItem.title} returned to your inbox.`, "success");
       if (swapCandidateId === item.id) {
         setSwapCandidateId(null);
       }
@@ -271,8 +259,7 @@ export default function App() {
 
     const movedItem = await swap(swapCandidateId, displaced.id);
     if (movedItem !== null) {
-      playCompletion();
-      setAnnouncement(`${movedItem.title} moved to your desk.`);
+      announce(`${movedItem.title} moved to your desk.`, "success", "success");
     }
     setSwapCandidateId(null);
   }
@@ -281,8 +268,7 @@ export default function App() {
     const discarded = await discard(item.id);
     if (!discarded) return;
 
-    playDismissal();
-    setAnnouncement(`${item.title} discarded.`);
+    announce(`${item.title} discarded.`, "success");
 
     if (swapCandidateId === item.id) {
       setSwapCandidateId(null);
@@ -292,8 +278,7 @@ export default function App() {
   async function finishItem(item: Item) {
     const finishedItem = await finish(item.id);
     if (finishedItem !== null) {
-      playCompletion();
-      setAnnouncement(`${finishedItem.title} moved to your library.`);
+      announce(`${finishedItem.title} moved to your library.`, "success", "success");
     }
   }
 
@@ -317,31 +302,15 @@ export default function App() {
       return;
     }
 
-    playPageChange();
     openReaderRoute(item.id);
   }
 
   const closeReader = useCallback(() => {
-    playPageChange();
     closeReaderRoute();
   }, [closeReaderRoute]);
 
   function toggleTheme() {
     setTheme((current) => (current === "dark" ? "light" : "dark"));
-  }
-
-  function toggleSounds() {
-    const nextEnabled = !soundsEnabled;
-
-    if (nextEnabled) {
-      setEnabled(true);
-      playToggle();
-    } else {
-      playToggle();
-      setEnabled(false);
-    }
-
-    setSoundsEnabled(nextEnabled);
   }
 
   if (loading) {
@@ -406,7 +375,7 @@ export default function App() {
                 type="button"
                 className="add-toggle"
                 aria-label={captureOpen ? "Close add form" : "Add to inbox"}
-                data-cuelume-toggle=""
+                data-slot="collapsible-trigger"
               >
                 <PlusIcon />
               </Collapsible.Trigger>
@@ -466,12 +435,7 @@ export default function App() {
           )}
         </div>
       )}
-      <UtilityDock
-        theme={theme}
-        soundEnabled={soundsEnabled}
-        onToggleSound={toggleSounds}
-        onToggleTheme={toggleTheme}
-      />
+      <UtilityDock theme={theme} onToggleTheme={toggleTheme} />
     </main>
   );
 }

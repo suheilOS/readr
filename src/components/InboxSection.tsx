@@ -63,6 +63,7 @@ export function InboxSection({
               <button
                 type="button"
                 className="quiet-button discard"
+                data-variant="destructive"
                 aria-label={`Discard: ${item.title}`}
                 aria-busy={isPendingItemAction(pendingAction, item.id, "discard")}
                 disabled={busy}

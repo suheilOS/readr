@@ -1,3 +1,4 @@
+@import "tailwindcss";
 @import "./styles/reset.css";
 @import "./styles/recovery.css";
 @import "./styles/base.css";
@@ -10,3 +11,15 @@
 @import "./styles/actions.css";
 @import "./styles/utility-dock.css";
 @import "./styles/adaptations.css";
+
+@theme inline {
+  --color-background: var(--page-bg);
+  --color-foreground: var(--text);
+  --color-popover: var(--surface);
+  --color-error: var(--danger);
+  --color-warning: var(--warning);
+  --color-info: var(--info);
+  --color-shell-fg-faint: var(--muted);
+  --color-shell-fg-muted: var(--muted-strong);
+  --color-ring: var(--focus);
+}

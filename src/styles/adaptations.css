@@ -66,9 +66,7 @@
 
   .utility-toggle,
   .theme-toggle__sun,
-  .theme-toggle__moon,
-  .sound-toggle__enabled,
-  .sound-toggle__muted {
+  .theme-toggle__moon {
     scale: 1;
   }
 
@@ -77,9 +75,7 @@
   }
 
   .theme-toggle__sun,
-  .theme-toggle__moon,
-  .sound-toggle__enabled,
-  .sound-toggle__muted {
+  .theme-toggle__moon {
     filter: none;
     transition: opacity 100ms ease;
   }

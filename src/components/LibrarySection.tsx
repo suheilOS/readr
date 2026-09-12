@@ -88,7 +88,7 @@ function LibraryActionsMenu({
             : `More actions for ${item.title}`}
           aria-busy={isPendingItemAction(pendingAction, item.id)}
           disabled={busy}
-          data-cuelume-toggle=""
+          data-slot="menu-trigger"
         >
           {isPendingItemAction(pendingAction, item.id)
             ? <span className="button-spinner" aria-hidden="true" />
