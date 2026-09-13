@@ -641,6 +641,10 @@
 }
 
 .chapter-outline-trigger svg {
+  display: block;
+  width: 16px;
+  height: 16px;
+  flex: 0 0 auto;
   transition: transform 160ms var(--ease-out);
 }
 
