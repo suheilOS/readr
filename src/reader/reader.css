@@ -1,6 +1,5 @@
 .reader-page {
   min-height: 100dvh;
-  overflow-x: clip;
   padding: max(20px, calc(env(safe-area-inset-top) + 12px))
     clamp(16px, 4vw, 24px)
     calc(96px + env(safe-area-inset-bottom));
