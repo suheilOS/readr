@@ -194,5 +194,10 @@ describe("useEnrichmentRefresh", () => {
       await vi.advanceTimersByTimeAsync(60_000);
     });
     expect(api.fetchItemMetadata).toHaveBeenCalledTimes(15);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(60_000);
+    });
+    expect(api.fetchItemMetadata).toHaveBeenCalledTimes(16);
   });
 });

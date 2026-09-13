@@ -6,7 +6,9 @@ import { fetchItemMetadata, ItemApiError } from "./itemApi";
 const RAPID_POLL_INTERVAL_MS = 1_500;
 const RAPID_POLL_COUNT = 12;
 const FINAL_POLL_INTERVAL_MS = 60_000;
-const MAX_POLLS = RAPID_POLL_COUNT + ENRICHMENT_RETRY_DELAYS_MS.length + 1;
+// Cover the third backend attempt plus one extra cron-boundary grace poll.
+const FINAL_SAFETY_POLL_COUNT = 2;
+const MAX_POLLS = RAPID_POLL_COUNT + ENRICHMENT_RETRY_DELAYS_MS.length + FINAL_SAFETY_POLL_COUNT;
 
 type PollState = {
   count: number;
