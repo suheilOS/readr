@@ -1,119 +1,161 @@
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
 import { JSDOM } from "jsdom";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+import { captureCurrentVideo, YouTubeCaptureError } from "../../extension/src/youtube-capture-core.js";
+import { normalizeDefuddleYouTubeResult } from "../../shared/youtubeNormalization";
 
-const captureScript = readFileSync(resolve(process.cwd(), "extension/youtube-capture.js"), "utf8");
+const videoId = "dQw4w9WgXcQ";
+const secondVideoId = "9bZkp7q19f0";
+const videoUrl = `https://www.youtube.com/watch?v=${videoId}`;
 
-describe("YouTube capture content script", () => {
-  it("prefers the visible title and captures the legacy transcript shape", () => {
-    const { listener } = loadCapturePage(`
-      <html lang="fr">
-        <head>
-          <meta property="og:title" content="Stale metadata title">
-        </head>
-        <body>
-          <h1 class="ytd-watch-metadata">Visible video title</h1>
-          <ytd-video-owner-renderer><div id="channel-name"><a href="/@channel">Channel</a></div></ytd-video-owner-renderer>
-          <ytd-transcript-segment-renderer>
-            <span class="segment-timestamp">1:02</span>
-            <span class="segment-text">First line</span>
-          </ytd-transcript-segment-renderer>
-        </body>
-      </html>
-    `);
+describe("YouTube live-page capture", () => {
+  it("uses Defuddle against a closed transcript panel", async () => {
+    const dom = loadPage({
+      title: "Defuddle video",
+      description: "A live-page description.",
+      tracks: [{ baseUrl: timedTextUrl(), languageCode: "fr", name: { simpleText: "Français" } }],
+    }, "fr");
+    const fetchImpl = captionFetch();
 
-    const response = invoke(listener);
-    expect(response).toEqual({
-      ok: true,
-      content: expect.objectContaining({
-        title: "Visible video title",
-        author: "Channel",
-        transcript: {
-          kind: "available",
-          language: null,
-          segments: [{ startSeconds: 62, text: "First line" }],
-          chapters: [],
-        },
-      }),
+    const content = await captureCurrentVideo({
+      document: dom.window.document,
+      url: dom.window.location.href,
+      expectedVideoId: videoId,
+      fetchImpl,
+    });
+
+    expect(content).toMatchObject({
+      kind: "youtube_capture",
+      videoId,
+      title: "Defuddle video",
+      description: "A live-page description.",
+      transcript: {
+        kind: "available",
+        language: "fr",
+        segments: [
+          { startSeconds: 0, text: "Bonjour." },
+          { startSeconds: 3, text: "Deuxième phrase." },
+        ],
+      },
+    });
+    expect(fetchImpl).toHaveBeenCalled();
+    expect(dom.window.document.querySelector("ytd-transcript-segment-renderer")).toBeNull();
+  });
+
+  it("supports manual and automatic caption tracks with language preference", async () => {
+    const dom = loadPage({
+      title: "Language variants",
+      tracks: [
+        { baseUrl: timedTextUrl("en"), languageCode: "en", kind: "asr" },
+        { baseUrl: timedTextUrl("de"), languageCode: "de", kind: "asr" },
+        { baseUrl: timedTextUrl("fr"), languageCode: "fr" },
+      ],
+    }, "de");
+    const fetchImpl = vi.fn(async (input) => {
+      if (String(input).includes("timedtext")) {
+        return new Response('<transcript><text start="4">Deutsch.</text></transcript>');
+      }
+      return Response.json({});
+    });
+
+    const content = await captureCurrentVideo({
+      document: dom.window.document,
+      url: dom.window.location.href,
+      expectedVideoId: videoId,
+      fetchImpl,
+    });
+    expect(content.transcript).toMatchObject({ kind: "available", language: "de" });
+  });
+
+  it("keeps URL capture valid when captions are unavailable", async () => {
+    const dom = loadPage({ title: "No captions", tracks: [] });
+    const content = await captureCurrentVideo({
+      document: dom.window.document,
+      url: dom.window.location.href,
+      expectedVideoId: videoId,
+      fetchImpl: vi.fn(async () => Response.json({ videoDetails: { videoId } })),
+    });
+    expect(content.transcript).toEqual({ kind: "unavailable" });
+  });
+
+  it("normalizes Defuddle transcript blocks and chapters into the reader types", () => {
+    const document = new JSDOM(`<body>
+      <p>Description from Defuddle</p>
+      <div class="transcript">
+        <h3>Opening</h3>
+        <div class="transcript-segment"><span data-timestamp="12">0:12</span>First line.</div>
+        <div class="transcript-segment"><span data-timestamp="19">0:19</span>Second line.</div>
+      </div>
+    </body>`).window.document;
+
+    expect(normalizeDefuddleYouTubeResult({
+      description: "Fallback description",
+      language: "fr",
+    }, document)).toEqual({
+      description: "Description from Defuddle",
+      language: "fr",
+      segments: [
+        { startSeconds: 12, text: "First line." },
+        { startSeconds: 19, text: "Second line." },
+      ],
+      chapters: [{ startSeconds: 12, title: "Opening" }],
     });
   });
 
-  it("captures the current transcript shape and parses hour timestamps", () => {
-    const { listener } = loadCapturePage(`
-      <html><body>
-        <meta property="og:title" content="Metadata title">
-        <transcript-segment-view-model>
-          <span class="ytwTranscriptSegmentViewModelTimestamp">1:02:03</span>
-          <span class="ytAttributedStringHost" role="text">Second line</span>
-        </transcript-segment-view-model>
-      </body></html>
-    `);
-
-    const response = invoke(listener);
-    expect(response).toEqual({
-      ok: true,
-      content: expect.objectContaining({
-        title: "Metadata title",
-        transcript: expect.objectContaining({
-          language: null,
-          segments: [{ startSeconds: 3723, text: "Second line" }],
-        }),
-      }),
+  it("rejects a result when YouTube navigates to another video during extraction", async () => {
+    const dom = loadPage({
+      title: "Stale video",
+      tracks: [{ baseUrl: timedTextUrl(), languageCode: "en" }],
     });
-  });
-
-  it("keeps supporting the legacy modern transcript text selector", () => {
-    const { listener } = loadCapturePage(`
-      <html><body>
-        <meta property="og:title" content="Metadata title">
-        <transcript-segment-view-model>
-          <span class="ytwTranscriptSegmentViewModelTimestamp">0:12</span>
-          <span class="yt-core-attributed-string">Legacy line</span>
-        </transcript-segment-view-model>
-      </body></html>
-    `);
-
-    expect(invoke(listener)).toEqual(expect.objectContaining({
-      ok: true,
-      content: expect.objectContaining({
-        transcript: expect.objectContaining({
-          segments: [{ startSeconds: 12, text: "Legacy line" }],
-        }),
-      }),
-    }));
-  });
-
-  it("reports unsupported pages and missing transcripts without throwing", () => {
-    const unsupported = loadCapturePage("<html><body></body></html>", "https://example.com/");
-    expect(invoke(unsupported.listener)).toEqual({
-      ok: false,
-      error: "This is not a supported YouTube video page.",
+    let firstFetch = true;
+    const fetchImpl = vi.fn(async (input) => {
+      if (firstFetch) {
+        firstFetch = false;
+        dom.window.history.pushState({}, "", `/watch?v=${secondVideoId}`);
+      }
+      return String(input).includes("timedtext")
+        ? new Response('<transcript><text start="0">Stale.</text></transcript>')
+        : Response.json({});
     });
 
-    const missingTranscript = loadCapturePage("<html><head><meta property=\"og:title\" content=\"Video\"></head></html>");
-    expect(invoke(missingTranscript.listener)).toEqual({
-      ok: false,
-      error: "Open YouTube’s Show transcript panel, then try capture again.",
-    });
+    await expect(captureCurrentVideo({
+      document: dom.window.document,
+      url: videoUrl,
+      expectedVideoId: videoId,
+      fetchImpl,
+    })).rejects.toMatchObject<YouTubeCaptureError>({ code: "stale_video" });
   });
 });
 
-type RuntimeListener = (message: unknown, sender: unknown, sendResponse: (response: unknown) => void) => boolean | undefined;
-
-function loadCapturePage(html: string, url = "https://www.youtube.com/watch?v=dQw4w9WgXcQ") {
-  const dom = new JSDOM(html, { runScripts: "outside-only", url });
-  let listener: RuntimeListener | undefined;
-  Object.defineProperty(dom.window, "chrome", {
-    value: { runtime: { onMessage: { addListener: (next: RuntimeListener) => { listener = next; } } } },
-  });
-  dom.window.eval(captureScript);
-  if (listener === undefined) throw new Error("Capture listener was not registered.");
-  return { dom, listener };
+function timedTextUrl(language = "fr") {
+  return `https://www.youtube.com/api/timedtext?v=${videoId}&lang=${language}`;
 }
 
-function invoke(listener: RuntimeListener): unknown {
-  let response: unknown;
-  listener({ type: "capture-youtube" }, {}, (value) => { response = value; });
-  return response;
+function captionFetch() {
+  return vi.fn(async (input) => String(input).includes("timedtext")
+    ? new Response('<transcript><text start="0">Bonjour.</text><text start="3">Deuxième phrase.</text></transcript>')
+    : Response.json({}));
+}
+
+function loadPage(
+  details: { title: string; description?: string; tracks: Array<Record<string, unknown>> },
+  language = "en",
+) {
+  const playerResponse = {
+    videoDetails: { videoId, author: "Channel", shortDescription: details.description ?? "" },
+    captions: { playerCaptionsTracklistRenderer: { captionTracks: details.tracks } },
+  };
+  const html = `<html lang="${language}"><head>
+    <meta property="og:url" content="${videoUrl}">
+    <meta property="og:image" content="https://i.ytimg.com/vi/${videoId}/hqdefault.jpg">
+    <script type="application/ld+json">${JSON.stringify({
+      "@type": "VideoObject",
+      "@id": videoUrl,
+      name: details.title,
+      description: details.description ?? "",
+      thumbnailUrl: `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`,
+    })}</script>
+    <script>var ytInitialPlayerResponse = ${JSON.stringify(playerResponse)};</script>
+    <script>var ytInitialData = ${JSON.stringify({ currentVideoEndpoint: { watchEndpoint: { videoId } } })};</script>
+  </head><body><h1>${details.title}</h1></body></html>`;
+  return new JSDOM(html, { url: videoUrl, runScripts: "outside-only" });
 }

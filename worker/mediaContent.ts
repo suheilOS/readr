@@ -7,30 +7,17 @@ import {
   YOUTUBE_CAPTURE_LIMITS,
   type YouTubeCapturedContent,
 } from "../shared/media";
-import { findItem, findYouTubeItem, toItem } from "./items";
+import { findItem, findYouTubeItem, toItem, type ItemRow } from "./items";
 
 const MAX_CAPTURE_REQUEST_BYTES = YOUTUBE_CAPTURE_LIMITS.payloadBytes + 8 * 1024;
 
 export async function captureYouTubeContent(context: Context<AppEnv>): Promise<Response> {
   try {
     const userId = context.get("userId");
-    const rateLimit = await context.env.EXTRACT_RATE_LIMITER.limit({
-      key: `youtube:capture:${userId}`,
-    });
-    if (!rateLimit.success) {
-      return mediaContentError(
-        context,
-        "rate_limited",
-        "Too many videos were captured recently. Try again in a minute.",
-        429,
-        { "Retry-After": "60" },
-      );
-    }
+    const rateLimited = await checkCaptureRateLimit(context);
+    if (rateLimited !== null) return rateLimited;
 
-    const body = await readJsonRequestBody(context.req.raw, MAX_CAPTURE_REQUEST_BYTES);
-    if (!isYouTubeCapturedContent(body)) {
-      return mediaContentError(context, "bad_request", "The captured video data is invalid.", 400);
-    }
+    const body = await readCapturedYouTubeContent(context);
     const sourceUrl = parseYouTubeUrl(body.sourceUrl);
     if (sourceUrl === null) {
       return mediaContentError(context, "bad_request", "The captured video data is invalid.", 400);
@@ -54,20 +41,12 @@ export async function captureYouTubeContent(context: Context<AppEnv>): Promise<R
       return mediaContentError(context, "internal_error", "The captured video could not be saved.", 500);
     }
 
-    const identityUpdate = existing.youtube_video_id === null || existing.youtube_video_id === undefined
-      ? context.env.READR_DB.prepare(
-          "UPDATE items SET youtube_video_id = ?, updated_at = ? WHERE id = ? AND user_id = ?",
-        ).bind(body.videoId, now, existing.id, userId)
-      : context.env.READR_DB.prepare(
-          "UPDATE items SET updated_at = ? WHERE id = ? AND user_id = ?",
-        ).bind(now, existing.id, userId);
-
-    await context.env.READR_DB.batch([
-      identityUpdate,
-      mediaUpsertStatement(context.env.READR_DB, existing.id, body, now),
-    ]);
-
-    const item = await findItem(context.env.READR_DB, userId, existing.id);
+    const item = await persistYouTubeContent(
+      context.env.READR_DB,
+      userId,
+      existing,
+      body,
+    );
     if (item === null) {
       return mediaContentError(context, "internal_error", "The captured video could not be saved.", 500);
     }
@@ -84,6 +63,119 @@ export async function captureYouTubeContent(context: Context<AppEnv>): Promise<R
     }));
     return mediaContentError(context, "internal_error", "The captured video could not be saved.", 500);
   }
+}
+
+export async function attachYouTubeContent(context: Context<AppEnv>): Promise<Response> {
+  try {
+    const userId = context.get("userId");
+    const rateLimited = await checkCaptureRateLimit(context);
+    if (rateLimited !== null) return rateLimited;
+
+    const body = await readCapturedYouTubeContent(context);
+
+    const itemId = context.req.param("id");
+    if (itemId === undefined) {
+      return mediaContentError(context, "not_found", "The item could not be found.", 404);
+    }
+    const item = await findItem(context.env.READR_DB, userId, itemId);
+    if (item === null) {
+      return mediaContentError(context, "not_found", "The item could not be found.", 404);
+    }
+
+    if (!matchesYouTubeItem(item, body)) {
+      return mediaContentError(context, "bad_request", "The captured video does not match this item.", 400);
+    }
+
+    const savedItem = await persistYouTubeContent(
+      context.env.READR_DB,
+      userId,
+      item,
+      body,
+    );
+    return savedItem === null
+      ? mediaContentError(context, "not_found", "The item could not be found.", 404)
+      : mediaContentJson(context, { item: toItem(savedItem), created: false });
+  } catch (error) {
+    if (error instanceof ExtractionError) {
+      return mediaContentError(context, error.code, error.message, error.status);
+    }
+
+    console.error(JSON.stringify({
+      message: "Targeted YouTube media persistence failed",
+      error: error instanceof Error ? error.message : String(error),
+    }));
+    return mediaContentError(context, "internal_error", "The video could not be saved.", 500);
+  }
+}
+
+async function checkCaptureRateLimit(context: Context<AppEnv>): Promise<Response | null> {
+  const rateLimit = await context.env.EXTRACT_RATE_LIMITER.limit({
+    key: `youtube:capture:${context.get("userId")}`,
+  });
+  return rateLimit.success
+    ? null
+    : mediaContentError(
+        context,
+        "rate_limited",
+        "Too many videos were captured recently. Try again in a minute.",
+        429,
+        { "Retry-After": "60" },
+      );
+}
+
+async function readCapturedYouTubeContent(
+  context: Context<AppEnv>,
+): Promise<YouTubeCapturedContent> {
+  const body = await readJsonRequestBody(context.req.raw, MAX_CAPTURE_REQUEST_BYTES);
+  if (!isYouTubeCapturedContent(body)) {
+    throw new ExtractionError({
+      code: "bad_request",
+      status: 400,
+      message: "The captured video data is invalid.",
+    });
+  }
+  return body;
+}
+
+function matchesYouTubeItem(item: ItemRow, content: YouTubeCapturedContent): boolean {
+  const itemUrl = parseYouTubeUrl(item.url);
+  const sourceUrl = parseYouTubeUrl(content.sourceUrl);
+  const storedVideoId = item.youtube_video_id ?? itemUrl?.videoId ?? null;
+  return itemUrl !== null &&
+    storedVideoId === itemUrl.videoId &&
+    content.videoId === itemUrl.videoId &&
+    sourceUrl !== null &&
+    sourceUrl.videoId === itemUrl.videoId;
+}
+
+async function persistYouTubeContent(
+  db: D1Database,
+  userId: string,
+  item: ItemRow,
+  content: YouTubeCapturedContent,
+): Promise<ItemRow | null> {
+  const capturedAt = new Date().toISOString();
+  await db.batch([
+    updateYouTubeIdentity(db, userId, item, content.videoId, capturedAt),
+    mediaUpsertStatement(db, item.id, content, capturedAt),
+  ]);
+  return findItem(db, userId, item.id);
+}
+
+function updateYouTubeIdentity(
+  db: D1Database,
+  userId: string,
+  item: ItemRow,
+  videoId: string,
+  updatedAt: string,
+): D1PreparedStatement {
+  return item.youtube_video_id === null
+    ? db.prepare(
+        "UPDATE items SET youtube_video_id = ?, updated_at = ? WHERE id = ? AND user_id = ?",
+      ).bind(videoId, updatedAt, item.id, userId)
+    : db.prepare(
+        "UPDATE items SET updated_at = ? WHERE id = ? AND user_id = ?",
+      ).bind(updatedAt, item.id, userId);
 }
 
 export async function getYouTubeContent(context: Context<AppEnv>): Promise<Response> {
@@ -159,7 +251,12 @@ function mediaUpsertStatement(
       author = excluded.author,
       description = excluded.description,
       thumbnail_url = excluded.thumbnail_url,
-      transcript_json = excluded.transcript_json,
+      transcript_json = CASE
+        WHEN json_extract(media_content.transcript_json, '$.kind') = 'available'
+          AND json_extract(excluded.transcript_json, '$.kind') = 'unavailable'
+        THEN media_content.transcript_json
+        ELSE excluded.transcript_json
+      END,
       captured_at = excluded.captured_at
   `).bind(
     itemId,

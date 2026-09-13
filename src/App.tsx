@@ -34,9 +34,8 @@ import { UtilityDock } from "./components/UtilityDock";
 import { Spinner } from "./components/Spinner";
 import { ArrowLeftIcon, PlusIcon } from "./components/icons";
 import { notify } from "./notifications";
-import { isYouTubeCapturedContent, type YouTubeCapturedContent } from "../shared/media";
 import type { CaptureInput } from "../shared/capture";
-import { saveYouTubeContent } from "./itemApi";
+import { useExtensionCapture } from "./useExtensionCapture";
 import { commitWithViewTransition } from "./viewTransition";
 import { readPasteCaptureUrl } from "./pasteCapture";
 import { useEnrichmentRefresh } from "./useEnrichmentRefresh";
@@ -107,7 +106,7 @@ export default function App() {
     retry,
     refreshSilently,
     addItem,
-    captureUrl,
+    captureUrlWithError,
     reconcileItem,
     reconcileItemMetadata,
     moveToDesk,
@@ -142,16 +141,15 @@ export default function App() {
   }, []);
   const { watch: watchEnrichment } = useEnrichmentRefresh(items, reconcileItemMetadata);
 
-  const handleQuickCapture = useCallback(async (input: CaptureInput): Promise<boolean> => {
-    if (capturePending) {
-      announce({ message: "A capture is already in progress. Try again in a moment.", state: "info" });
-      return false;
-    }
-
-    const result = await captureUrl(input);
+  const persistQuickCapture = useCallback(async (input: CaptureInput) => {
+    const attempt = await captureUrlWithError(input);
+    const result = attempt.result;
     if (result === null) {
-      announce({ message: "That link could not be saved. Try again.", state: "error" });
-      return false;
+      announce({
+        message: attempt.error?.message ?? "That link could not be saved. Try again.",
+        state: attempt.error?.code === "capture_pending" ? "info" : "error",
+      });
+      return attempt;
     }
 
     const { item, created } = result;
@@ -172,8 +170,13 @@ export default function App() {
     }
 
     watchEnrichment(item.id);
-    return true;
-  }, [announce, capturePending, captureUrl, watchEnrichment]);
+    return attempt;
+  }, [announce, captureUrlWithError, watchEnrichment]);
+
+  const handleQuickCapture = useCallback(async (input: CaptureInput): Promise<boolean> => {
+    const { result } = await persistQuickCapture(input);
+    return result !== null;
+  }, [persistQuickCapture]);
 
   const handleFormCapture = useCallback(async (input: CaptureInput): Promise<boolean> => {
     const captured = await handleQuickCapture(input);
@@ -241,49 +244,11 @@ export default function App() {
     };
   }, [swapCandidateId, pendingAction, cancelSwap]);
 
-  useEffect(() => {
-    function handleCaptureMessage(event: MessageEvent<unknown>) {
-      if (
-        event.source !== window ||
-        event.origin !== window.location.origin ||
-        !isYouTubeCaptureMessage(event.data)
-      ) {
-        return;
-      }
-
-      const capture = event.data;
-      void saveYouTubeContent(capture.content)
-        .then(({ item, created }) => {
-          reconcileItem(item);
-          refreshSilently();
-          announce({
-            title: item.title,
-            message: created ? "captured to your inbox." : "capture updated.",
-            state: "success",
-            sound: "success",
-          });
-          window.postMessage({
-            type: "readr:capture-result",
-            captureId: capture.captureId,
-            ok: true,
-          }, window.location.origin);
-        })
-        .catch((error: unknown) => {
-          const message = error instanceof Error ? error.message : "The video could not be captured.";
-          announce({ message, state: "error" });
-          window.postMessage({
-            type: "readr:capture-result",
-            captureId: capture.captureId,
-            ok: false,
-            error: message,
-          }, window.location.origin);
-        });
-    }
-
-    window.addEventListener("message", handleCaptureMessage);
-    window.postMessage({ type: "readr:capture-ready" }, window.location.origin);
-    return () => window.removeEventListener("message", handleCaptureMessage);
-  }, [announce, reconcileItem, refreshSilently]);
+  useExtensionCapture({
+    persistUrl: persistQuickCapture,
+    reconcileItem,
+    refreshSilently,
+  });
 
   useEffect(() => {
     function handlePaste(event: ClipboardEvent): void {
@@ -607,21 +572,6 @@ function getAuthOrigin(): string {
   return "https://auth.overhawl.app";
 }
 
-function isYouTubeCaptureMessage(value: unknown): value is {
-  type: "readr:youtube-capture";
-  captureId: string;
-  content: YouTubeCapturedContent;
-} {
-  return isRecord(value) &&
-    value.type === "readr:youtube-capture" &&
-    isCaptureId(value.captureId) &&
-    isYouTubeCapturedContent(value.content);
-}
-
-function isCaptureId(value: unknown): value is string {
-  return typeof value === "string" && value.length > 0 && value.length <= 100;
-}
-
 function captureSectionLabel(status: ItemStatus): string {
   switch (status) {
     case "inbox":
@@ -635,10 +585,6 @@ function captureSectionLabel(status: ItemStatus): string {
       return exhaustive;
     }
   }
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 function SignedOutState({ theme, onToggleTheme }: ThemeDockProps) {

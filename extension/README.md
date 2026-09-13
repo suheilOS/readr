@@ -1,16 +1,35 @@
 # Readr browser capture (Chrome MV3)
 
-This unpacked extension is the first Phase 12 vertical slice. It captures a transcript that is already visible in a YouTube watch page and sends structured data to an open, signed-in Readr tab. It does not read cookies, fetch arbitrary URLs, or load remote code.
+The extension is a one-click capture surface. It has no popup or capture form:
+clicking the action saves the active HTTP(S) tab to Readr and shows a native
+browser notification.
 
-## Development smoke test
+YouTube URLs follow the same URL-first path. After `/api/capture` returns the
+authoritative item, the default browser export from the pinned Defuddle
+`0.19.2` package (the `defuddle` entry, not `defuddle/full`) runs its async
+YouTube extractor against the live YouTube document and best-effort attaches
+transcript, chapter, and media metadata to that item. The transcript panel is
+not required. The extension build includes this export locally; it does not
+load a CDN or remote script. A missing transcript never undoes a successful URL capture.
 
-1. Open `chrome://extensions`, enable Developer mode, and choose **Load unpacked**.
-2. Select this `extension/` directory.
-3. Sign in to [Readr](https://readr.overhawl.app/) in a tab.
-4. Open a YouTube watch page, open **Show transcript**, and wait for segments to render.
-5. Use the extension action and choose **Capture current video**.
-6. Open the matching item in Readr. Its stored metadata and transcript should render without waiting for server-side YouTube extraction.
+## Build and load unpacked
 
-The popup remains in its capturing state until the signed-in Readr tab confirms that the capture was saved. Authentication, rate-limit, network, and persistence errors are returned to the popup instead of being reported as a successful capture.
+Build the reviewable MV3 package from the repository root:
 
-The local host patterns in `manifest.json` cover the Vite and Cloudflare preview origins used by this repository. The extension is intentionally not wired into the app build; Chrome packages these reviewable files directly under Manifest V3.
+```sh
+bun run build:extension
+```
+
+In Chrome, open `chrome://extensions`, enable **Developer mode**, choose
+**Load unpacked**, and select `extension/dist/`. Re-run the build after source
+changes and reload the extension from that page.
+
+The extension uses `activeTab` for the clicked page, explicit YouTube host
+access for the live-page content script, explicit Readr origins for the bridge,
+and the `notifications` permission. It never reads, copies, or stores Readr
+session cookies or auth tokens.
+
+A signed-in Readr tab is reused without activation or navigation. If one does
+not exist, the extension opens a background Readr tab for the bridge and closes
+it after the capture/enrichment attempt. When authentication is required, that
+tab is kept and focused so sign-in can be completed.

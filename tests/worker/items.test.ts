@@ -352,6 +352,102 @@ describe("Readr item API", () => {
     expect((await items.json() as { items: unknown[] }).items).toHaveLength(1);
   });
 
+  it("attaches media to the captured item without changing lifecycle or manual fields", async () => {
+    const userId = `targeted-capture-${crypto.randomUUID()}`;
+    const created = await request(userId, "/api/items", {
+      method: "POST",
+      body: JSON.stringify({
+        title: "Manual title",
+        url: "https://youtu.be/dQw4w9WgXcQ",
+        type: "article",
+      }),
+    });
+    const createdBody = await created.json() as { item: { id: string } };
+    const itemId = createdBody.item.id;
+    await request(userId, `/api/items/${itemId}/move-to-desk`, { method: "POST" });
+    await env.READR_DB.prepare("UPDATE items SET note = ? WHERE id = ?")
+      .bind("Keep this note", itemId).run();
+
+    const content = {
+      kind: "youtube_capture",
+      videoId: "dQw4w9WgXcQ",
+      sourceUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ&t=20",
+      title: "Browser title",
+      author: "Browser channel",
+      description: "Browser description",
+      thumbnailUrl: "https://i.ytimg.com/vi/dQw4w9WgXcQ/hqdefault.jpg",
+      transcript: {
+        kind: "available",
+        language: "fr",
+        segments: [{ startSeconds: 0, text: "Useful transcript." }],
+        chapters: [{ startSeconds: 0, title: "Start" }],
+      },
+    };
+    const saved = await request(userId, `/api/items/${itemId}/media/youtube`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(content),
+    });
+
+    expect(saved.status).toBe(200);
+    expect(await saved.json()).toMatchObject({
+      created: false,
+      item: { id: itemId, title: "Manual title", type: "article", status: "desk", note: "Keep this note" },
+    });
+    const indexed = await env.READR_DB.prepare(
+      "SELECT youtube_video_id FROM items WHERE id = ?",
+    ).bind(itemId).first<{ youtube_video_id: string | null }>();
+    expect(indexed?.youtube_video_id).toBe("dQw4w9WgXcQ");
+
+    const lateUnavailable = await request(userId, `/api/items/${itemId}/media/youtube`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ ...content, transcript: { kind: "unavailable" } }),
+    });
+    expect(lateUnavailable.status).toBe(200);
+    const loaded = await request(userId, `/api/items/${itemId}/media-content`);
+    expect(await loaded.json()).toMatchObject({
+      content: { transcript: { kind: "available", segments: [{ text: "Useful transcript." }] } },
+    });
+  });
+
+  it("rejects targeted media for another owner or another video", async () => {
+    const ownerId = `target-owner-${crypto.randomUUID()}`;
+    const otherId = `target-other-${crypto.randomUUID()}`;
+    const created = await request(ownerId, "/api/items", {
+      method: "POST",
+      body: JSON.stringify({ title: "Target", url: "https://youtu.be/dQw4w9WgXcQ", type: "video" }),
+    });
+    const itemId = (await created.json() as { item: { id: string } }).item.id;
+    const content = {
+      kind: "youtube_capture",
+      videoId: "dQw4w9WgXcQ",
+      sourceUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+      title: "Video",
+      author: null,
+      description: null,
+      thumbnailUrl: null,
+      transcript: { kind: "unavailable" },
+    };
+
+    expect((await request(otherId, `/api/items/${itemId}/media/youtube`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(content),
+    })).status).toBe(404);
+    expect((await request(ownerId, `/api/items/${itemId}/media/youtube`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ ...content, videoId: "9bZkp7q19f0", sourceUrl: "https://youtu.be/9bZkp7q19f0" }),
+    })).status).toBe(400);
+    await request(ownerId, `/api/items/${itemId}`, { method: "DELETE" });
+    expect((await request(ownerId, `/api/items/${itemId}/media/youtube`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(content),
+    })).status).toBe(404);
+  });
+
   it("creates a video inbox item when a browser capture has no match", async () => {
     const userId = `capture-new-${crypto.randomUUID()}`;
     const response = await request(userId, "/api/media/youtube/capture", {

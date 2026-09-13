@@ -1,11 +1,19 @@
 {
   "manifest_version": 3,
   "name": "Readr browser capture",
-  "description": "Capture a visible YouTube transcript into your Readr library.",
+  "description": "Save the current page to Readr, with best-effort YouTube transcript enrichment.",
   "version": "0.1.0",
+  "permissions": [
+    "activeTab",
+    "notifications"
+  ],
   "host_permissions": [
-    "https://www.youtube.com/watch*",
-    "https://m.youtube.com/watch*",
+    "https://www.youtube.com/*",
+    "https://m.youtube.com/*",
+    "https://music.youtube.com/*",
+    "https://youtube-nocookie.com/*",
+    "https://www.youtube-nocookie.com/*",
+    "https://youtu.be/*",
     "https://readr.overhawl.app/*",
     "http://localhost:5173/*",
     "http://localhost:8787/*"
@@ -14,14 +22,17 @@
     "service_worker": "service-worker.js"
   },
   "action": {
-    "default_title": "Capture to Readr",
-    "default_popup": "popup.html"
+    "default_title": "Save current page to Readr"
   },
   "content_scripts": [
     {
       "matches": [
-        "https://www.youtube.com/watch*",
-        "https://m.youtube.com/watch*"
+        "https://www.youtube.com/*",
+        "https://m.youtube.com/*",
+        "https://music.youtube.com/*",
+        "https://youtube-nocookie.com/*",
+        "https://www.youtube-nocookie.com/*",
+        "https://youtu.be/*"
       ],
       "js": ["youtube-capture.js"],
       "run_at": "document_idle"

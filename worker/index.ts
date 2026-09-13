@@ -12,7 +12,11 @@ import {
   extractYouTubeMetadataFromRequest,
   extractYouTubeTranscriptFromRequest,
 } from "./media";
-import { captureYouTubeContent, getYouTubeContent } from "./mediaContent";
+import {
+  attachYouTubeContent,
+  captureYouTubeContent,
+  getYouTubeContent,
+} from "./mediaContent";
 import { captureRoutes } from './capture';
 import { recoverEnrichment } from './enrichment';
 
@@ -65,6 +69,7 @@ app.post(
   (context) => handleYouTubeExtraction(context, "transcript", extractYouTubeTranscriptFromRequest),
 );
 app.post("/api/media/youtube/capture", requireAuth, requireSameOrigin, captureYouTubeContent);
+app.post("/api/items/:id/media/youtube", requireAuth, requireSameOrigin, attachYouTubeContent);
 app.get("/api/items/:id/media-content", requireAuth, getYouTubeContent);
 app.all("/api/media/youtube/*", () => jsonError({
   error: {

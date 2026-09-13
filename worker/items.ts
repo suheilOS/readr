@@ -15,7 +15,7 @@ import { requireAuth, type AppEnv } from "./auth";
 import { requireSameOrigin } from "./csrf";
 
 const ITEM_COLUMNS = `
-  id, user_id, title, url, type, status, added_at, finished_at, note, updated_at
+  id, user_id, title, url, youtube_video_id, type, status, added_at, finished_at, note, updated_at
 `;
 
 const itemRoutes = new Hono<AppEnv>();
@@ -275,7 +275,6 @@ itemRoutes.put("/items/:id/media-progress", async (context) => {
 });
 
 export { findItem, findYouTubeItem, itemRoutes, toItem };
-export type { ItemRow };
 
 async function readCreateInput(context: Context<AppEnv>): Promise<CreateItemInput | null> {
   const body = await readJson(context);
@@ -319,7 +318,7 @@ async function findYouTubeItem(
   videoId: YouTubeVideoId,
 ): Promise<ItemRow | null> {
   const indexed = await db.prepare(`
-    SELECT ${ITEM_COLUMNS}, youtube_video_id
+    SELECT ${ITEM_COLUMNS}
     FROM items
     WHERE user_id = ? AND youtube_video_id = ?
     LIMIT 1
@@ -327,7 +326,7 @@ async function findYouTubeItem(
   if (indexed !== null) return indexed;
 
   const historical = await db.prepare(`
-    SELECT ${ITEM_COLUMNS}, youtube_video_id
+    SELECT ${ITEM_COLUMNS}
     FROM items
     WHERE user_id = ? AND youtube_video_id IS NULL AND url IS NOT NULL
     ORDER BY added_at ASC, id ASC
@@ -373,7 +372,7 @@ type CreateItemInput = {
   type: ItemType;
 };
 
-type ItemRow = {
+export type ItemRow = {
   id: string;
   user_id: string;
   title: string;
@@ -384,7 +383,7 @@ type ItemRow = {
   finished_at: string | null;
   note: string | null;
   updated_at: string;
-  youtube_video_id?: string | null;
+  youtube_video_id: string | null;
 };
 
 type MediaProgressRow = {

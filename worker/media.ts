@@ -4,13 +4,12 @@ import {
   parseMediaRequest,
   parseYouTubeUrl,
   type MediaRequest,
-  type TranscriptSegment,
-  type VideoChapter,
   type YouTubeMetadata,
   type YouTubeReaderContent,
   type YouTubeTranscriptContent,
   type YouTubeUrl,
 } from "../shared/media";
+import { normalizeDefuddleYouTubeResult } from "../shared/youtubeNormalization";
 import { ExtractionError, readBodyWithLimit, readJsonRequestBody } from "./extract";
 
 const METADATA_TIMEOUT_MS = 4_000;
@@ -93,11 +92,13 @@ async function extractYouTubeTranscript(
       language: input.language ?? undefined,
       fetch: createYouTubeTranscriptFetch(url.videoId, deadline, playerDetails),
     }).parseAsync();
-    const adapted = adaptYouTubeTranscript({
-      content: result.content,
+    const { document: transcriptDocument } = parseHTML(
+      `<html><body>${result.content}</body></html>`,
+    );
+    const adapted = normalizeDefuddleYouTubeResult({
       description: result.description || playerDetails.description || "",
       language: result.language,
-    });
+    }, transcriptDocument);
     if (deadline.aborted && adapted.segments.length === 0) {
       throw new DOMException("The transcript request timed out.", "TimeoutError");
     }
@@ -233,63 +234,6 @@ function validatedThumbnail(value: unknown): string | null {
   } catch {
     return null;
   }
-}
-
-type DefuddleYouTubeResult = {
-  content: string;
-  description: string;
-  language: string;
-};
-
-function adaptYouTubeTranscript(result: DefuddleYouTubeResult): {
-  description: string | null;
-  language: string | null;
-  segments: TranscriptSegment[];
-  chapters: VideoChapter[];
-} {
-  const { document } = parseHTML(`<html><body>${result.content}</body></html>`);
-  const transcript = document.querySelector(".transcript");
-  const segments: TranscriptSegment[] = [];
-  const chapters: VideoChapter[] = [];
-  let pendingChapter: string | null = null;
-
-  if (transcript !== null) {
-    for (const child of Array.from(transcript.children)) {
-      if (child.localName === "h3") {
-        pendingChapter = cleanText(child.textContent ?? "");
-        continue;
-      }
-
-      if (!child.classList.contains("transcript-segment")) continue;
-      const timestamp = child.querySelector<HTMLElement>("[data-timestamp]");
-      const startSeconds = Number(timestamp?.dataset.timestamp);
-      const fullText = cleanText(child.textContent ?? "");
-      const timestampText = cleanText(timestamp?.textContent ?? "");
-      const text = fullText
-        .replace(new RegExp(`^${escapeRegExp(timestampText)}\\s*[·•]?\\s*`), "")
-        .trim();
-
-      if (!Number.isFinite(startSeconds) || startSeconds < 0 || text.length === 0) continue;
-      segments.push({ startSeconds, text });
-
-      if (pendingChapter !== null && pendingChapter.length > 0) {
-        chapters.push({ startSeconds, title: pendingChapter });
-        pendingChapter = null;
-      }
-    }
-  }
-
-  const descriptionElement = Array.from(document.body.children).find(
-    (element) => element.localName === "p" && !element.closest(".transcript"),
-  );
-  const description = cleanText(descriptionElement?.textContent ?? "") || cleanText(result.description);
-
-  return {
-    description: description || null,
-    language: result.language.trim() || null,
-    segments: segments.sort((left, right) => left.startSeconds - right.startSeconds),
-    chapters: chapters.sort((left, right) => left.startSeconds - right.startSeconds),
-  };
 }
 
 function createYouTubeTranscriptFetch(
@@ -478,10 +422,6 @@ function escapeAttribute(value: string): string {
     "\"": "&quot;",
     "'": "&#39;",
   })[character] ?? character);
-}
-
-function escapeRegExp(value: string): string {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

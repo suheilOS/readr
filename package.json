@@ -3,6 +3,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "build:extension": "vite build --config extension/vite.config.js",
     "analyze": "vite build --mode analyze",
     "lint": "eslint .",
     "preview": "vite preview",
@@ -22,7 +23,7 @@
     "@fontsource/open-runde": "^5.2.1",
     "@web-kits/audio": "^0.2.0",
     "clsx": "^2.1.1",
-    "defuddle": "^0.19.2",
+    "defuddle": "0.19.2",
     "dompurify": "^3.4.14",
     "hono": "^4.13.3",
     "linkedom": "^0.18.13",

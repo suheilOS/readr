@@ -37,7 +37,7 @@ Gate: paste works on desktop and mobile where supported; editing still pastes no
 
 Remove the action popup. Clicking saves the current supported tab through the common capture path, with badge state and a browser notification. Keep sign-in recovery actionable. Preserve the existing signed-in Readr bridge initially; do not copy session cookies or introduce broad host access without need.
 
-For YouTube, persist the URL first, then run bundled Defuddle against the live page and submit validated media enrichment to that item. Inspect the exact installed release before choosing its adapter. Prefer inline player/caption requests and use automatic DOM fallback only when needed. No instruction to the user to open the transcript panel.
+For YouTube, persist the URL first, then run bundled Defuddle against the live page and submit validated media enrichment to that item. Inspect the exact installed release before choosing its adapter. Prefer inline player/caption requests and use automatic DOM fallback only when needed. Users do not need to interact with the transcript panel.
 
 Gate: test real Chrome pages with the transcript closed, manual and automatic captions, no captions, language variants, YouTube SPA navigation, expired login, and a closed Readr tab. Verify video identity before storing a result. A late failed attempt must not overwrite a usable stored transcript. Tests with fixtures alone do not establish YouTube reliability.
 
@@ -69,7 +69,7 @@ Gate: test an actual shared Shortcut on iPhone, expired/revoked credentials, dup
 
 The intended Shiori reference is Brian Lovin's `shiori.sh`, not `go-shiori/shiori`. Treat its capture interaction as inspiration, not evidence of its private transcript implementation.
 
-The local extension currently scrapes rendered transcripts. The Worker already has independent metadata/transcript paths and stored browser captures. Preserve these useful boundaries.
+The local extension now runs the pinned Defuddle YouTube extractor against the live page. The Worker retains independent metadata/transcript paths and stored browser captures, while the targeted attachment route prevents browser enrichment from creating a second item.
 
 The current [Defuddle YouTube extractor](https://github.com/kepano/defuddle/blob/main/src/extractors/youtube.ts) supports programmatic acquisition and automatic DOM fallback, but upstream main is not proof that the installed version behaves identically. Live page access improves the available inputs; it does not guarantee captions for every video. Review [Obsidian Web Clipper](https://github.com/obsidianmd/obsidian-clipper) alongside the pinned Defuddle source during phase 3.
 
@@ -79,7 +79,8 @@ The current [Defuddle YouTube extractor](https://github.com/kepano/defuddle/blob
 
 - Phase 1: implemented locally. URL capture, metadata/status and retry APIs, D1 persistence, scheduled recovery, and typed client helpers are available.
 - Phase 2: implemented locally. The web form and global paste handler use the shared URL capture path, preserve manual capture, reconcile duplicates immediately, and refresh pending enrichment without blocking lifecycle actions.
-- Phases 3–7: planned, not implemented by this change.
+- Phase 3: implemented locally. The action has no popup, captures HTTP(S) URLs through the common bridge, reports with badge/notifications, and performs best-effort live-page Defuddle `0.19.2` YouTube enrichment against the authoritative captured item.
+- Phases 4–7: planned, not implemented by this change.
 - Production rollout and live extension smoke tests: separate from local implementation and validation.
 
-Validation includes 34 new capture/enrichment tests using the real local D1 runtime and controlled upstream responses. Existing Worker, DOM, and extension suites pass, along with TypeScript/build, lint, and the Wrangler deployment dry run. The migration is exercised by the Worker test setup. External websites and live Chrome extension capture were not used to claim transcript reliability.
+Validation includes focused targeted-media, bridge, service-worker, and live-page Defuddle fixture tests using the real local D1 runtime and controlled fetches. Existing Worker, DOM, and extension suites pass, along with TypeScript/build, lint, and the Wrangler deployment dry run. The migration is exercised by the Worker test setup. A real Chromium 152 smoke loaded the unpacked `extension/dist/`, exercised the generic HTTP bridge fixture, and captured `https://www.youtube.com/watch?v=dQw4w9WgXcQ` with the transcript panel closed; Defuddle returned an available transcript and the URL-first/media-attachment message sequence completed. Manual-vs-ASR comparison, no-caption, multilingual, SPA-navigation, signed-out real Readr, and repeated lifecycle scenarios were not run with live accounts/videos, so fixtures and this smoke do not establish universal YouTube reliability.

@@ -279,7 +279,7 @@ function isNonEmptyString(value: unknown): value is string {
   return typeof value === "string" && value.trim().length > 0;
 }
 
-function isYouTubeImageUrl(value: unknown): value is string {
+export function isYouTubeImageUrl(value: unknown): value is string {
   if (!isHttpsUrl(value)) return false;
   try {
     const hostname = new URL(value).hostname.toLowerCase();

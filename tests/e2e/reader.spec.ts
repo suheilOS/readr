@@ -428,15 +428,16 @@ test("uses a stored browser capture before live YouTube extraction", async ({ pa
   expect(transcriptRequests).toBe(0);
 });
 
-test("acknowledges browser capture only after persistence succeeds", async ({ page }) => {
+test("acknowledges extension URL capture only after persistence succeeds", async ({ page }) => {
   let captureRequests = 0;
   let itemRequests = 0;
   let captureSaved = false;
+  let capturePayload: Record<string, unknown> | null = null;
   const capturedItem = {
     id: "captured-e2e",
     title: "Captured from browser",
-    url: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
-    type: "video",
+    url: "https://example.com/captured-from-browser",
+    type: "article",
     status: "inbox",
     addedAt: "2026-08-28T00:00:00.000Z",
     finishedAt: null,
@@ -450,8 +451,9 @@ test("acknowledges browser capture only after persistence succeeds", async ({ pa
       body: JSON.stringify({ items: captureSaved ? [capturedItem] : [] }),
     });
   });
-  await page.route("**/api/media/youtube/capture", async (route) => {
+  await page.route("**/api/capture", async (route) => {
     captureRequests += 1;
+    capturePayload = route.request().postDataJSON() as Record<string, unknown>;
     captureSaved = true;
     await route.fulfill({
       status: 201,
@@ -481,27 +483,28 @@ test("acknowledges browser capture only after persistence succeeds", async ({ pa
       window.addEventListener("message", handleMessage);
     });
     window.postMessage({
-      type: "readr:youtube-capture",
+      type: "readr:capture-url",
       captureId,
-      content: {
-        kind: "youtube_capture",
-        videoId: "dQw4w9WgXcQ",
-        sourceUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
-        title: "Captured from browser",
-        author: null,
-        description: null,
-        thumbnailUrl: null,
-        transcript: { kind: "unavailable" },
-      },
+      url: "https://example.com/captured-from-browser",
     }, window.location.origin);
     return resultPromise;
   });
 
-  expect(result).toEqual({ type: "readr:capture-result", captureId: "e2e-capture", ok: true });
+  expect(result).toEqual({
+    type: "readr:capture-result",
+    resultType: "readr:capture-url",
+    captureId: "e2e-capture",
+    ok: true,
+    result: {
+      created: true,
+      item: { id: "captured-e2e", title: "Captured from browser", status: "inbox" },
+    },
+  });
+  expect(capturePayload).toEqual({ url: "https://example.com/captured-from-browser" });
   await expect(page.getByText("Captured from browser", { exact: true })).toBeVisible();
   await expect(page.getByText("Loading your library…")).toHaveCount(0);
   expect(captureRequests).toBe(1);
-  await expect.poll(() => itemRequests).toBe(2);
+  await expect.poll(() => itemRequests).toBe(1);
 });
 
 async function installMockYouTubePlayer(page: Page): Promise<void> {

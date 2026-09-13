@@ -21,7 +21,7 @@ The desk has a fixed capacity of five. When it is full, replacing an item discar
 - Search titles and links across the inbox, desk, and library.
 - Read linked articles and papers in the app with extracted title, author, reading time, and word count.
 - Watch supported YouTube links with a sticky player, timestamp seeking, transcript follow mode, chapters, keyboard controls, and saved playback position.
-- Capture a visible YouTube transcript from the companion Chrome MV3 extension and store it with the matching Readr item for fast repeat reads.
+- Save the current browser tab with the companion Chrome MV3 extension; YouTube transcript and chapter enrichment is automatic and best-effort.
 - Fall back to the original link when extraction is not available.
 - Light and dark themes, with optional sound cues.
 - Server-backed item data that follows your account across devices.
@@ -75,7 +75,8 @@ POST   /api/extract
 POST   /api/media/youtube/metadata
 POST   /api/media/youtube/transcript
 POST   /api/media/youtube       (legacy compatibility)
-POST   /api/media/youtube/capture
+POST   /api/media/youtube/capture       (legacy browser-capture compatibility)
+POST   /api/items/:id/media/youtube     (targeted browser media attachment)
 GET    /api/items/:id/media-content
 GET    /api/items/:id/media-progress
 PUT    /api/items/:id/media-progress
@@ -91,7 +92,7 @@ Metadata runs after the response. `item_metadata` stores source title, author, s
 
 The D1 job record survives request termination. A one-minute scheduled handler recovers pending jobs and expired leases, processes at most ten jobs with concurrency two, and stops after three attempts. Source requests have a ten-second total timeout, a 1 MiB HTML limit, and public-URL checks on redirects. YouTube uses the existing oEmbed path with a four-second timeout and a 64 KiB response limit. PDF MIME detection cancels the body. Enrichment does not run reader extraction or fetch transcripts.
 
-Apply migration `0006_capture_metadata.sql` before deploying this Worker. Local immediate enrichment works with the normal development server; scheduled recovery can be exercised with Wrangler's scheduled-event testing. Deployment does not bulk-enrich old items. The web form and paste shortcut are implemented in Phase 2 of [the capture roadmap](docs/capture-roadmap.md); the one-click extension remains a subsequent phase.
+Apply migration `0006_capture_metadata.sql` before deploying this Worker. Local immediate enrichment works with the normal development server; scheduled recovery can be exercised with Wrangler's scheduled-event testing. Deployment does not bulk-enrich old items. The web form, paste shortcut, and one-click extension are implemented in Phases 2 and 3 of [the capture roadmap](docs/capture-roadmap.md).
 
 ### Reader endpoint
 
@@ -108,7 +109,7 @@ The Worker accepts public HTTP(S) page URLs, removes common tracking parameters,
 
 The YouTube metadata and transcript endpoints accept watch, short, embed, live, and `youtu.be` URLs, reduce them to a validated video ID, and run independently. Metadata comes from YouTube's oEmbed endpoint; transcript segments and chapters come from Defuddle's asynchronous YouTube extraction path, which fetches player and timed-text data directly without relying on watch-page HTML. Neither endpoint returns extracted iframe HTML. Transcript failures degrade to the player and original link, while metadata failures leave the stored item title in place. The old combined `POST /api/media/youtube` response remains temporarily for already-open tabs during deployment and should not be used by new clients. Playback progress lives in a separate `media_progress` table and saves periodically while playing and when the page closes.
 
-The companion Chrome MV3 extension captures structured metadata and the transcript currently rendered by YouTube in the user's browser. It sends that payload through the signed-in Readr tab, so it never reads or copies the session cookie. `POST /api/media/youtube/capture` validates and upserts the capture, matching an existing YouTube item by video ID or creating one inbox video item. `GET /api/items/:id/media-content` returns the stored capture; the reader uses it before falling back to live extraction. See [`extension/README.md`](extension/README.md) for the unpacked-extension smoke test.
+The companion Chrome MV3 extension has no popup: its action saves the active HTTP(S) URL through `POST /api/capture`, then shows a native notification. For YouTube, the live-page content script runs bundled Defuddle `0.19.2` after URL persistence and attaches validated transcript, chapter, and media data to the returned item through `POST /api/items/:id/media/youtube`. This enrichment is best-effort; unavailable captions or a failed extraction never undo a successful URL capture. The signed-in Readr tab bridge never reads or copies the session cookie. `GET /api/items/:id/media-content` returns stored media; the reader uses it before falling back to live extraction. Build and load `extension/dist/` with `bun run build:extension`; see [`extension/README.md`](extension/README.md).
 
 ## Project structure
 

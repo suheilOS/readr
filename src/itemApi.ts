@@ -123,14 +123,17 @@ export async function fetchYouTubeContent(
   return response.body.content;
 }
 
-export async function saveYouTubeContent(content: YouTubeCapturedContent): Promise<CaptureResult> {
-  const response = await request("/api/media/youtube/capture", {
+export async function attachYouTubeContent(
+  itemId: string,
+  content: YouTubeCapturedContent,
+): Promise<CaptureResult> {
+  const response = await request(`/api/items/${encodeURIComponent(itemId)}/media/youtube`, {
     method: "POST",
     body: JSON.stringify(content),
   });
   const result = parseCaptureResult(response.body);
   if (result === null) {
-    throw new ItemApiError("The server returned an invalid capture.", 502, "invalid_response");
+    throw new ItemApiError("The server returned an invalid media response.", 502, "invalid_response");
   }
   return result;
 }

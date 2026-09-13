@@ -24,7 +24,7 @@ Readr app fetches its same-origin capture endpoint
   -> authenticated Worker validates and stores content in D1
 ```
 
-This keeps the existing CSRF and session model intact. If no Readr tab is open, the extension opens the app and waits for the bridge to load. The first slice captures the transcript currently rendered by YouTube; it does not attempt to reproduce InnerTube or inject remote code.
+This keeps the existing CSRF and session model intact. If no Readr tab is open, the extension opens the app and waits for the bridge to load. The browser flow captures the URL first, then uses the pinned Defuddle YouTube extractor against the live page; it does not inject remote code or create a parallel YouTube item.
 
 ## Evidence and decisions
 
@@ -34,7 +34,7 @@ Chrome’s messaging model supports short-lived `runtime.sendMessage` calls betw
 
 Content scripts can read the YouTube DOM, but they run in the page’s security context. Chrome and MDN recommend using messaging for privileged work, and Chrome explicitly warns against accepting an arbitrary URL from a page and fetching it in an extension handler. The content script will therefore send a validated, structured payload rather than a URL for the service worker to fetch ([Chrome network requests](https://developer.chrome.com/docs/extensions/develop/concepts/network-requests), [MDN content scripts](https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/Content_scripts)).
 
-Host permissions enable service-worker fetches, tab metadata, programmatic injection, and cookies. The first manifest will request only YouTube watch pages and the Readr origin; cookies are intentionally not requested ([Chrome permissions](https://developer.chrome.com/docs/extensions/develop/concepts/declare-permissions)).
+Host permissions enable service-worker fetches, tab metadata, programmatic injection, and cookies. The manifest requests active-tab access, notifications, explicit YouTube page access for the live content script, and explicit Readr origins; cookies are intentionally not requested ([Chrome permissions](https://developer.chrome.com/docs/extensions/develop/concepts/declare-permissions)).
 
 Manifest V3 requires extension code to be packaged rather than remotely hosted. The capture logic will be small, local, and reviewable ([Chrome Manifest V3](https://developer.chrome.com/docs/extensions/develop/migrate/what-is-mv3)).
 
@@ -69,7 +69,7 @@ The YouTube reader first requests stored media content. A stored capture supplie
 
 | Claim or decision | Evidence | Confidence | Remaining gap | Next check |
 | --- | --- | --- | --- | --- |
-| Browser DOM capture can avoid datacenter InnerTube variance | Chrome/MDN content-script DOM and messaging model; local Defuddle selectors | High | YouTube may change selectors | Keep selectors isolated and return a clear “open transcript” error |
+| Browser-page capture can avoid datacenter InnerTube variance | Chrome/MDN content-script DOM and messaging model; pinned Defuddle YouTube extractor | High | YouTube may change page/API behavior | Keep live extraction isolated, validate SPA identity, and treat media enrichment as best-effort |
 | Raw session-cookie access is unnecessary | Better Auth HttpOnly cookie + current Readr Auth Service Binding | High | Extension-to-page bridge needs browser smoke test | Add bridge message tests and manual unpacked-extension check |
 | Same-origin app write preserves current auth/CSRF | Current `requireAuth` and `requireSameOrigin` implementation; Cloudflare CORS guidance | High | App tab may not be open | Service worker opens Readr and waits for bridge load |
 | D1 can store bounded structured transcript JSON | Cloudflare D1 prepared statements and batch docs | High | Payload size needs an explicit product cap | Enforce body, segment, text, and description limits in shared validation |

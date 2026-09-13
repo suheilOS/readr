@@ -18,6 +18,12 @@ import {
 
 type ItemMutation = (id: string) => Promise<Item>;
 
+type CaptureOutcome<T> =
+  | { result: T; error: null }
+  | { result: null; error: ItemApiError };
+
+export type CaptureAttempt = CaptureOutcome<CaptureResult>;
+
 export type ItemLibrary = {
   items: Item[];
   loading: boolean;
@@ -29,6 +35,7 @@ export type ItemLibrary = {
   refreshSilently: () => void;
   addItem: (input: NewItemInput) => Promise<Item | null>;
   captureUrl: (input: CaptureInput) => Promise<CaptureResult | null>;
+  captureUrlWithError: (input: CaptureInput) => Promise<CaptureAttempt>;
   reconcileItem: (item: Item) => void;
   reconcileItemMetadata: (item: Pick<Item, "id" | "title" | "type">) => void;
   moveToDesk: (id: string) => Promise<Item | null>;
@@ -104,8 +111,13 @@ export function useItemLibrary(): ItemLibrary {
   const runCapture = useCallback(async <T,>(
     operation: () => Promise<T>,
     apply: (result: T) => void,
-  ): Promise<T | null> => {
-    if (capturePendingRef.current) return null;
+  ): Promise<CaptureOutcome<T>> => {
+    if (capturePendingRef.current) {
+      return {
+        result: null,
+        error: new ItemApiError("A capture is already in progress. Try again in a moment.", 409, "capture_pending"),
+      };
+    }
 
     capturePendingRef.current = true;
     setCapturePending(true);
@@ -115,30 +127,36 @@ export function useItemLibrary(): ItemLibrary {
       const result = await operation();
       dataGenerationRef.current += 1;
       apply(result);
-      return result;
+      return { result, error: null };
     } catch (error: unknown) {
+      const captureError = toItemApiError(error);
       handleError(error, setError, setUnauthenticated);
-      return null;
+      return { result: null, error: captureError };
     } finally {
       capturePendingRef.current = false;
       setCapturePending(false);
     }
   }, []);
 
-  const addItem = useCallback(
-    (input: NewItemInput): Promise<Item | null> => runCapture(
+  const addItem = useCallback(async (input: NewItemInput): Promise<Item | null> => {
+    const { result } = await runCapture(
       () => createItem(input),
       (item) => setItems((current) => upsertItem(current, item)),
+    );
+    return result;
+  }, [runCapture]);
+
+  const captureUrlWithError = useCallback(
+    (input: CaptureInput): Promise<CaptureAttempt> => runCapture(
+      () => requestCaptureUrl(input),
+      ({ item }) => setItems((current) => upsertItem(current, item)),
     ),
     [runCapture],
   );
 
   const captureUrl = useCallback(
-    (input: CaptureInput): Promise<CaptureResult | null> => runCapture(
-      () => requestCaptureUrl(input),
-      ({ item }) => setItems((current) => upsertItem(current, item)),
-    ),
-    [runCapture],
+    (input: CaptureInput): Promise<CaptureResult | null> => captureUrlWithError(input).then(({ result }) => result),
+    [captureUrlWithError],
   );
 
   const reconcileItem = useCallback((item: Item): void => {
@@ -227,6 +245,7 @@ export function useItemLibrary(): ItemLibrary {
     refreshSilently,
     addItem,
     captureUrl,
+    captureUrlWithError,
     reconcileItem,
     reconcileItemMetadata,
     moveToDesk,
@@ -241,6 +260,14 @@ function upsertItem(items: Item[], item: Item): Item[] {
   const index = items.findIndex((currentItem) => currentItem.id === item.id);
   if (index === -1) return [item, ...items];
   return items.map((currentItem) => currentItem.id === item.id ? item : currentItem);
+}
+
+function toItemApiError(error: unknown): ItemApiError {
+  if (error instanceof ItemApiError) return error;
+  const message = error instanceof Error
+    ? error.message
+    : "Readr could not complete that request. Try again.";
+  return new ItemApiError(message, 0, "unknown_error");
 }
 
 function handleError(
