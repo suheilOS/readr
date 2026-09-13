@@ -153,7 +153,7 @@ describe("useEnrichmentRefresh", () => {
     root = null;
   });
 
-  it("stops polling after the bounded retry window", async () => {
+  it("continues through the durable retry window with bounded polling", async () => {
     api.fetchItemMetadata.mockResolvedValue({
       item,
       metadata: { enrichment: { kind: "processing" } },
@@ -162,9 +162,37 @@ describe("useEnrichmentRefresh", () => {
     await act(async () => {
       getRefresh().watch(item.id);
       await Promise.resolve();
-      await vi.advanceTimersByTimeAsync(20_000);
     });
+    expect(api.fetchItemMetadata).toHaveBeenCalledOnce();
 
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(11 * 1_500);
+    });
     expect(api.fetchItemMetadata).toHaveBeenCalledTimes(12);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(59_999);
+    });
+    expect(api.fetchItemMetadata).toHaveBeenCalledTimes(12);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1);
+    });
+    expect(api.fetchItemMetadata).toHaveBeenCalledTimes(13);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(119_999);
+    });
+    expect(api.fetchItemMetadata).toHaveBeenCalledTimes(13);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1);
+    });
+    expect(api.fetchItemMetadata).toHaveBeenCalledTimes(14);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(60_000);
+    });
+    expect(api.fetchItemMetadata).toHaveBeenCalledTimes(15);
   });
 });

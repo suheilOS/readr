@@ -126,6 +126,65 @@ test("keeps full-desk replacement mode open while a swap is pending", async ({ p
   await expect(page.getByText("Inbox candidate", { exact: true })).toBeVisible();
 });
 
+test("captures a pasted URL through the App and reconciles the saved item", async ({ page }) => {
+  const capturedItem = {
+    id: "pasted-capture",
+    title: "Pasted URL",
+    url: "https://example.com/pasted",
+    type: "article",
+    status: "inbox",
+    addedAt: "2026-08-28T00:00:00.000Z",
+    finishedAt: null,
+    note: null,
+  };
+  let captureBody: unknown = null;
+
+  await page.route("**/api/items", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ items: [] }),
+    });
+  });
+  await page.route("**/api/capture", async (route) => {
+    captureBody = route.request().postDataJSON();
+    await route.fulfill({
+      status: 201,
+      contentType: "application/json",
+      body: JSON.stringify({ item: capturedItem, created: true }),
+    });
+  });
+  await page.route("**/api/items/pasted-capture/metadata", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ item: capturedItem, metadata: null }),
+    });
+  });
+
+  await page.goto("/");
+  await expect(page.getByRole("searchbox", { name: "Search titles and links" })).toBeVisible();
+  await page.getByRole("button", { name: "Add to inbox" }).click();
+  await expect(page.locator("#capture-url")).toBeFocused();
+  await page.getByRole("button", { name: "Close add form" }).click();
+
+  const prevented = await page.evaluate(() => {
+    const event = new Event("paste", { bubbles: true, cancelable: true });
+    Object.defineProperty(event, "clipboardData", {
+      value: {
+        getData: (format: string) => format === "text/plain" ? "https://example.com/pasted" : "",
+      },
+    });
+    window.dispatchEvent(event);
+    return event.defaultPrevented;
+  });
+
+  expect(prevented).toBe(true);
+  await expect.poll(() => captureBody).toEqual({ url: "https://example.com/pasted" });
+  await expect(page.locator(".toast-pill")).toContainText('"Pasted URL" saved to your inbox.');
+  await expect(page.getByText("Pasted URL", { exact: true })).toBeVisible();
+});
+
 test("plays a YouTube item with synchronized transcript controls", async ({ page }) => {
   const progressWrites: SaveMediaProgressInput[] = [];
   await installMockYouTubePlayer(page);

@@ -1,8 +1,8 @@
-import { parseItemMetadata, type ItemMetadata } from '../shared/capture';
+import { ENRICHMENT_RETRY_DELAYS_MS, parseItemMetadata, type ItemMetadata } from '../shared/capture';
 import { ExtractionError } from './extract';
 import { fetchMetadata, normalizeCaptureUrl } from './metadata';
 
-const MAX_ATTEMPTS = 3;
+const MAX_ATTEMPTS = ENRICHMENT_RETRY_DELAYS_MS.length + 1;
 const LEASE_MS = 60_000;
 
 export async function enrichItem(db: D1Database, itemId: string): Promise<void> {
@@ -45,12 +45,15 @@ export async function enrichItem(db: D1Database, itemId: string): Promise<void> 
     ]);
   } catch (error) {
     const code = error instanceof ExtractionError ? error.code : 'upstream_error';
-    const retry = job.attempts < MAX_ATTEMPTS &&
-      (code === 'upstream_error' || code === 'upstream_timeout' || code === 'internal_error');
+    const failedAt = Date.now();
+    const retryable = code === 'upstream_error' || code === 'upstream_timeout' || code === 'internal_error';
+    const retryDelay = retryable ? ENRICHMENT_RETRY_DELAYS_MS[job.attempts - 1] : undefined;
+    const retry = retryDelay !== undefined;
+    const nextAttemptAt = retryDelay === undefined ? failedAt : failedAt + retryDelay;
     await db.prepare(`
       UPDATE item_metadata SET state = ?, error_code = ?, next_attempt_at = ?, lease_token = NULL, lease_until = NULL
       WHERE item_id = ? AND state = 'processing' AND lease_token = ?
-    `).bind(retry ? 'queued' : 'failed', code, Date.now() + 60_000 * 2 ** (job.attempts - 1), itemId, token).run();
+    `).bind(retry ? 'queued' : 'failed', code, nextAttemptAt, itemId, token).run();
     console.warn(JSON.stringify({ message: 'capture enrichment failed', itemId, code, attempt: job.attempts, retry }));
   }
 }

@@ -53,6 +53,22 @@ describe("capture and lifecycle status labels", () => {
     expect(pendingItemActionLabel({ kind: "replace", itemId: "item-1" })).toBe("Replacing desk item.");
   });
 
+  it("puts URL capture first and keeps the title optional for links", async () => {
+    await act(async () => {
+      root?.render(createElement(AddItemForm, {
+        onAdd: vi.fn(),
+        onCapture: vi.fn(),
+        onCancel: vi.fn(),
+        state: "idle",
+        formId: "test-form",
+      }));
+    });
+
+    expect(Array.from(document.querySelectorAll<HTMLInputElement>("#capture-url, #capture-title"), (input) => input.id))
+      .toEqual(["capture-url", "capture-title"]);
+    expect(document.querySelector<HTMLInputElement>("#capture-title")?.required).toBe(false);
+  });
+
   it("routes a URL without manual fields through URL capture", async () => {
     const onCapture = vi.fn().mockResolvedValue(true);
     const onAdd = vi.fn().mockResolvedValue(true);

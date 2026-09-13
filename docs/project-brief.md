@@ -35,7 +35,7 @@ You capture fast and decide later. Adding never blocks on a decision, and decidi
 
 ## Items and metadata
 
-Metadata entry is fully manual. Paste an optional URL, type a title, and pick a type. Capture submits the entered metadata to `POST /api/items`.
+URL capture needs only a link: readr saves it to the Inbox and enriches its metadata asynchronously. Manual title and type entry remains available for links and offline items, and explicit values are preserved.
 
 ```ts
 type ItemType = "article" | "book" | "paper" | "video" | "podcast";
@@ -116,7 +116,7 @@ Inbox 7                 Library 42
 
 Desk cards show title, link hostname when available, type, and a Read action for supported URLs. The Inbox stays visible alongside the Desk and Library so captured items remain available for deliberate decisions without an extra open step. Three interaction principles apply everywhere:
 
-- **Capture fast**: focus the add control, type, press Enter
+- **Capture fast**: focus the add control, paste a URL or type, press Enter
 - **Decide deliberately**: moving an item onto the full desk carries visible weight
 - **Finish satisfyingly**: completion gets a brief transition. Sound cues mark selected actions without delaying the flow.
 

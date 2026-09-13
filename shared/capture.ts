@@ -1,6 +1,8 @@
 import { isItemType, parseItem, parseItemUrl, type Item, type ItemType } from './item';
 import { parseYouTubeUrl } from './media';
 
+export const ENRICHMENT_RETRY_DELAYS_MS = [60_000, 120_000] as const;
+
 export type CaptureInput = { url: string; title?: string; type?: ItemType };
 export type CaptureResult = { item: Item; created: boolean };
 export type TypeInference = { type: ItemType; source: 'url' | 'schema' | 'opengraph' | 'mime' | 'fallback' };

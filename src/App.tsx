@@ -126,7 +126,7 @@ export default function App() {
   const [theme, setTheme] = useState<Theme>(getInitialTheme);
   const { readerItemId, openReaderRoute, closeReaderRoute } = useReaderRoute();
   const addButtonRef = useRef<HTMLButtonElement>(null);
-  const titleInputRef = useRef<HTMLInputElement>(null);
+  const urlInputRef = useRef<HTMLInputElement>(null);
   const discardRequestRef = useRef<DiscardRequest | null>(null);
   const announce = useCallback(
     ({ title, message, state, sound }: AnnouncementInput) => {
@@ -219,7 +219,7 @@ export default function App() {
 
   useEffect(() => {
     if (captureOpen) {
-      titleInputRef.current?.focus();
+      urlInputRef.current?.focus();
     }
   }, [captureOpen]);
 
@@ -527,7 +527,7 @@ export default function App() {
                     onCancel={closeCapture}
                     state={addItemFormState}
                     formId="capture-form"
-                    titleRef={titleInputRef}
+                    urlRef={urlInputRef}
                   />
                 </div>
               </div>

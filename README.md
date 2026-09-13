@@ -17,7 +17,7 @@ The desk has a fixed capacity of five. When it is full, replacing an item discar
 
 ## Features
 
-- Capture a title, optional link, and type: article, book, paper, video, or podcast.
+- Capture a URL quickly or add a manual item with a title, optional link, and type: article, book, paper, video, or podcast.
 - Search titles and links across the inbox, desk, and library.
 - Read linked articles and papers in the app with extracted title, author, reading time, and word count.
 - Watch supported YouTube links with a sticky player, timestamp seeking, transcript follow mode, chapters, keyboard controls, and saved playback position.
@@ -91,7 +91,7 @@ Metadata runs after the response. `item_metadata` stores source title, author, s
 
 The D1 job record survives request termination. A one-minute scheduled handler recovers pending jobs and expired leases, processes at most ten jobs with concurrency two, and stops after three attempts. Source requests have a ten-second total timeout, a 1 MiB HTML limit, and public-URL checks on redirects. YouTube uses the existing oEmbed path with a four-second timeout and a 64 KiB response limit. PDF MIME detection cancels the body. Enrichment does not run reader extraction or fetch transcripts.
 
-Apply migration `0006_capture_metadata.sql` before deploying this Worker. Local immediate enrichment works with the normal development server; scheduled recovery can be exercised with Wrangler's scheduled-event testing. Deployment does not bulk-enrich old items. This is the API foundation; the web form, paste shortcut, and one-click extension are subsequent phases in [the capture roadmap](docs/capture-roadmap.md).
+Apply migration `0006_capture_metadata.sql` before deploying this Worker. Local immediate enrichment works with the normal development server; scheduled recovery can be exercised with Wrangler's scheduled-event testing. Deployment does not bulk-enrich old items. The web form and paste shortcut are implemented in Phase 2 of [the capture roadmap](docs/capture-roadmap.md); the one-click extension remains a subsequent phase.
 
 ### Reader endpoint
 

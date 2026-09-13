@@ -19,19 +19,26 @@ type AddItemFormProps = {
   onCancel: () => void;
   state: AddItemFormState;
   formId?: string;
-  titleRef?: Ref<HTMLInputElement>;
+  urlRef?: Ref<HTMLInputElement>;
 };
 
-export function AddItemForm({ onAdd, onCapture, onCancel, state, formId, titleRef }: AddItemFormProps) {
+export function AddItemForm({ onAdd, onCapture, onCancel, state, formId, urlRef }: AddItemFormProps) {
   const [title, setTitle] = useState("");
   const [url, setUrl] = useState("");
-  const [type, setType] = useState<ItemType>(DEFAULT_ITEM_TYPE);
-  const [typeSelected, setTypeSelected] = useState(false);
+  const [typeOverride, setTypeOverride] = useState<ItemType | null>(null);
   const [titleError, setTitleError] = useState(false);
   const [urlError, setUrlError] = useState(false);
   const submitting = state === "submitting";
   const titleErrorId = `${formId ?? "add-item"}-title-error`;
   const urlErrorId = `${formId ?? "add-item"}-url-error`;
+
+  function resetForm(): void {
+    setTitle("");
+    setUrl("");
+    setTypeOverride(null);
+    setTitleError(false);
+    setUrlError(false);
+  }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
@@ -54,17 +61,12 @@ export function AddItemForm({ onAdd, onCapture, onCancel, state, formId, titleRe
     if (parsedUrl !== null) {
       const captureInput: CaptureInput = { url: parsedUrl };
       if (trimmedTitle.length > 0) captureInput.title = trimmedTitle;
-      if (typeSelected) captureInput.type = type;
+      if (typeOverride !== null) captureInput.type = typeOverride;
 
       const captured = await onCapture(captureInput);
       if (!captured) return;
 
-      setTitle("");
-      setUrl("");
-      setType(DEFAULT_ITEM_TYPE);
-      setTypeSelected(false);
-      setTitleError(false);
-      setUrlError(false);
+      resetForm();
       return;
     }
 
@@ -81,16 +83,11 @@ export function AddItemForm({ onAdd, onCapture, onCancel, state, formId, titleRe
     const added = await onAdd({
       title: trimmedTitle,
       url: parsedUrl,
-      type,
+      type: typeOverride ?? DEFAULT_ITEM_TYPE,
     });
     if (!added) return;
 
-    setTitle("");
-    setUrl("");
-    setType(DEFAULT_ITEM_TYPE);
-    setTypeSelected(false);
-    setTitleError(false);
-    setUrlError(false);
+    resetForm();
   }
 
   function handleKeyDown(event: React.KeyboardEvent) {
@@ -107,36 +104,11 @@ export function AddItemForm({ onAdd, onCapture, onCancel, state, formId, titleRe
       onSubmit={(event) => { void handleSubmit(event); }}
       onKeyDown={handleKeyDown}
     >
-      <label className="visually-hidden" htmlFor="capture-title">
-        Title
-      </label>
-      <input
-        ref={titleRef}
-        id="capture-title"
-        name="title"
-        className="add-title"
-        type="text"
-        autoComplete="off"
-        placeholder="Title (optional for links)"
-        aria-describedby={titleError ? titleErrorId : undefined}
-        aria-invalid={titleError}
-        required
-        readOnly={submitting}
-        value={title}
-        onChange={(event) => {
-          setTitleError(false);
-          setTitle(event.target.value);
-        }}
-      />
-      {titleError && (
-        <p id={titleErrorId} className="form-error" role="alert">
-          Enter a title.
-        </p>
-      )}
       <label className="visually-hidden" htmlFor="capture-url">
         Link, optional
       </label>
       <input
+        ref={urlRef}
         id="capture-url"
         name="url"
         className="add-url"
@@ -157,12 +129,33 @@ export function AddItemForm({ onAdd, onCapture, onCancel, state, formId, titleRe
           Enter a complete http or https link without a username or password.
         </p>
       )}
-      <TypeSelect
-        value={type}
-        onChange={(nextType) => {
-          setTypeSelected(true);
-          setType(nextType);
+      <label className="visually-hidden" htmlFor="capture-title">
+        Title, optional for links
+      </label>
+      <input
+        id="capture-title"
+        name="title"
+        className="add-title"
+        type="text"
+        autoComplete="off"
+        placeholder="Title (optional for links)"
+        aria-describedby={titleError ? titleErrorId : undefined}
+        aria-invalid={titleError}
+        readOnly={submitting}
+        value={title}
+        onChange={(event) => {
+          setTitleError(false);
+          setTitle(event.target.value);
         }}
+      />
+      {titleError && (
+        <p id={titleErrorId} className="form-error" role="alert">
+          Enter a title.
+        </p>
+      )}
+      <TypeSelect
+        value={typeOverride ?? DEFAULT_ITEM_TYPE}
+        onChange={setTypeOverride}
         disabled={submitting}
       />
       <span className="visually-hidden" role="status" aria-atomic="true">

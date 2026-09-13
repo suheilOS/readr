@@ -1,6 +1,6 @@
 # Capture and discovery roadmap
 
-Based on the September 12, 2026 "Audit Latest Commit" conversation, checked against local HEAD `c37385c`. The audit fixes in `b6c7c89` are the baseline. This document supersedes the older browser-capture scope in `implementation-plan.md` for this work.
+Based on the September 12, 2026 "Audit Latest Commit" conversation, checked against local HEAD `35358e0`. Phases 1 and 2 are the current implementation baseline. This document supersedes the older browser-capture scope in `implementation-plan.md` for this work.
 
 ## Product decisions
 
@@ -77,8 +77,9 @@ The current [Defuddle YouTube extractor](https://github.com/kepano/defuddle/blob
 
 ## Implementation status
 
-- Phase 1: implemented locally. URL capture, metadata/status and retry APIs, D1 persistence, scheduled recovery, and typed client helpers are available. The existing form and extension are unchanged until their respective phases.
-- Phases 2–7: planned, not implemented by this change.
+- Phase 1: implemented locally. URL capture, metadata/status and retry APIs, D1 persistence, scheduled recovery, and typed client helpers are available.
+- Phase 2: implemented locally. The web form and global paste handler use the shared URL capture path, preserve manual capture, reconcile duplicates immediately, and refresh pending enrichment without blocking lifecycle actions.
+- Phases 3–7: planned, not implemented by this change.
 - Production rollout and live extension smoke tests: separate from local implementation and validation.
 
 Validation includes 34 new capture/enrichment tests using the real local D1 runtime and controlled upstream responses. Existing Worker, DOM, and extension suites pass, along with TypeScript/build, lint, and the Wrangler deployment dry run. The migration is exercised by the Worker test setup. External websites and live Chrome extension capture were not used to claim transcript reliability.
