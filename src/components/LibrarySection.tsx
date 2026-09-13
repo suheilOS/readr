@@ -1,14 +1,17 @@
 import { useRef } from "react";
 import { Menu } from "@base-ui/react/menu";
-import { itemMetaLine, type Item } from "../../shared/item";
-import { formatDate } from "../formatDate";
+import { readerKindFor, type Item, type ItemListItem } from "../../shared/item";
+import { formatCompactDate, formatDate } from "../formatDate";
 import { runWithFocusRestoration } from "../focusAdjacentAction";
+import { itemAuthorFor, itemVisualFor } from "../itemPresentation";
 import { isPendingItemAction, type PendingItemAction } from "../pendingItemAction";
 import { EmptyState } from "./EmptyState";
+import { ItemMetadataLine } from "./ItemMetadataLine";
+import { ItemVisual } from "./ItemVisual";
 import { ArrowUpIcon, InboxIcon, LibraryEmptyIcon, MoreVerticalIcon } from "./icons";
 
 type LibrarySectionProps = {
-  items: Item[];
+  items: ItemListItem[];
   onSendToDesk: (item: Item) => Promise<boolean>;
   onSendToInbox: (item: Item) => Promise<boolean>;
   pendingAction: PendingItemAction | null;
@@ -26,29 +29,39 @@ export function LibrarySection({
         <h2 id="library-heading" tabIndex={-1}>Library</h2>
         <span className="counter">{items.length}</span>
       </div>
-      <ul className="row-list">
-        {items.map((item) => (
-          <li
-            key={item.id}
-            className="row finished"
-            style={{ viewTransitionName: `item-${item.id}` }}
-          >
-            <div className="row-text">
-              <span className="row-title">{item.title}</span>
-              <span className="meta-line">
-                {itemMetaLine(item)}
-                {item.finishedAt !== null && ` · Finished ${formatDate(item.finishedAt)}`}
-              </span>
-              {item.note !== null && <p className="note-preview">{item.note}</p>}
-            </div>
-            <LibraryActionsMenu
-              item={item}
-              onSendToDesk={onSendToDesk}
-              onSendToInbox={onSendToInbox}
-              pendingAction={pendingAction}
-            />
-          </li>
-        ))}
+      <ul className="library-list">
+        {items.map((item) => {
+          const visual = itemVisualFor(item);
+          const className = `library-item${visual === null ? "" : " has-visual"}`;
+
+          return (
+            <li
+              key={item.id}
+              className={className}
+              style={{ viewTransitionName: `item-${item.id}` }}
+            >
+              {visual !== null && (
+                <ItemVisual
+                  key={visual.imageUrl}
+                  visual={visual}
+                  showPlay={readerKindFor(item) === "youtube"}
+                />
+              )}
+              <div className="library-item-body">
+                <LibraryItemDetails item={item} />
+                {item.note !== null && item.note.trim().length > 0 && (
+                  <p className="library-item-note">{item.note}</p>
+                )}
+              </div>
+              <LibraryActionsMenu
+                item={item}
+                onSendToDesk={onSendToDesk}
+                onSendToInbox={onSendToInbox}
+                pendingAction={pendingAction}
+              />
+            </li>
+          );
+        })}
       </ul>
       {items.length === 0 && (
         <EmptyState
@@ -57,6 +70,30 @@ export function LibrarySection({
         />
       )}
     </section>
+  );
+}
+
+function LibraryItemDetails({ item }: { item: ItemListItem }) {
+  const author = itemAuthorFor(item);
+
+  return (
+    <>
+      <ItemMetadataLine item={item} className="library-item-meta" />
+      <h3 className="library-item-title">{item.title}</h3>
+      {(author !== null || item.finishedAt !== null) && (
+        <div className="library-item-subline">
+          {author !== null && <span>{author}</span>}
+          {author !== null && item.finishedAt !== null && (
+            <span aria-hidden="true">·</span>
+          )}
+          {item.finishedAt !== null && (
+            <time dateTime={item.finishedAt} title={formatDate(item.finishedAt)}>
+              Finished {formatCompactDate(item.finishedAt)}
+            </time>
+          )}
+        </div>
+      )}
+    </>
   );
 }
 
@@ -84,7 +121,7 @@ function LibraryActionsMenu({
   }
 
   return (
-    <div className="row-actions library-actions">
+    <div className="library-actions">
       <Menu.Root>
         <Menu.Trigger
           ref={triggerRef}

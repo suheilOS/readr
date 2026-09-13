@@ -11,6 +11,8 @@
 @supports (corner-shape: squircle) {
   .recovery-panel,
   .desk-card,
+  .item-visual,
+  .library-item,
   .swap-banner,
   .library-menu,
   .library-menu-item,

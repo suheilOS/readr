@@ -1,7 +1,7 @@
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { Item } from "../../shared/item";
+import type { Item, ItemListItem } from "../../shared/item";
 import { DeskSection } from "../../src/components/DeskSection";
 import { InboxSection } from "../../src/components/InboxSection";
 
@@ -10,7 +10,7 @@ let root: Root | null = null;
 const inboxItems = [makeItem("inbox-1", "First inbox item"), makeItem("inbox-2", "Second inbox item")];
 const deskItems = [makeItem("desk-1", "First desk item", "desk"), makeItem("desk-2", "Second desk item", "desk")];
 
-function makeItem(id: string, title: string, status: Item["status"] = "inbox"): Item {
+function makeItem(id: string, title: string, status: Item["status"] = "inbox"): ItemListItem {
   return {
     id,
     title,
@@ -20,6 +20,7 @@ function makeItem(id: string, title: string, status: Item["status"] = "inbox"): 
     addedAt: "2026-08-23T12:00:00.000Z",
     finishedAt: null,
     note: null,
+    metadataSummary: null,
   };
 }
 
@@ -33,7 +34,7 @@ function renderInbox(items: Item[], onSendToDesk: (item: Item) => Promise<boolea
 }
 
 function renderDesk(
-  items: Item[],
+  items: ItemListItem[],
   mode: "normal" | "swap",
   onFinish: (item: Item) => Promise<boolean>,
   onSelectSwapTarget: (item: Item) => Promise<boolean> = vi.fn().mockResolvedValue(false),

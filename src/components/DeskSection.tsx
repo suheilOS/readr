@@ -1,9 +1,17 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 import { Menu } from "@base-ui/react/menu";
-import { canReadInApp, DESK_CAPACITY, type Item, itemMetaLine, readerKindFor } from "../../shared/item";
+import {
+  DESK_CAPACITY,
+  type Item,
+  type ItemListItem,
+  readerKindFor,
+} from "../../shared/item";
 import { runWithFocusRestoration } from "../focusAdjacentAction";
+import { itemAuthorFor, itemVisualFor } from "../itemPresentation";
 import { isPendingItemAction, type PendingItemAction } from "../pendingItemAction";
 import { EmptyState } from "./EmptyState";
+import { ItemMetadataLine } from "./ItemMetadataLine";
+import { ItemVisual } from "./ItemVisual";
 import {
   BookOpenIcon,
   CheckIcon,
@@ -15,9 +23,8 @@ import {
   VideoIcon,
 } from "./icons";
 
-
 type DeskSectionProps = {
-  items: Item[];
+  items: ItemListItem[];
   deskCount: number;
   mode: "normal" | "swap";
   onFinish: (item: Item) => Promise<boolean>;
@@ -51,7 +58,6 @@ export function DeskSection({
     if (swapActive) firstSwapTargetRef.current?.focus();
   }, [swapActive]);
 
-
   return (
     <section className="desk" aria-labelledby="desk-heading">
       <div className="section-header">
@@ -69,105 +75,125 @@ export function DeskSection({
         </p>
       )}
       <ul className="desk-list">
-        {items.map((item, index) => (
-          <li key={item.id} style={{ viewTransitionName: `item-${item.id}` }}>
-            {swapActive ? (
-              <button
-                ref={index === 0 ? firstSwapTargetRef : undefined}
-                type="button"
-                className="desk-card swappable"
-                aria-label={`Replace ${item.title}`}
-                aria-busy={isPendingItemAction(pendingAction, item.id, "replace")}
-                disabled={busy}
-                onClick={(event) => {
-                  runWithFocusRestoration(
-                    event.currentTarget,
-                    "desk-heading",
-                    () => onSelectSwapTarget(item),
-                  );
-                }}
-              >
-                {isPendingItemAction(pendingAction, item.id, "replace") && (
-                  <span className="desk-card-pending">
-                    <span className="button-spinner" aria-hidden="true" />
-                    <span>Replacing…</span>
-                  </span>
-                )}
-                <span className="card-title">{item.title}</span>
-                <span className="meta-line">{itemMetaLine(item)}</span>
-              </button>
-            ) : (
-              <article className="desk-card">
-                <h3 className="card-title">{item.title}</h3>
-                <p className="meta-line">{itemMetaLine(item)}</p>
-                <div className="card-actions">
-                  {canReadInApp(item) && (
-                    <button
-                      type="button"
-                      className="pill-button"
-                      aria-label={`Open in readr: ${item.title}`}
-                      data-reader-item-id={item.id}
-                      onMouseEnter={onReadIntent}
-                      onFocus={onReadIntent}
-                      onClick={() => onRead(item)}
-                    >
-                      {readerKindFor(item) === "youtube" ? (
-                        <VideoIcon className="button-icon" />
-                      ) : (
-                        <BookOpenIcon className="button-icon" />
-                      )}
-                      <span>{readerKindFor(item) === "youtube" ? "Watch" : "Read"}</span>
-                    </button>
+        {items.map((item, index) => {
+          const visual = itemVisualFor(item);
+          const readerKind = readerKindFor(item);
+          const cardClassName = `desk-card${visual === null ? "" : " has-visual"}`;
+
+          return (
+            <li key={item.id} style={{ viewTransitionName: `item-${item.id}` }}>
+              {swapActive ? (
+                <button
+                  ref={index === 0 ? firstSwapTargetRef : undefined}
+                  type="button"
+                  className={`${cardClassName} swappable`}
+                  aria-label={`Replace ${item.title}`}
+                  aria-busy={isPendingItemAction(pendingAction, item.id, "replace")}
+                  disabled={busy}
+                  onClick={(event) => {
+                    runWithFocusRestoration(
+                      event.currentTarget,
+                      "desk-heading",
+                      () => onSelectSwapTarget(item),
+                    );
+                  }}
+                >
+                  {visual !== null && (
+                    <ItemVisual key={visual.imageUrl} visual={visual} />
                   )}
-                  {item.url !== null && !canReadInApp(item) && (
-                    <a
-                      className="pill-button"
-                      href={item.url}
-                      target="_blank"
-                      rel="noreferrer"
-                      aria-label={`Open original: ${item.title}`}
-                    >
-                      <ExternalLinkIcon className="button-icon" />
-                      <span>Open original</span>
-                    </a>
-                  )}
-                  <button
-                    type="button"
-                    className="pill-button finish-button"
-                    aria-label={`Finish: ${item.title}`}
-                    aria-busy={isPendingItemAction(pendingAction, item.id, "finish")}
-                    disabled={busy}
-                    onClick={(event) => {
-                      runWithFocusRestoration(
-                        event.currentTarget,
-                        "desk-heading",
-                        () => onFinish(item),
-                      );
-                    }}
-                  >
-                    {isPendingItemAction(pendingAction, item.id, "finish") ? (
-                      <>
+                  <span className="desk-card-body">
+                    {isPendingItemAction(pendingAction, item.id, "replace") && (
+                      <span className="desk-card-pending">
                         <span className="button-spinner" aria-hidden="true" />
-                        <span>Finishing…</span>
-                      </>
-                    ) : (
-                      <>
-                        <CheckIcon className="button-icon" />
-                        <span>Finish</span>
-                      </>
+                        <span>Replacing…</span>
+                      </span>
                     )}
-                  </button>
-                  <DeskActionsMenu
-                    item={item}
-                    onSendToInbox={onSendToInbox}
-                    onDiscard={onDiscard}
-                    pendingAction={pendingAction}
-                  />
-                </div>
-              </article>
-            )}
-          </li>
-        ))}
+                    <DeskCardDetails
+                      item={item}
+                      titleContent={<span className="card-title">{item.title}</span>}
+                    />
+                  </span>
+                </button>
+              ) : (
+                <article className={cardClassName}>
+                  {visual !== null && (
+                    <ItemVisual key={visual.imageUrl} visual={visual} />
+                  )}
+                  <div className="desk-card-body">
+                    <DeskCardDetails
+                      item={item}
+                      titleContent={<h3 className="card-title">{item.title}</h3>}
+                    />
+                    <div className="card-actions">
+                      {readerKind !== null && (
+                        <button
+                          type="button"
+                          className="pill-button"
+                          aria-label={`Open in readr: ${item.title}`}
+                          data-reader-item-id={item.id}
+                          onMouseEnter={onReadIntent}
+                          onFocus={onReadIntent}
+                          onClick={() => onRead(item)}
+                        >
+                          {readerKind === "youtube" ? (
+                            <VideoIcon className="button-icon" />
+                          ) : (
+                            <BookOpenIcon className="button-icon" />
+                          )}
+                          <span>{readerKind === "youtube" ? "Watch" : "Read"}</span>
+                        </button>
+                      )}
+                      {item.url !== null && readerKind === null && (
+                        <a
+                          className="pill-button"
+                          href={item.url}
+                          target="_blank"
+                          rel="noreferrer"
+                          aria-label={`Open original: ${item.title}`}
+                        >
+                          <ExternalLinkIcon className="button-icon" />
+                          <span>Open original</span>
+                        </a>
+                      )}
+                      <button
+                        type="button"
+                        className="pill-button finish-button"
+                        aria-label={`Finish: ${item.title}`}
+                        aria-busy={isPendingItemAction(pendingAction, item.id, "finish")}
+                        disabled={busy}
+                        onClick={(event) => {
+                          runWithFocusRestoration(
+                            event.currentTarget,
+                            "desk-heading",
+                            () => onFinish(item),
+                          );
+                        }}
+                      >
+                        {isPendingItemAction(pendingAction, item.id, "finish") ? (
+                          <>
+                            <span className="button-spinner" aria-hidden="true" />
+                            <span>Finishing…</span>
+                          </>
+                        ) : (
+                          <>
+                            <CheckIcon className="button-icon" />
+                            <span>Finish</span>
+                          </>
+                        )}
+                      </button>
+                      <DeskActionsMenu
+                        item={item}
+                        onSendToInbox={onSendToInbox}
+                        onDiscard={onDiscard}
+                        pendingAction={pendingAction}
+                      />
+                    </div>
+                  </div>
+                </article>
+              )}
+            </li>
+          );
+        })}
       </ul>
       {!swapActive && items.length === 0 && (
         <EmptyState
@@ -176,6 +202,24 @@ export function DeskSection({
         />
       )}
     </section>
+  );
+}
+
+function DeskCardDetails({
+  item,
+  titleContent,
+}: {
+  item: ItemListItem;
+  titleContent: ReactNode;
+}) {
+  const author = itemAuthorFor(item);
+
+  return (
+    <>
+      <ItemMetadataLine item={item} className="desk-card-meta" />
+      {titleContent}
+      {author !== null && <span className="desk-card-author">{author}</span>}
+    </>
   );
 }
 

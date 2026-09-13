@@ -24,12 +24,17 @@ export type ItemStatus = (typeof ITEM_STATUSES)[number];
 
 export type ItemVisualKind = "thumbnail" | "cover" | "article-image";
 
-/** Lightweight metadata returned with list items for future card rendering. */
+/** Lightweight metadata returned with list items for media-aware views. */
 export type ItemMetadataSummary = {
   imageUrl: string | null;
   imageKind: ItemVisualKind | null;
   siteName: string | null;
   author: string | null;
+};
+
+export type ItemVisualSummary = Omit<ItemMetadataSummary, "imageUrl" | "imageKind"> & {
+  imageUrl: string;
+  imageKind: ItemVisualKind;
 };
 
 export type Item = {

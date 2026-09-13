@@ -81,7 +81,9 @@ describe("useEnrichmentRefresh", () => {
       await Promise.resolve();
     });
     expect(api.fetchItemMetadata).toHaveBeenCalledOnce();
-    expect(reconcileItemMetadata).toHaveBeenCalledWith(item);
+    expect(reconcileItemMetadata).toHaveBeenCalledWith(item, {
+      enrichment: { kind: "queued" },
+    });
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(1_500);
@@ -92,6 +94,8 @@ describe("useEnrichmentRefresh", () => {
       ...item,
       title: "Enriched title",
       type: "video",
+    }, {
+      enrichment: { kind: "ready" },
     });
     await act(async () => {
       await vi.advanceTimersByTimeAsync(10_000);
@@ -112,7 +116,9 @@ describe("useEnrichmentRefresh", () => {
     });
 
     expect(api.fetchItemMetadata).toHaveBeenCalledOnce();
-    expect(reconcileItemMetadata).toHaveBeenCalledWith(item);
+    expect(reconcileItemMetadata).toHaveBeenCalledWith(item, {
+      enrichment: { kind: "failed", errorCode: "upstream_error" },
+    });
   });
 
   it("pauses while hidden and refreshes when visible again", async () => {

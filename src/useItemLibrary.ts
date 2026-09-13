@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Item, ItemListItem } from "../shared/item";
-import type { CaptureInput, CaptureResult } from "../shared/capture";
+import { toItemMetadataSummary, type CaptureInput, type CaptureResult, type ItemMetadata } from "../shared/capture";
 import type { PendingItemAction } from "./pendingItemAction";
 import { commitWithViewTransition } from "./viewTransition";
 import {
@@ -37,7 +37,10 @@ export type ItemLibrary = {
   captureUrl: (input: CaptureInput) => Promise<CaptureResult | null>;
   captureUrlWithError: (input: CaptureInput) => Promise<CaptureAttempt>;
   reconcileItem: (item: Item) => void;
-  reconcileItemMetadata: (item: Pick<Item, "id" | "title" | "type">) => void;
+  reconcileItemMetadata: (
+    item: Pick<Item, "id" | "title" | "type">,
+    metadata: ItemMetadata | null,
+  ) => void;
   moveToDesk: (id: string) => Promise<Item | null>;
   moveToInbox: (id: string) => Promise<Item | null>;
   finish: (id: string) => Promise<Item | null>;
@@ -164,10 +167,18 @@ export function useItemLibrary(): ItemLibrary {
     setItems((current) => upsertItem(current, item));
   }, []);
 
-  const reconcileItemMetadata = useCallback((item: Pick<Item, "id" | "title" | "type">): void => {
+  const reconcileItemMetadata = useCallback((
+    item: Pick<Item, "id" | "title" | "type">,
+    metadata: ItemMetadata | null,
+  ): void => {
     dataGenerationRef.current += 1;
     setItems((current) => current.map((currentItem) => currentItem.id === item.id
-      ? { ...currentItem, title: item.title, type: item.type }
+      ? {
+          ...currentItem,
+          title: item.title,
+          type: item.type,
+          metadataSummary: toItemMetadataSummary(metadata),
+        }
       : currentItem));
   }, []);
 

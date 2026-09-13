@@ -1,0 +1,57 @@
+.item-visual {
+  position: relative;
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  align-self: start;
+  border-radius: var(--radius-compact);
+  background: var(--fill-strong);
+  outline: 1px solid oklch(0 0 0 / 0.1);
+}
+
+.item-visual[data-image-state="broken"] {
+  background: var(--fill-strong);
+}
+
+.item-visual img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.item-visual--cover {
+  aspect-ratio: 3 / 4;
+}
+
+.item-visual--cover img {
+  object-fit: contain;
+}
+
+.item-visual-play {
+  position: absolute;
+  inset: 50% auto auto 50%;
+  display: block;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-pill);
+  background: rgba(0, 0, 0, 0.72);
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+}
+
+.item-visual-play::after {
+  position: absolute;
+  inset: 50% auto auto 50%;
+  width: 0;
+  height: 0;
+  border-block: 5px solid transparent;
+  border-inline-start: 8px solid #fff;
+  content: "";
+  transform: translate(-35%, -50%);
+}
+
+:root[data-theme="dark"] .item-visual {
+  outline-color: oklch(1 0 0 / 0.1);
+}

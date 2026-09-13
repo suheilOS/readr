@@ -1,4 +1,11 @@
-import { isItemType, parseItem, parseItemUrl, type Item, type ItemType } from './item';
+import {
+  isItemType,
+  parseItem,
+  parseItemUrl,
+  type Item,
+  type ItemMetadataSummary,
+  type ItemType,
+} from './item';
 import { parseYouTubeUrl } from './media';
 
 export const ENRICHMENT_RETRY_DELAYS_MS = [60_000, 120_000] as const;
@@ -23,6 +30,20 @@ export type ItemMetadata = {
   inference: TypeInference;
   enrichment: EnrichmentStatus;
 };
+
+export function toItemMetadataSummary(metadata: ItemMetadata | null): ItemMetadataSummary | null {
+  if (metadata === null) return null;
+
+  const visual = metadata.visual.kind === 'none'
+    ? { imageUrl: null, imageKind: null }
+    : { imageUrl: metadata.visual.url, imageKind: metadata.visual.kind };
+
+  return {
+    ...visual,
+    siteName: metadata.siteName,
+    author: metadata.author,
+  };
+}
 
 export function inferUrlType(url: URL): TypeInference {
   const host = url.hostname.toLowerCase().replace(/^www\./, '');

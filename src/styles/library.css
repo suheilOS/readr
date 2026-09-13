@@ -1,74 +1,99 @@
-.row-list {
+.library-list {
   display: flex;
   flex-direction: column;
+  gap: 8px;
+  container: library-list / inline-size;
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
-.row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+.library-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 40px;
+  align-items: start;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--divider);
+  border-radius: var(--radius-control);
+  background: var(--surface);
+}
+
+.library-item.has-visual {
+  grid-template-columns: clamp(88px, 16cqi, 104px) minmax(0, 1fr) 40px;
   gap: 16px;
-  padding: 12px 2px;
-  border-bottom: 1px solid var(--divider);
-}
-
-.row:last-child {
-  border-bottom: none;
-}
-
-.row.finished {
-  position: relative;
-  padding-inline-end: 52px;
 }
 
 /* Keep a growing Library from paying layout and paint costs for distant rows. */
-.library .row-list > .row {
+.library-list > .library-item {
   content-visibility: auto;
-  contain-intrinsic-size: 0 76px;
+  contain-intrinsic-size: 0 112px;
 }
 
-.row-text {
-  width: 100%;
+.library-item-body {
   min-width: 0;
 }
 
-.row-title {
-  display: block;
+.library-item .item-visual--cover {
+  width: 72px;
+  justify-self: center;
+}
+
+.library-item-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 3px 7px;
+  margin-bottom: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  line-height: 1.3;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.library-item-title {
+  margin: 0;
   overflow-wrap: anywhere;
   font-size: var(--font-size-body);
-  font-weight: 500;
-  line-height: 1.4;
-  text-wrap: pretty;
-  color: var(--text);
+  font-weight: 600;
+  line-height: 1.35;
+  text-wrap: balance;
+  color: var(--heading);
 }
 
-.row .meta-line {
-  margin-top: 2px;
-  font-size: var(--font-size-small);
-}
-
-.note-preview {
-  margin: 6px 0 0;
+.library-item-subline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px 7px;
+  margin-top: 6px;
   overflow-wrap: anywhere;
   font-size: var(--font-size-small);
-  line-height: 1.5;
+  line-height: 1.4;
   text-wrap: pretty;
   color: var(--muted-strong);
 }
 
-.row-actions {
-  display: flex;
-  flex-shrink: 0;
-  gap: 8px;
+.library-item-subline time {
+  font-variant-numeric: tabular-nums;
+}
+
+.library-item-note {
+  max-width: 60ch;
+  margin: 7px 0 0;
+  overflow-wrap: anywhere;
+  font-size: var(--font-size-small);
+  line-height: 1.45;
+  text-wrap: pretty;
+  color: var(--muted);
 }
 
 .library-actions {
-  position: absolute;
-  inset-block-start: 12px;
-  inset-inline-end: 2px;
+  display: flex;
+  align-self: stretch;
+  align-items: flex-end;
+  justify-self: end;
 }
 
 .library-menu-positioner {
@@ -148,12 +173,6 @@
   scale: 0.96;
 }
 
-.desk-menu-trigger {
-  position: absolute;
-  inset-block-start: 12px;
-  inset-inline-end: 12px;
-}
-
 .library-menu-trigger svg {
   display: block;
   width: 18px;
@@ -161,16 +180,18 @@
   fill: currentColor;
 }
 
-@keyframes row-arrive {
-  from {
-    background-color: color-mix(in srgb, var(--page-bg) 78%, var(--fill-strong));
+@container library-list (max-width: 420px) {
+  .library-item {
+    padding: 10px;
   }
-  to {
-    background-color: transparent;
-  }
-}
 
-.row-new {
-  animation: row-arrive 600ms ease-out;
+  .library-item.has-visual {
+    grid-template-columns: 72px minmax(0, 1fr) 40px;
+    gap: 12px;
+  }
+
+  .library-item .item-visual--cover {
+    width: 64px;
+  }
 }
 

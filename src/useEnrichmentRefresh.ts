@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef } from "react";
-import { ENRICHMENT_RETRY_DELAYS_MS } from "../shared/capture";
+import { ENRICHMENT_RETRY_DELAYS_MS, type ItemMetadata } from "../shared/capture";
 import type { Item } from "../shared/item";
 import { fetchItemMetadata, ItemApiError } from "./itemApi";
 
@@ -15,7 +15,10 @@ type PollState = {
   nextPollAt: number;
 };
 
-type MetadataReconciler = (item: Pick<Item, "id" | "title" | "type">) => void;
+type MetadataReconciler = (
+  item: Pick<Item, "id" | "title" | "type">,
+  metadata: ItemMetadata | null,
+) => void;
 
 export type EnrichmentRefresh = {
   watch: (itemId: string) => void;
@@ -63,7 +66,7 @@ export function useEnrichmentRefresh(
     let shouldContinue = false;
     try {
       const result = await fetchItemMetadata(itemId, controller.signal);
-      reconcileRef.current(result.item);
+      reconcileRef.current(result.item, result.metadata);
       const status = result.metadata?.enrichment.kind;
       if (status === undefined || status === "ready" || status === "failed") {
         stop(itemId);

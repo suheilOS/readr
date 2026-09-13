@@ -1,13 +1,14 @@
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { Item } from "../../shared/item";
+import type { ItemListItem } from "../../shared/item";
 import { selectItemGroups } from "../../src/itemSelectors";
 import { DeskSection } from "../../src/components/DeskSection";
+import { validUrl } from "./testUrl";
 
 let root: Root | null = null;
 
-const deskItems: Item[] = Array.from({ length: 5 }, (_, index) => ({
+const deskItems: ItemListItem[] = Array.from({ length: 5 }, (_, index) => ({
   id: `desk-${index + 1}`,
   title: `Desk item ${index + 1}`,
   url: null,
@@ -16,9 +17,10 @@ const deskItems: Item[] = Array.from({ length: 5 }, (_, index) => ({
   addedAt: "2026-08-23T12:00:00.000Z",
   finishedAt: null,
   note: null,
+  metadataSummary: null,
 }));
 
-function renderDesk(items: Item[], mode: "normal" | "swap", deskCount = 5, onCancelSwap = vi.fn()) {
+function renderDesk(items: ItemListItem[], mode: "normal" | "swap", deskCount = 5, onCancelSwap = vi.fn()) {
   root?.render(createElement(DeskSection, {
     items,
     deskCount,
@@ -63,6 +65,7 @@ describe("DeskSection", () => {
         addedAt: "2026-08-23T12:00:00.000Z",
         finishedAt: null,
         note: null,
+        metadataSummary: null,
       },
     ], "candidate");
 
@@ -92,6 +95,50 @@ describe("DeskSection", () => {
     expect(document.querySelector(".counter")?.textContent).toBe("5 / 5");
     expect(document.querySelectorAll(".desk-card")).toHaveLength(1);
     expect(document.querySelector(".card-title")?.textContent).toBe("Desk item 1");
+  });
+
+  it("renders stored visual metadata without changing the card actions", async () => {
+    const item = {
+      ...deskItems[0],
+      url: validUrl("https://example.com/article"),
+      metadataSummary: {
+        imageUrl: "https://example.com/article.jpg",
+        imageKind: "article-image" as const,
+        siteName: "Example",
+        author: "Reader Test",
+      },
+    };
+
+    await act(async () => renderDesk([item], "normal", deskItems.length));
+
+    expect(document.querySelector(".desk-card .item-visual img")?.getAttribute("loading")).toBe("lazy");
+    expect(document.querySelector(".desk-card-meta")?.textContent).toBe("Article·Example");
+    expect(document.querySelector(".desk-card-author")?.textContent).toBe("Reader Test");
+    expect(document.querySelector(".desk-card .pill-button")?.textContent).toContain("Read");
+    expect(document.querySelector(".finish-button")?.textContent).toContain("Finish");
+  });
+
+  it("keeps the reserved visual space when an image fails", async () => {
+    const item = {
+      ...deskItems[0],
+      metadataSummary: {
+        imageUrl: "https://example.com/broken.jpg",
+        imageKind: "thumbnail" as const,
+        siteName: "Example",
+        author: null,
+      },
+    };
+
+    await act(async () => renderDesk([item], "normal", deskItems.length));
+    const image = document.querySelector<HTMLImageElement>(".desk-card .item-visual img");
+    expect(image).not.toBeNull();
+
+    await act(async () => {
+      image?.dispatchEvent(new Event("error"));
+    });
+
+    expect(document.querySelector(".desk-card .item-visual[data-image-state=broken]")).not.toBeNull();
+    expect(document.querySelector(".desk-card .item-visual img")).toBeNull();
   });
 
   it("returns to normal filtered rendering when swap is cancelled", async () => {

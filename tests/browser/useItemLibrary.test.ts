@@ -276,6 +276,15 @@ describe("useItemLibrary reconciliation", () => {
         id: item.id,
         title: "Enriched title",
         type: "video",
+      }, {
+        sourceUrl: "https://example.com/article",
+        sourceTitle: "Enriched title",
+        author: "Reader Test",
+        siteName: "Example",
+        description: null,
+        visual: { kind: "thumbnail", url: "https://example.com/image.jpg" },
+        inference: { type: "video", source: "schema" },
+        enrichment: { kind: "ready", enrichedAt: "2026-08-24T12:00:00.000Z" },
       });
     });
 
@@ -283,6 +292,12 @@ describe("useItemLibrary reconciliation", () => {
       ...deskItem,
       title: "Enriched title",
       type: "video",
+      metadataSummary: {
+        imageUrl: "https://example.com/image.jpg",
+        imageKind: "thumbnail",
+        siteName: "Example",
+        author: "Reader Test",
+      },
     }]);
   });
 

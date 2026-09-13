@@ -6,6 +6,7 @@
   display: flex;
   flex-direction: column;
   gap: 12px;
+  container: desk-list / inline-size;
   margin: 0;
   padding: 0;
   list-style: none;
@@ -20,31 +21,63 @@
   box-shadow: var(--surface-shadow);
 }
 
-.desk-card:not(.swappable) {
-  padding-inline-end: 68px;
+.desk-card-body {
+  min-width: 0;
+}
+
+.desk-card.has-visual {
+  display: grid;
+  grid-template-columns: minmax(0, 33%) minmax(0, 1fr);
+  gap: 20px;
+  padding: 12px;
+}
+
+.desk-card .item-visual--cover {
+  max-width: 132px;
+}
+
+.desk-card-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 7px;
+  margin: 0 0 8px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  line-height: 1.3;
+  text-transform: uppercase;
+  color: var(--muted);
 }
 
 .card-title {
+  display: block;
+  max-width: 42rem;
   margin: 0;
+  overflow-wrap: anywhere;
   font-size: var(--font-size-emphasis);
   font-weight: 600;
   line-height: 1.35;
+  text-wrap: balance;
   color: var(--heading);
 }
 
-.meta-line {
-  margin: 4px 0 0;
+.desk-card-author {
+  display: block;
+  margin-top: 8px;
   overflow-wrap: anywhere;
   font-size: var(--font-size-small);
+  line-height: 1.45;
   text-wrap: pretty;
-  color: var(--muted);
+  color: var(--muted-strong);
 }
 
 .card-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
-  margin-top: 12px;
+  align-items: center;
+  gap: 8px;
+  margin-top: 16px;
 }
 
 .pill-button {
@@ -115,11 +148,15 @@
 .desk-card.swappable {
   width: 100%;
   display: block;
-  text-align: left;
+  text-align: start;
   cursor: pointer;
   transition:
     background-color 120ms var(--ease-out),
     scale 120ms var(--ease-out);
+}
+
+.desk-card.swappable.has-visual {
+  display: grid;
 }
 
 .desk-card-pending {
@@ -130,6 +167,12 @@
   color: var(--muted-strong);
   font-size: var(--font-size-small);
   font-weight: 600;
+}
+
+.desk-menu-trigger {
+  position: static;
+  inset: auto;
+  margin-inline-start: auto;
 }
 
 .search-empty {
@@ -153,5 +196,20 @@
   line-height: 1.5;
   overflow-wrap: anywhere;
   text-wrap: pretty;
+}
+
+@container desk-list (max-width: 560px) {
+  .desk-card.has-visual,
+  .desk-card.swappable.has-visual {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .desk-card .item-visual--cover {
+    width: min(42%, 150px);
+    max-width: none;
+    aspect-ratio: 3 / 4;
+  }
 }
 
