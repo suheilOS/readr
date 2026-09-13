@@ -181,14 +181,14 @@ export function DeskSection({
                           </>
                         )}
                       </button>
-                      <DeskActionsMenu
-                        item={item}
-                        onSendToInbox={onSendToInbox}
-                        onDiscard={onDiscard}
-                        pendingAction={pendingAction}
-                      />
                     </div>
                   </div>
+                  <DeskActionsMenu
+                    item={item}
+                    onSendToInbox={onSendToInbox}
+                    onDiscard={onDiscard}
+                    pendingAction={pendingAction}
+                  />
                 </article>
               )}
             </li>

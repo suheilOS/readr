@@ -1,7 +1,6 @@
 .library-list {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
+  column-count: 2;
+  column-gap: 12px;
   container: library-list / inline-size;
   margin: 0;
   padding: 0;
@@ -9,34 +8,40 @@
 }
 
 .library-item {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 40px;
-  align-items: start;
-  gap: 12px;
-  padding: 12px;
-  border: 1px solid var(--divider);
-  border-radius: var(--radius-control);
+  position: relative;
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  overflow: hidden;
+  border: 0;
+  border-radius: var(--radius-surface);
   background: var(--surface);
+  box-shadow: var(--surface-shadow);
 }
 
-.library-item.has-visual {
-  grid-template-columns: clamp(88px, 16cqi, 104px) minmax(0, 1fr) 40px;
-  gap: 16px;
-}
-
-/* Keep a growing Library from paying layout and paint costs for distant rows. */
+/* Keep a growing Library from paying layout and paint costs for distant cards. */
 .library-list > .library-item {
+  width: 100%;
+  margin-block-end: 12px;
+  break-inside: avoid;
   content-visibility: auto;
-  contain-intrinsic-size: 0 112px;
+  contain-intrinsic-size: 280px 320px;
+}
+
+.library-item > .item-visual {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  align-self: stretch;
+  border-radius: 0;
+}
+
+.library-item > .item-visual--cover {
+  aspect-ratio: 16 / 9;
 }
 
 .library-item-body {
   min-width: 0;
-}
-
-.library-item .item-visual--cover {
-  width: 72px;
-  justify-self: center;
+  padding: 14px 56px 16px 16px;
 }
 
 .library-item-meta {
@@ -90,10 +95,9 @@
 }
 
 .library-actions {
-  display: flex;
-  align-self: stretch;
-  align-items: flex-end;
-  justify-self: end;
+  position: absolute;
+  inset-block-start: 8px;
+  inset-inline-end: 8px;
 }
 
 .library-menu-positioner {
@@ -160,7 +164,8 @@
   padding: 0;
   border: none;
   border-radius: var(--radius-control);
-  background: transparent;
+  background: var(--surface);
+  box-shadow: var(--surface-shadow);
   color: var(--muted-strong);
   cursor: pointer;
   transition:
@@ -180,18 +185,8 @@
   fill: currentColor;
 }
 
-@container library-list (max-width: 420px) {
-  .library-item {
-    padding: 10px;
-  }
-
-  .library-item.has-visual {
-    grid-template-columns: 72px minmax(0, 1fr) 40px;
-    gap: 12px;
-  }
-
-  .library-item .item-visual--cover {
-    width: 64px;
+@container library-list (max-width: 560px) {
+  .library-list {
+    column-count: 1;
   }
 }
-

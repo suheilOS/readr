@@ -23,6 +23,7 @@
 
 .desk-card-body {
   min-width: 0;
+  padding-inline-end: 44px;
 }
 
 .desk-card.has-visual {
@@ -32,8 +33,10 @@
   padding: 12px;
 }
 
-.desk-card .item-visual--cover {
-  max-width: 132px;
+.desk-card.has-visual > .item-visual {
+  height: 100%;
+  aspect-ratio: auto;
+  align-self: stretch;
 }
 
 .desk-card-meta {
@@ -170,9 +173,9 @@
 }
 
 .desk-menu-trigger {
-  position: static;
-  inset: auto;
-  margin-inline-start: auto;
+  position: absolute;
+  inset-block-start: 12px;
+  inset-inline-end: 12px;
 }
 
 .search-empty {
@@ -206,10 +209,17 @@
     gap: 16px;
   }
 
-  .desk-card .item-visual--cover {
+  .desk-card.has-visual > .item-visual {
+    width: 100%;
+    height: auto;
+    aspect-ratio: 16 / 9;
+    align-self: auto;
+  }
+
+  .desk-card.has-visual > .item-visual--cover {
     width: min(42%, 150px);
-    max-width: none;
     aspect-ratio: 3 / 4;
+    align-self: flex-start;
   }
 }
 
