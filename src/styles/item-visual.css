@@ -29,6 +29,27 @@
   object-fit: contain;
 }
 
+.item-visual-type {
+  position: absolute;
+  inset-block-start: 8px;
+  inset-inline-start: 8px;
+  z-index: 1;
+  display: grid;
+  width: 32px;
+  height: 32px;
+  place-items: center;
+  border-radius: var(--radius-control);
+  background: var(--surface);
+  box-shadow: var(--surface-shadow);
+  color: var(--muted-strong);
+}
+
+.item-visual-type-icon {
+  display: block;
+  width: 16px;
+  height: 16px;
+}
+
 .item-visual-play {
   position: absolute;
   inset: 50% auto auto 50%;

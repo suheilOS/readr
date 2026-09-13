@@ -44,6 +44,7 @@ export function LibrarySection({
                 <ItemVisual
                   key={visual.imageUrl}
                   visual={visual}
+                  itemType={item.type}
                   showPlay={readerKindFor(item) === "youtube"}
                 />
               )}
@@ -52,13 +53,13 @@ export function LibrarySection({
                 {item.note !== null && item.note.trim().length > 0 && (
                   <p className="library-item-note">{item.note}</p>
                 )}
+                <LibraryActionsMenu
+                  item={item}
+                  onSendToDesk={onSendToDesk}
+                  onSendToInbox={onSendToInbox}
+                  pendingAction={pendingAction}
+                />
               </div>
-              <LibraryActionsMenu
-                item={item}
-                onSendToDesk={onSendToDesk}
-                onSendToInbox={onSendToInbox}
-                pendingAction={pendingAction}
-              />
             </li>
           );
         })}
@@ -83,9 +84,6 @@ function LibraryItemDetails({ item }: { item: ItemListItem }) {
       {(author !== null || item.finishedAt !== null) && (
         <div className="library-item-subline">
           {author !== null && <span>{author}</span>}
-          {author !== null && item.finishedAt !== null && (
-            <span aria-hidden="true">·</span>
-          )}
           {item.finishedAt !== null && (
             <time dateTime={item.finishedAt} title={formatDate(item.finishedAt)}>
               Finished {formatCompactDate(item.finishedAt)}

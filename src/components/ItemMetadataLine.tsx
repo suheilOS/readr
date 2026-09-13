@@ -1,4 +1,4 @@
-import { itemTypeLabel, type ItemListItem } from "../../shared/item";
+import type { ItemListItem } from "../../shared/item";
 import { itemSourceFor } from "../itemPresentation";
 
 type ItemMetadataLineProps = {
@@ -9,15 +9,7 @@ type ItemMetadataLineProps = {
 export function ItemMetadataLine({ item, className }: ItemMetadataLineProps) {
   const source = itemSourceFor(item);
 
-  return (
-    <span className={className}>
-      <span>{itemTypeLabel(item.type)}</span>
-      {source !== null && (
-        <>
-          <span className="item-metadata-separator" aria-hidden="true">·</span>
-          <span>{source}</span>
-        </>
-      )}
-    </span>
-  );
+  if (source === null) return null;
+
+  return <span className={className}>{source}</span>;
 }

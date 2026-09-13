@@ -99,7 +99,7 @@ export function DeskSection({
                   }}
                 >
                   {visual !== null && (
-                    <ItemVisual key={visual.imageUrl} visual={visual} />
+                    <ItemVisual key={visual.imageUrl} visual={visual} itemType={item.type} />
                   )}
                   <span className="desk-card-body">
                     {isPendingItemAction(pendingAction, item.id, "replace") && (
@@ -117,7 +117,7 @@ export function DeskSection({
               ) : (
                 <article className={cardClassName}>
                   {visual !== null && (
-                    <ItemVisual key={visual.imageUrl} visual={visual} />
+                    <ItemVisual key={visual.imageUrl} visual={visual} itemType={item.type} />
                   )}
                   <div className="desk-card-body">
                     <DeskCardDetails

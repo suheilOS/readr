@@ -40,6 +40,7 @@
 }
 
 .library-item-body {
+  position: relative;
   min-width: 0;
   padding: 14px 56px 16px 16px;
 }
@@ -164,8 +165,7 @@
   padding: 0;
   border: none;
   border-radius: var(--radius-control);
-  background: var(--surface);
-  box-shadow: var(--surface-shadow);
+  background: transparent;
   color: var(--muted-strong);
   cursor: pointer;
   transition:

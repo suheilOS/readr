@@ -1,12 +1,14 @@
 import { useState } from "react";
-import type { ItemVisualSummary } from "../../shared/item";
+import type { ItemType, ItemVisualSummary } from "../../shared/item";
+import { ItemTypeIcon } from "./ItemTypeIcon";
 
 type ItemVisualProps = {
   visual: ItemVisualSummary;
   showPlay?: boolean;
+  itemType?: ItemType;
 };
 
-export function ItemVisual({ visual, showPlay = false }: ItemVisualProps) {
+export function ItemVisual({ visual, showPlay = false, itemType }: ItemVisualProps) {
   const [failed, setFailed] = useState(false);
   return (
     <span
@@ -22,6 +24,11 @@ export function ItemVisual({ visual, showPlay = false }: ItemVisualProps) {
           decoding="async"
           onError={() => setFailed(true)}
         />
+      )}
+      {itemType !== undefined && (
+        <span className="item-visual-type" title={itemType}>
+          <ItemTypeIcon type={itemType} className="item-visual-type-icon" />
+        </span>
       )}
       {showPlay && !failed && <span className="item-visual-play" aria-hidden="true" />}
     </span>

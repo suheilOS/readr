@@ -22,7 +22,9 @@
 }
 
 .desk-card-body {
+  display: flex;
   min-width: 0;
+  flex-direction: column;
   padding-inline-end: 44px;
 }
 
@@ -34,7 +36,7 @@
 }
 
 .desk-card.has-visual > .item-visual {
-  height: 100%;
+  min-height: 0;
   aspect-ratio: auto;
   align-self: stretch;
 }
@@ -80,7 +82,8 @@
   flex-wrap: wrap;
   align-items: center;
   gap: 8px;
-  margin-top: 16px;
+  margin-top: auto;
+  padding-top: 16px;
 }
 
 .pill-button {
