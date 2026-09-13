@@ -1,3 +1,13 @@
+/* iOS WebKit can composite sticky backdrops over fixed overlays while scrolling. */
+@supports (-webkit-touch-callout: none) {
+  .topbar,
+  .reader-header::before {
+    background: var(--page-bg);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+}
+
 @supports (corner-shape: squircle) {
   .recovery-panel,
   .desk-card,
