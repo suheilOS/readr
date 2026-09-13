@@ -1,6 +1,6 @@
-import { useState } from "react";
 import type { ItemListItem } from "../../shared/item";
 import { itemSourcePresentationFor } from "../itemPresentation";
+import { SiteFavicon } from "./SiteFavicon";
 
 export function ItemSourceLine({ item }: { item: ItemListItem }) {
   const source = itemSourcePresentationFor(item);
@@ -18,24 +18,5 @@ export function ItemSourceLine({ item }: { item: ItemListItem }) {
         <SiteFavicon key={source.hostname} hostname={source.hostname} />
       )}
     </span>
-  );
-}
-
-function SiteFavicon({ hostname }: { hostname: string }) {
-  const [failed, setFailed] = useState(false);
-
-  if (failed) return null;
-
-  return (
-    <img
-      className="site-favicon"
-      src={`/api/favicon?host=${encodeURIComponent(hostname)}`}
-      alt=""
-      width="16"
-      height="16"
-      loading="lazy"
-      decoding="async"
-      onError={() => setFailed(true)}
-    />
   );
 }

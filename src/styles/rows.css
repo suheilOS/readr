@@ -39,6 +39,12 @@
   font-size: var(--font-size-small);
 }
 
+.inbox-meta-line {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
 .row-actions {
   display: flex;
   flex-shrink: 0;

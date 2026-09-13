@@ -31,14 +31,15 @@
 
 .desk-card.has-visual {
   display: grid;
-  grid-template-columns: minmax(0, 33%) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 30%) minmax(0, 1fr);
   gap: 20px;
   padding: 12px;
 }
 
 .desk-card.has-visual > .item-visual {
+  height: 100%;
   aspect-ratio: 16 / 9;
-  align-self: start;
+  align-self: stretch;
 }
 
 .desk-card.has-visual > .item-visual--cover {

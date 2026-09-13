@@ -1,8 +1,10 @@
-import { itemMetaLine, type Item } from "../../shared/item";
+import { itemTypeLabel, type Item } from "../../shared/item";
 import { runWithFocusRestoration } from "../focusAdjacentAction";
+import { itemFaviconHostnameFor } from "../itemPresentation";
 import { EmptyState } from "./EmptyState";
 import { ArrowUpIcon, InboxEmptyIcon, TrashIcon } from "./icons";
 import { isPendingItemAction, type PendingItemAction } from "../pendingItemAction";
+import { SiteFavicon } from "./SiteFavicon";
 
 
 type InboxSectionProps = {
@@ -37,7 +39,7 @@ export function InboxSection({
           >
             <div className="row-text">
               <span className="row-title">{item.title}</span>
-              <span className="meta-line">{itemMetaLine(item)}</span>
+              <InboxMetadataLine item={item} />
             </div>
             <div className="row-actions">
               <button
@@ -100,5 +102,16 @@ export function InboxSection({
         />
       )}
     </section>
+  );
+}
+
+function InboxMetadataLine({ item }: { item: Item }) {
+  const hostname = itemFaviconHostnameFor(item);
+
+  return (
+    <span className="meta-line inbox-meta-line">
+      <span>{itemTypeLabel(item.type)}</span>
+      {hostname !== null && <SiteFavicon key={hostname} hostname={hostname} />}
+    </span>
   );
 }

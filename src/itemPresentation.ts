@@ -32,8 +32,12 @@ export function itemSourcePresentationFor(
   return {
     label,
     href: presentsAuthor ? null : item.url,
-    hostname: item.url === null ? null : new URL(item.url).hostname,
+    hostname: itemFaviconHostnameFor(item),
   };
+}
+
+export function itemFaviconHostnameFor(item: Pick<ItemListItem, "url">): string | null {
+  return item.url === null ? null : new URL(item.url).hostname;
 }
 
 export function itemVisualFor(item: ItemListItem): ItemVisualSummary | null {
