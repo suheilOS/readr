@@ -36,10 +36,16 @@
 }
 
 .desk-card.has-visual > .item-visual {
-  min-height: 0;
+  aspect-ratio: 16 / 9;
+  align-self: start;
+}
+
+.desk-card.has-visual > .item-visual--cover {
+  height: 100%;
   aspect-ratio: auto;
   align-self: stretch;
 }
+
 
 .desk-card-meta {
   display: flex;

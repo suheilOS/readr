@@ -12,7 +12,7 @@ export function ItemVisual({ visual, showPlay = false, itemType }: ItemVisualPro
   const [failed, setFailed] = useState(false);
   return (
     <span
-      className={`item-visual item-visual--${visual.imageKind}`}
+      className={`item-visual item-visual--${visual.imageKind}${itemType === undefined ? "" : ` item-visual--type-${itemType}`}`}
       data-image-state={failed ? "broken" : undefined}
       aria-hidden="true"
     >
