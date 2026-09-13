@@ -155,10 +155,19 @@ async function persistYouTubeContent(
   content: YouTubeCapturedContent,
 ): Promise<ItemRow | null> {
   const capturedAt = new Date().toISOString();
-  await db.batch([
-    updateYouTubeIdentity(db, userId, item, content.videoId, capturedAt),
-    mediaUpsertStatement(db, item.id, content, capturedAt),
-  ]);
+  try {
+    await db.batch([
+      updateYouTubeIdentity(db, userId, item, content.videoId, capturedAt),
+      mediaUpsertStatement(db, item.id, content, capturedAt),
+    ]);
+  } catch (error) {
+    // The item read above and this batch are separate D1 operations. If a
+    // concurrent delete won the race, the media foreign key can reject the
+    // batch; preserve the endpoint's not-found contract instead of leaking a
+    // transient 500. Keep genuine persistence failures as errors.
+    if (await findItem(db, userId, item.id) === null) return null;
+    throw error;
+  }
   return findItem(db, userId, item.id);
 }
 

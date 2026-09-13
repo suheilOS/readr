@@ -6,14 +6,22 @@ import { normalizeDefuddleYouTubeResult } from "../../shared/youtubeNormalizatio
 const videoId = "dQw4w9WgXcQ";
 const secondVideoId = "9bZkp7q19f0";
 const videoUrl = `https://www.youtube.com/watch?v=${videoId}`;
+const supportedVideoUrls = [
+  videoUrl,
+  `https://www.youtube.com/shorts/${videoId}`,
+  `https://www.youtube.com/embed/${videoId}`,
+  `https://www.youtube.com/live/${videoId}`,
+  `https://youtu.be/${videoId}`,
+  `https://www.youtube-nocookie.com/embed/${videoId}`,
+];
 
 describe("YouTube live-page capture", () => {
-  it("uses Defuddle against a closed transcript panel", async () => {
+  it.each(supportedVideoUrls)("uses the canonical URL for Defuddle on %s", async (pageUrl) => {
     const dom = loadPage({
       title: "Defuddle video",
       description: "A live-page description.",
       tracks: [{ baseUrl: timedTextUrl(), languageCode: "fr", name: { simpleText: "Français" } }],
-    }, "fr");
+    }, "fr", pageUrl);
     const fetchImpl = captionFetch();
 
     const content = await captureCurrentVideo({
@@ -26,6 +34,7 @@ describe("YouTube live-page capture", () => {
     expect(content).toMatchObject({
       kind: "youtube_capture",
       videoId,
+      sourceUrl: videoUrl,
       title: "Defuddle video",
       description: "A live-page description.",
       transcript: {
@@ -139,17 +148,18 @@ function captionFetch() {
 function loadPage(
   details: { title: string; description?: string; tracks: Array<Record<string, unknown>> },
   language = "en",
+  pageUrl = videoUrl,
 ) {
   const playerResponse = {
     videoDetails: { videoId, author: "Channel", shortDescription: details.description ?? "" },
     captions: { playerCaptionsTracklistRenderer: { captionTracks: details.tracks } },
   };
   const html = `<html lang="${language}"><head>
-    <meta property="og:url" content="${videoUrl}">
+    <meta property="og:url" content="${pageUrl}">
     <meta property="og:image" content="https://i.ytimg.com/vi/${videoId}/hqdefault.jpg">
     <script type="application/ld+json">${JSON.stringify({
       "@type": "VideoObject",
-      "@id": videoUrl,
+      "@id": pageUrl,
       name: details.title,
       description: details.description ?? "",
       thumbnailUrl: `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`,
@@ -157,5 +167,5 @@ function loadPage(
     <script>var ytInitialPlayerResponse = ${JSON.stringify(playerResponse)};</script>
     <script>var ytInitialData = ${JSON.stringify({ currentVideoEndpoint: { watchEndpoint: { videoId } } })};</script>
   </head><body><h1>${details.title}</h1></body></html>`;
-  return new JSDOM(html, { url: videoUrl, runScripts: "outside-only" });
+  return new JSDOM(html, { url: pageUrl, runScripts: "outside-only" });
 }

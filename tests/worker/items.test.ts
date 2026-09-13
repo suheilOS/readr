@@ -411,6 +411,44 @@ describe("Readr item API", () => {
     });
   });
 
+  it("returns not found when an item is deleted during targeted persistence", async () => {
+    const userId = `target-delete-race-${crypto.randomUUID()}`;
+    const created = await request(userId, "/api/items", {
+      method: "POST",
+      body: JSON.stringify({ title: "Target", url: "https://youtu.be/dQw4w9WgXcQ", type: "video" }),
+    });
+    const itemId = (await created.json() as { item: { id: string } }).item.id;
+    const content = {
+      kind: "youtube_capture",
+      videoId: "dQw4w9WgXcQ",
+      sourceUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+      title: "Video",
+      author: null,
+      description: null,
+      thumbnailUrl: null,
+      transcript: { kind: "unavailable" },
+    };
+    const racedDatabase = new Proxy(env.READR_DB, {
+      get(target, property, receiver) {
+        if (property !== "batch") return Reflect.get(target, property, receiver);
+        return async (statements: D1PreparedStatement[]) => {
+          await target.prepare("DELETE FROM items WHERE id = ? AND user_id = ?")
+            .bind(itemId, userId).run();
+          return target.batch(statements);
+        };
+      },
+    }) as D1Database;
+
+    const response = await request(userId, `/api/items/${itemId}/media/youtube`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(content),
+    }, mockSignOut, racedDatabase);
+
+    expect(response.status).toBe(404);
+    expect(await response.json()).toMatchObject({ error: { code: "not_found" } });
+  });
+
   it("rejects targeted media for another owner or another video", async () => {
     const ownerId = `target-owner-${crypto.randomUUID()}`;
     const otherId = `target-other-${crypto.randomUUID()}`;
@@ -517,6 +555,7 @@ async function request(
   path: string,
   init: RequestInit = {},
   signOut: (cookie: string) => Promise<Response> = mockSignOut,
+  database: D1Database = env.READR_DB,
 ): Promise<Response> {
   const headers = new Headers(init.headers);
   if (!headers.has("Origin")) headers.set("Origin", "https://readr.test");
@@ -528,6 +567,7 @@ async function request(
   });
   const context = createExecutionContext();
   const testEnv = Object.assign({}, env, {
+    READR_DB: database,
     AUTH_SERVICE: {
       getSession: async (cookie: string) => cookie.startsWith("session=")
         ? {

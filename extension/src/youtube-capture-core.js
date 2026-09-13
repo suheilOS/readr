@@ -43,7 +43,10 @@ export async function captureCurrentVideo({
   let timeoutId;
   try {
     const extraction = new Defuddle(document, {
-      url,
+      // Defuddle 0.19.2 only derives IDs from watch, shorts, and youtu.be
+      // URLs. Keep identity checks tied to the live page, but give its
+      // extractor the canonical form for embed/live/privacy-enhanced URLs.
+      url: parsedUrl.canonicalUrl,
       useAsync: true,
       language: preferredLanguage(document),
       fetch: createLivePageFetch(document, expectedId, fetchImpl, controller.signal),
