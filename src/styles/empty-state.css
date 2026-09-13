@@ -10,8 +10,8 @@
 .empty-state-icon {
   display: block;
   flex: 0 0 auto;
-  width: 56px;
-  height: 56px;
+  width: 48px;
+  height: 48px;
   color: var(--muted);
 }
 
