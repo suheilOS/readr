@@ -41,6 +41,10 @@ describe("Readr item API", () => {
     const indexes = await env.READR_DB.prepare("PRAGMA index_list(media_content)")
       .all<{ name: string }>();
     expect(indexes.results.map((index) => index.name)).not.toContain("media_content_video_idx");
+
+    const itemIndexes = await env.READR_DB.prepare("PRAGMA index_list(items)")
+      .all<{ name: string }>();
+    expect(itemIndexes.results.map((index) => index.name)).toContain("items_user_added_id_idx");
   });
 
   it("enforces one captured YouTube item per user", async () => {

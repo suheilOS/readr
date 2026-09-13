@@ -1,18 +1,18 @@
 import type { Item } from "../shared/item";
 
-export type ItemGroups = {
-  deskItems: Item[];
-  visibleDeskItems: Item[];
-  visibleInboxItems: Item[];
-  visibleLibraryItems: Item[];
+export type ItemGroups<T extends Item = Item> = {
+  deskItems: T[];
+  visibleDeskItems: T[];
+  visibleInboxItems: T[];
+  visibleLibraryItems: T[];
 };
 
-export function selectItemGroups(items: Item[], query: string): ItemGroups {
+export function selectItemGroups<T extends Item>(items: T[], query: string): ItemGroups<T> {
   const normalizedQuery = query.trim().toLowerCase();
-  const deskItems: Item[] = [];
-  const visibleDeskItems: Item[] = [];
-  const visibleInboxItems: Item[] = [];
-  const visibleLibraryItems: Item[] = [];
+  const deskItems: T[] = [];
+  const visibleDeskItems: T[] = [];
+  const visibleInboxItems: T[] = [];
+  const visibleLibraryItems: T[] = [];
 
   for (const item of items) {
     const matches = normalizedQuery.length === 0 ||

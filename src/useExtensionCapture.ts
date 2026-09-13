@@ -11,14 +11,12 @@ import type { CaptureAttempt } from "./useItemLibrary";
 type ExtensionCaptureOptions = {
   persistUrl: (input: CaptureInput) => Promise<CaptureAttempt>;
   reconcileItem: (item: Item) => void;
-  refreshSilently: () => void;
 };
 
 /** Connect the MV3 bridge to the app without exposing extension protocol details in App. */
 export function useExtensionCapture({
   persistUrl,
   reconcileItem,
-  refreshSilently,
 }: ExtensionCaptureOptions): void {
   useEffect(() => {
     function handleUrlCapture(event: MessageEvent<unknown>) {
@@ -70,7 +68,6 @@ export function useExtensionCapture({
       void attachYouTubeContent(attachment.itemId, attachment.content)
         .then(({ item }) => {
           reconcileItem(item);
-          refreshSilently();
           postResult(attachment.captureId, "readr:youtube-media", { ok: true });
         })
         .catch((error: unknown) => {
@@ -86,7 +83,7 @@ export function useExtensionCapture({
     window.addEventListener("message", handleMediaAttachment);
     window.postMessage({ type: "readr:capture-ready" }, window.location.origin);
     return () => window.removeEventListener("message", handleMediaAttachment);
-  }, [reconcileItem, refreshSilently]);
+  }, [reconcileItem]);
 }
 
 function postResult(

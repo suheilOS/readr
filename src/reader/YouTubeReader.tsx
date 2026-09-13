@@ -1,10 +1,12 @@
-import { startTransition, useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
+import { memo, startTransition, useCallback, useEffect, useId, useRef, useState } from "react";
 import { Collapsible } from "@base-ui/react/collapsible";
 import type { Item } from "../../shared/item";
 import {
   parseYouTubeUrl,
   type YouTubeCapturedContent,
   type YouTubeMetadata,
+  type TranscriptSegment,
+  type VideoChapter,
   type YouTubeTranscriptContent,
   type YouTubeUrl,
 } from "../../shared/media";
@@ -13,10 +15,11 @@ import {
   extractYouTubeTranscript,
   MediaExtractionError,
 } from "./extractYouTube";
-import { activeTimedEntryIndex, formatPlaybackTime } from "./transcriptSync";
+import { formatPlaybackTime } from "./transcriptSync";
 import { MediaTranscriptSplit } from "./MediaTranscriptSplit";
 import { YouTubePlayer, type YouTubePlayerHandle } from "./YouTubePlayer";
 import { useMediaProgress } from "./useMediaProgress";
+import { useTranscriptPlayback } from "./useTranscriptPlayback";
 import { fetchYouTubeContent } from "../itemApi";
 import { notify } from "../notifications";
 import { ChevronDownIcon } from "../components/icons";
@@ -45,7 +48,6 @@ export function YouTubeReader({ item }: YouTubeReaderProps) {
 function YouTubeReaderContentView({ item, parsedUrl }: YouTubeReaderProps & { parsedUrl: YouTubeUrl }) {
   const [metadata, setMetadata] = useState<YouTubeMetadata | null>(null);
   const [transcriptState, setTranscriptState] = useState<TranscriptState>({ status: "loading" });
-  const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [playing, setPlaying] = useState(false);
   const [autoFollow, setAutoFollow] = useState(true);
@@ -121,14 +123,12 @@ function YouTubeReaderContentView({ item, parsedUrl }: YouTubeReaderProps & { pa
   const transcript = transcriptState.status === "ready" && transcriptState.content.transcript.kind === "available"
     ? transcriptState.content.transcript
     : null;
-  const activeSegmentIndex = useMemo(
-    () => activeTimedEntryIndex(transcript?.segments ?? [], currentTime),
-    [currentTime, transcript?.segments],
-  );
-  const activeChapterIndex = useMemo(
-    () => activeTimedEntryIndex(transcript?.chapters ?? [], currentTime),
-    [currentTime, transcript?.chapters],
-  );
+  const {
+    displayedTime,
+    activeSegmentIndex,
+    activeChapterIndex,
+    handleTimeChange,
+  } = useTranscriptPlayback(transcript, recordTime);
 
   useEffect(() => {
     const activeElement = segmentRefs.current[activeSegmentIndex];
@@ -225,10 +225,6 @@ function YouTubeReaderContentView({ item, parsedUrl }: YouTubeReaderProps & { pa
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [playing, stopAutoFollow]);
 
-  const handleTimeChange = useCallback((seconds: number) => {
-    setCurrentTime(seconds);
-    recordTime(seconds);
-  }, [recordTime]);
   const handleDurationChange = useCallback((seconds: number) => {
     setDuration(seconds);
     recordDuration(seconds);
@@ -238,10 +234,10 @@ function YouTubeReaderContentView({ item, parsedUrl }: YouTubeReaderProps & { pa
     recordPlaying(nextPlaying);
   }, [recordPlaying]);
 
-  function seekTo(seconds: number) {
+  const seekTo = useCallback((seconds: number) => {
     setAutoFollow(true);
     playerRef.current?.seekTo(seconds);
-  }
+  }, []);
 
   function scrollToCurrentPosition() {
     const activeElement = segmentRefs.current[activeSegmentIndex];
@@ -306,7 +302,7 @@ function YouTubeReaderContentView({ item, parsedUrl }: YouTubeReaderProps & { pa
             />
           )}
           <p className="media-player-time" aria-live="off">
-            {formatPlaybackTime(currentTime)}{duration > 0 && ` / ${formatPlaybackTime(duration)}`}
+            {formatPlaybackTime(displayedTime)}{duration > 0 && ` / ${formatPlaybackTime(duration)}`}
           </p>
           <ul className="media-shortcuts" aria-label="Video keyboard shortcuts">
             <li>
@@ -368,50 +364,27 @@ function YouTubeReaderContentView({ item, parsedUrl }: YouTubeReaderProps & { pa
                   </Collapsible.Trigger>
                   <Collapsible.Panel className="chapter-outline-panel">
                     <nav aria-label="Video chapters">
-                      <ol>
-                        {transcript.chapters.map((chapter, index) => (
-                          <li key={`${chapter.startSeconds}-${chapter.title}`}>
-                            <button
-                              type="button"
-                              aria-current={index === activeChapterIndex ? "true" : undefined}
-                              onClick={() => seekTo(chapter.startSeconds)}
-                            >
-                              <span>{chapter.title}</span>
-                              <time>{formatPlaybackTime(chapter.startSeconds)}</time>
-                            </button>
-                          </li>
-                        ))}
-                      </ol>
+                      <ChapterList
+                        chapters={transcript.chapters}
+                        activeIndex={activeChapterIndex}
+                        onSeek={seekTo}
+                      />
                     </nav>
                   </Collapsible.Panel>
                 </Collapsible.Root>
               )}
-              <ol className="transcript-list">
-                {transcript.segments.map((segment, index) => (
-                  <li
-                    key={`${segment.startSeconds}-${index}`}
-                    ref={(element) => { segmentRefs.current[index] = element; }}
-                    className={index === activeSegmentIndex ? "is-active" : undefined}
-                    aria-current={index === activeSegmentIndex ? "true" : undefined}
-                  >
-                    <button
-                      type="button"
-                      className="transcript-timestamp"
-                      aria-label={`Seek to ${formatPlaybackTime(segment.startSeconds)}`}
-                      onClick={() => seekTo(segment.startSeconds)}
-                    >
-                      {formatPlaybackTime(segment.startSeconds)}
-                    </button>
-                    <p>{segment.text}</p>
-                  </li>
-                ))}
-              </ol>
+              <TranscriptList
+                segments={transcript.segments}
+                activeIndex={activeSegmentIndex}
+                segmentRefs={segmentRefs}
+                onSeek={seekTo}
+              />
             </>
           )}
 
           {!activeVisible && activeSegmentIndex >= 0 && (
             <button type="button" className="transcript-current" onClick={returnToCurrentPosition}>
-              Current position · {formatPlaybackTime(currentTime)}
+              Current position · {formatPlaybackTime(displayedTime)}
             </button>
           )}
         </section>
@@ -420,6 +393,72 @@ function YouTubeReaderContentView({ item, parsedUrl }: YouTubeReaderProps & { pa
     </article>
   );
 }
+
+type ChapterListProps = {
+  chapters: readonly VideoChapter[];
+  activeIndex: number;
+  onSeek: (seconds: number) => void;
+};
+
+const ChapterList = memo(function ChapterList({
+  chapters,
+  activeIndex,
+  onSeek,
+}: ChapterListProps) {
+  return (
+    <ol>
+      {chapters.map((chapter, index) => (
+        <li key={`${chapter.startSeconds}-${chapter.title}`}>
+          <button
+            type="button"
+            aria-current={index === activeIndex ? "true" : undefined}
+            onClick={() => onSeek(chapter.startSeconds)}
+          >
+            <span>{chapter.title}</span>
+            <time>{formatPlaybackTime(chapter.startSeconds)}</time>
+          </button>
+        </li>
+      ))}
+    </ol>
+  );
+});
+
+type TranscriptListProps = {
+  segments: readonly TranscriptSegment[];
+  activeIndex: number;
+  segmentRefs: { current: Array<HTMLLIElement | null> };
+  onSeek: (seconds: number) => void;
+};
+
+const TranscriptList = memo(function TranscriptList({
+  segments,
+  activeIndex,
+  segmentRefs,
+  onSeek,
+}: TranscriptListProps) {
+  return (
+    <ol className="transcript-list">
+      {segments.map((segment, index) => (
+        <li
+          key={`${segment.startSeconds}-${index}`}
+          ref={(element) => { segmentRefs.current[index] = element; }}
+          className={index === activeIndex ? "is-active" : undefined}
+          aria-current={index === activeIndex ? "true" : undefined}
+        >
+          <button
+            type="button"
+            className="transcript-timestamp"
+            aria-label={`Seek to ${formatPlaybackTime(segment.startSeconds)}`}
+            onClick={() => onSeek(segment.startSeconds)}
+          >
+            {formatPlaybackTime(segment.startSeconds)}
+          </button>
+          <p>{segment.text}</p>
+        </li>
+      ))}
+    </ol>
+  );
+});
 
 function isManualScrollKey(key: string): boolean {
   return key === "PageDown" || key === "PageUp" || key === "Home" || key === "End" ||

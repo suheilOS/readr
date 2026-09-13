@@ -10,6 +10,7 @@ import { ArrowLeftIcon } from "./icons";
 import { Spinner } from "./Spinner";
 import { YouTubeReader } from "../reader/YouTubeReader";
 import { notify } from "../notifications";
+import "../reader/reader.css";
 
 type ReaderViewProps = {
   item: Item;

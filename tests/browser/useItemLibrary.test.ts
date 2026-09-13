@@ -1,7 +1,7 @@
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { parseItemUrl, type Item } from "../../shared/item";
+import { parseItemUrl, type ItemListItem } from "../../shared/item";
 import { useItemLibrary, type ItemLibrary } from "../../src/useItemLibrary";
 
 const api = vi.hoisted(() => ({
@@ -22,7 +22,7 @@ vi.mock("../../src/itemApi", () => ({
   },
 }));
 
-const item: Item = {
+const item: ItemListItem = {
   id: "item-1",
   title: "A useful article",
   url: null,
@@ -31,6 +31,7 @@ const item: Item = {
   addedAt: "2026-08-23T12:00:00.000Z",
   finishedAt: null,
   note: null,
+  metadataSummary: null,
 };
 
 let currentLibrary: ItemLibrary | null = null;

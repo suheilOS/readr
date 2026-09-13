@@ -107,6 +107,7 @@ describe("Readr extension service worker", () => {
       "capture-youtube-media",
       "readr-attach-youtube-media",
     ]);
+    expect(result.injections).toEqual([{ tabId: 1, files: ["youtube-capture.js"] }]);
     expect(result.notifications).toContainEqual(expect.objectContaining({ message: "Already on your Desk" }));
   });
 
@@ -158,6 +159,7 @@ type Result = {
   removed: number[];
   created: boolean;
   createdOptions?: Record<string, unknown>;
+  injections: Array<{ tabId: number; files: string[] }>;
 };
 
 async function runServiceWorker(options: Options): Promise<Result> {
@@ -165,6 +167,7 @@ async function runServiceWorker(options: Options): Promise<Result> {
   const messages: Result["messages"] = [];
   const notifications: Result["notifications"] = [];
   const badges: Result["badges"] = [];
+  const injections: Result["injections"] = [];
   const updated: number[] = [];
   const focused: number[] = [];
   const removed: number[] = [];
@@ -204,6 +207,12 @@ async function runServiceWorker(options: Options): Promise<Result> {
       create: (_id: string, notification: Record<string, unknown>) => { notifications.push(notification); return Promise.resolve(); },
     },
     tabs,
+    scripting: {
+      executeScript: async ({ target, files }: { target: { tabId: number }; files: string[] }) => {
+        injections.push({ tabId: target.tabId, files });
+        return [];
+      },
+    },
     windows: {
       update: async (windowId: number) => { focused.push(windowId); return {}; },
     },
@@ -222,7 +231,7 @@ async function runServiceWorker(options: Options): Promise<Result> {
   actionListeners[0](options.activeTab);
   await vi.waitFor(() => expect(notifications.length).toBeGreaterThan(0), { timeout: 1_000 });
   await new Promise((resolvePromise) => setTimeout(resolvePromise, options.waitForBadge ? 3_050 : 5));
-  return { messages, notifications, badges, updated, focused, removed, created, createdOptions };
+  return { messages, notifications, badges, updated, focused, removed, created, createdOptions, injections };
 }
 
 function captureResponse(status: string, created: boolean): Record<string, unknown> {

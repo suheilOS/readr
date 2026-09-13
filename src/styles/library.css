@@ -24,6 +24,12 @@
   padding-inline-end: 52px;
 }
 
+/* Keep a growing Library from paying layout and paint costs for distant rows. */
+.library .row-list > .row {
+  content-visibility: auto;
+  contain-intrinsic-size: 0 76px;
+}
+
 .row-text {
   width: 100%;
   min-width: 0;

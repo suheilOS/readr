@@ -4,6 +4,7 @@ import {
   isItemType,
   isItemUrl,
   parseItem,
+  parseItemListItem,
   parseItemUrl,
 } from "../../shared/item";
 
@@ -54,6 +55,36 @@ describe("shared item validation", () => {
       finishedAt: null,
       note: null,
     });
+  });
+
+  it("parses a lightweight metadata summary when present", () => {
+    expect(parseItemListItem({
+      id: "item-1",
+      title: "A video",
+      url: "https://example.com/video",
+      type: "video",
+      status: "library",
+      addedAt: "2026-08-23T12:00:00.000Z",
+      finishedAt: "2026-08-24T12:00:00.000Z",
+      note: null,
+      metadataSummary: {
+        imageUrl: "https://example.com/image.jpg",
+        imageKind: "thumbnail",
+        siteName: "Example",
+        author: "Ada",
+      },
+    })).toMatchObject({ metadataSummary: { imageKind: "thumbnail", siteName: "Example" } });
+    expect(parseItemListItem({
+      id: "item-1",
+      title: "A video",
+      url: "https://example.com/video",
+      type: "video",
+      status: "library",
+      addedAt: "2026-08-23T12:00:00.000Z",
+      finishedAt: "2026-08-24T12:00:00.000Z",
+      note: null,
+      metadataSummary: { imageUrl: "javascript:alert(1)", imageKind: "thumbnail", siteName: null, author: null },
+    })).toBeNull();
   });
 
   it("rejects an item with an invalid domain field", () => {

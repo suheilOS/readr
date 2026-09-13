@@ -5,15 +5,10 @@
   "version": "0.1.0",
   "permissions": [
     "activeTab",
-    "notifications"
+    "notifications",
+    "scripting"
   ],
   "host_permissions": [
-    "https://www.youtube.com/*",
-    "https://m.youtube.com/*",
-    "https://music.youtube.com/*",
-    "https://youtube-nocookie.com/*",
-    "https://www.youtube-nocookie.com/*",
-    "https://youtu.be/*",
     "https://readr.overhawl.app/*",
     "http://localhost:5173/*",
     "http://localhost:8787/*"
@@ -25,18 +20,6 @@
     "default_title": "Save current page to Readr"
   },
   "content_scripts": [
-    {
-      "matches": [
-        "https://www.youtube.com/*",
-        "https://m.youtube.com/*",
-        "https://music.youtube.com/*",
-        "https://youtube-nocookie.com/*",
-        "https://www.youtube-nocookie.com/*",
-        "https://youtu.be/*"
-      ],
-      "js": ["youtube-capture.js"],
-      "run_at": "document_idle"
-    },
     {
       "matches": [
         "https://readr.overhawl.app/*",

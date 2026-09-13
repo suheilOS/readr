@@ -1,6 +1,7 @@
 import { ENRICHMENT_RETRY_DELAYS_MS, parseItemMetadata, type ItemMetadata } from '../shared/capture';
 import { ExtractionError } from './extract';
 import { fetchMetadata, normalizeCaptureUrl } from './metadata';
+import { ITEM_COLUMNS, type ItemRow } from './itemRepository';
 
 const MAX_ATTEMPTS = ENRICHMENT_RETRY_DELAYS_MS.length + 1;
 const LEASE_MS = 60_000;
@@ -81,7 +82,42 @@ export async function readMetadata(db: D1Database, userId: string, itemId: strin
     SELECT m.* FROM item_metadata m INNER JOIN items i ON i.id = m.item_id
     WHERE m.item_id = ? AND i.user_id = ?
   `).bind(itemId, userId).first<MetadataRow>();
+  return row === null ? null : parseMetadataRow(row);
+}
+
+/** Read an item and its full metadata in one round trip for the polling endpoint. */
+export async function readItemWithMetadata(
+  db: D1Database,
+  userId: string,
+  itemId: string,
+): Promise<{ item: ItemRow; metadata: ItemMetadata | null } | null> {
+  const row = await db.prepare(`
+    SELECT
+      ${ITEM_COLUMNS},
+      m.item_id,
+      m.source_url,
+      m.source_title,
+      m.author,
+      m.site_name,
+      m.description,
+      m.image_url,
+      m.image_kind,
+      m.inferred_type,
+      m.inference_source,
+      m.state,
+      m.enriched_at,
+      m.error_code
+    FROM items
+    LEFT JOIN item_metadata m ON m.item_id = items.id
+    WHERE items.id = ? AND items.user_id = ?
+  `).bind(itemId, userId).first<JoinedItemMetadataRow>();
   if (row === null) return null;
+  if (row.item_id === null) return { item: row, metadata: null };
+  if (!isCompleteMetadataRow(row)) throw new Error('Invalid stored metadata');
+  return { item: row, metadata: parseMetadataRow(row) };
+}
+
+function parseMetadataRow(row: MetadataRow): ItemMetadata {
   const result = parseItemMetadata({
     sourceUrl: row.source_url, sourceTitle: row.source_title, author: row.author,
     siteName: row.site_name, description: row.description,
@@ -94,8 +130,32 @@ export async function readMetadata(db: D1Database, userId: string, itemId: strin
 }
 
 type MetadataRow = {
+  item_id: string;
   source_url: string; source_title: string | null; author: string | null;
   site_name: string | null; description: string | null; image_url: string | null;
   image_kind: string | null; inferred_type: string; inference_source: string;
   state: string; enriched_at: string | null; error_code: string | null;
 };
+
+type JoinedItemMetadataRow = ItemRow & {
+  item_id: string | null;
+  source_url: string | null;
+  source_title: string | null;
+  author: string | null;
+  site_name: string | null;
+  description: string | null;
+  image_url: string | null;
+  image_kind: string | null;
+  inferred_type: string | null;
+  inference_source: string | null;
+  state: string | null;
+  enriched_at: string | null;
+  error_code: string | null;
+};
+
+function isCompleteMetadataRow(row: JoinedItemMetadataRow): row is ItemRow & MetadataRow {
+  return row.item_id !== null && row.source_url !== null &&
+    typeof row.inferred_type === 'string' &&
+    typeof row.inference_source === 'string' &&
+    typeof row.state === 'string';
+}

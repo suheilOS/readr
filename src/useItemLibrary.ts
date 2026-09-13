@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { Item } from "../shared/item";
+import type { Item, ItemListItem } from "../shared/item";
 import type { CaptureInput, CaptureResult } from "../shared/capture";
 import type { PendingItemAction } from "./pendingItemAction";
 import { commitWithViewTransition } from "./viewTransition";
@@ -25,7 +25,7 @@ type CaptureOutcome<T> =
 export type CaptureAttempt = CaptureOutcome<CaptureResult>;
 
 export type ItemLibrary = {
-  items: Item[];
+  items: ItemListItem[];
   loading: boolean;
   pendingAction: PendingItemAction | null;
   capturePending: boolean;
@@ -46,7 +46,7 @@ export type ItemLibrary = {
 };
 
 export function useItemLibrary(): ItemLibrary {
-  const [items, setItems] = useState<Item[]>([]);
+  const [items, setItems] = useState<ItemListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [pendingAction, setPendingAction] = useState<PendingItemAction | null>(null);
   const [capturePending, setCapturePending] = useState(false);
@@ -180,7 +180,9 @@ export function useItemLibrary(): ItemLibrary {
     if (item !== null) {
       dataGenerationRef.current += 1;
       commitWithViewTransition(() => {
-        setItems((current) => current.map((currentItem) => currentItem.id === item.id ? item : currentItem));
+        setItems((current) => current.map((currentItem) => currentItem.id === item.id
+          ? replaceListItem(currentItem, item)
+          : currentItem));
       });
     }
     return item;
@@ -224,7 +226,7 @@ export function useItemLibrary(): ItemLibrary {
       commitWithViewTransition(() => {
         setItems((current) => current
           .filter((item) => item.id !== result.displacedId)
-          .map((item) => item.id === result.item.id ? result.item : item));
+          .map((item) => item.id === result.item.id ? replaceListItem(item, result.item) : item));
       });
     }
     return result?.item ?? null;
@@ -259,10 +261,16 @@ export function useItemLibrary(): ItemLibrary {
   };
 }
 
-function upsertItem(items: Item[], item: Item): Item[] {
+function upsertItem(items: ItemListItem[], item: Item): ItemListItem[] {
   const index = items.findIndex((currentItem) => currentItem.id === item.id);
-  if (index === -1) return [item, ...items];
-  return items.map((currentItem) => currentItem.id === item.id ? item : currentItem);
+  if (index === -1) return [{ ...item, metadataSummary: null }, ...items];
+  return items.map((currentItem) => currentItem.id === item.id
+    ? replaceListItem(currentItem, item)
+    : currentItem);
+}
+
+function replaceListItem(currentItem: ItemListItem, nextItem: Item): ItemListItem {
+  return { ...nextItem, metadataSummary: currentItem.metadataSummary };
 }
 
 function toItemApiError(error: unknown): ItemApiError {

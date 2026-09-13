@@ -3,20 +3,24 @@ import { Hono } from "hono";
 import {
   DESK_CAPACITY,
   isItemType,
-  parseItem,
+  isItemVisualKind,
   parseItemUrl,
-  type Item,
+  type ItemListItem,
+  type ItemMetadataSummary,
   type ItemUrl,
   type ItemType,
 } from "../shared/item";
 import { parseYouTubeUrl, type YouTubeVideoId } from "../shared/media";
 import { parseSaveMediaProgressInput } from "../shared/mediaProgress";
+import {
+  ITEM_COLUMNS,
+  findItem,
+  findYouTubeItem,
+  toItem,
+  type ItemRow,
+} from "./itemRepository";
 import { requireAuth, type AppEnv } from "./auth";
 import { requireSameOrigin } from "./csrf";
-
-const ITEM_COLUMNS = `
-  id, user_id, title, url, youtube_video_id, type, status, added_at, finished_at, note, updated_at
-`;
 
 const itemRoutes = new Hono<AppEnv>();
 
@@ -25,13 +29,20 @@ itemRoutes.use("*", requireSameOrigin);
 
 itemRoutes.get("/items", async (context) => {
   const rows = await context.env.READR_DB.prepare(`
-    SELECT ${ITEM_COLUMNS}
+    SELECT
+      ${ITEM_COLUMNS},
+      m.item_id AS metadata_item_id,
+      m.image_url AS metadata_image_url,
+      m.image_kind AS metadata_image_kind,
+      m.site_name AS metadata_site_name,
+      m.author AS metadata_author
     FROM items
-    WHERE user_id = ?
-    ORDER BY added_at DESC, id DESC
-  `).bind(context.get("userId")).all<ItemRow>();
+    LEFT JOIN item_metadata m ON m.item_id = items.id
+    WHERE items.user_id = ?
+    ORDER BY items.added_at DESC, items.id DESC
+  `).bind(context.get("userId")).all<ItemListRow>();
 
-  return context.json({ items: rows.results.map(toItem) });
+  return context.json({ items: rows.results.map(toListItem) });
 });
 
 itemRoutes.post("/items", async (context) => {
@@ -42,10 +53,11 @@ itemRoutes.post("/items", async (context) => {
 
   const now = new Date().toISOString();
   const id = crypto.randomUUID();
-  const insertResult = await context.env.READR_DB.prepare(`
+  const insertedItem = await context.env.READR_DB.prepare(`
     INSERT OR IGNORE INTO items (
       id, user_id, title, url, youtube_video_id, type, status, added_at, finished_at, note, updated_at
     ) VALUES (?, ?, ?, ?, ?, ?, 'inbox', ?, NULL, NULL, ?)
+    RETURNING ${ITEM_COLUMNS}
   `).bind(
     id,
     context.get("userId"),
@@ -55,9 +67,9 @@ itemRoutes.post("/items", async (context) => {
     input.type,
     now,
     now,
-  ).run();
+  ).first<ItemRow>();
 
-  if (insertResult.meta.changes !== 1) {
+  if (insertedItem === null) {
     const existing = input.youtubeVideoId === null
       ? null
       : await findYouTubeItem(context.env.READR_DB, context.get("userId"), input.youtubeVideoId);
@@ -66,12 +78,7 @@ itemRoutes.post("/items", async (context) => {
       : apiError(context, "duplicate_item", "That YouTube video is already in your library.", 409);
   }
 
-  const item = await findItem(context.env.READR_DB, context.get("userId"), id);
-  if (item === null) {
-    return apiError(context, "internal_error", "The item could not be created.", 500);
-  }
-
-  return context.json({ item: toItem(item) }, 201);
+  return context.json({ item: toItem(insertedItem) }, 201);
 });
 
 itemRoutes.post("/items/:id/move-to-desk", async (context) => {
@@ -87,7 +94,7 @@ itemRoutes.post("/items/:id/move-to-desk", async (context) => {
   }
 
   const updatedAt = new Date().toISOString();
-  const result = await context.env.READR_DB.prepare(`
+  const item = await context.env.READR_DB.prepare(`
     UPDATE items
     SET status = 'desk', finished_at = NULL, updated_at = ?
     WHERE id = ?
@@ -98,15 +105,11 @@ itemRoutes.post("/items/:id/move-to-desk", async (context) => {
         FROM items
         WHERE user_id = ? AND status = 'desk'
       ) < ?
-  `).bind(updatedAt, id, userId, userId, DESK_CAPACITY).run();
+    RETURNING ${ITEM_COLUMNS}
+  `).bind(updatedAt, id, userId, userId, DESK_CAPACITY).first<ItemRow>();
 
-  if (result.meta.changes !== 1) {
-    return apiError(context, "desk_full", "Your desk is full. Replace an item before moving this one.", 409);
-  }
-
-  const item = await findItem(context.env.READR_DB, userId, id);
   return item === null
-    ? apiError(context, "internal_error", "The item could not be moved.", 500)
+    ? apiError(context, "desk_full", "Your desk is full. Replace an item before moving this one.", 409)
     : context.json({ item: toItem(item) });
 });
 
@@ -114,46 +117,30 @@ itemRoutes.post("/items/:id/move-to-inbox", async (context) => {
   const userId = context.get("userId");
   const id = context.req.param("id");
   const updatedAt = new Date().toISOString();
-  const result = await context.env.READR_DB.prepare(`
+  const item = await context.env.READR_DB.prepare(`
     UPDATE items
     SET status = 'inbox', finished_at = NULL, updated_at = ?
     WHERE id = ? AND user_id = ?
-  `).bind(updatedAt, id, userId).run();
+    RETURNING ${ITEM_COLUMNS}
+  `).bind(updatedAt, id, userId).first<ItemRow>();
 
-  if (result.meta.changes !== 1) {
-    const existing = await findItem(context.env.READR_DB, userId, id);
-    return existing === null
-      ? apiError(context, "not_found", "The item could not be found.", 404)
-      : context.json({ item: toItem(existing) });
-  }
-
-  const item = await findItem(context.env.READR_DB, userId, id);
-  return item === null
-    ? apiError(context, "internal_error", "The item could not be moved.", 500)
-    : context.json({ item: toItem(item) });
+  if (item !== null) return context.json({ item: toItem(item) });
+  return apiError(context, "not_found", "The item could not be found.", 404);
 });
 
 itemRoutes.post("/items/:id/finish", async (context) => {
   const userId = context.get("userId");
   const id = context.req.param("id");
   const finishedAt = new Date().toISOString();
-  const result = await context.env.READR_DB.prepare(`
+  const item = await context.env.READR_DB.prepare(`
     UPDATE items
     SET status = 'library', finished_at = ?, updated_at = ?
     WHERE id = ? AND user_id = ?
-  `).bind(finishedAt, finishedAt, id, userId).run();
+    RETURNING ${ITEM_COLUMNS}
+  `).bind(finishedAt, finishedAt, id, userId).first<ItemRow>();
 
-  if (result.meta.changes !== 1) {
-    const existing = await findItem(context.env.READR_DB, userId, id);
-    return existing === null
-      ? apiError(context, "not_found", "The item could not be found.", 404)
-      : context.json({ item: toItem(existing) });
-  }
-
-  const item = await findItem(context.env.READR_DB, userId, id);
-  return item === null
-    ? apiError(context, "internal_error", "The item could not be finished.", 500)
-    : context.json({ item: toItem(item) });
+  if (item !== null) return context.json({ item: toItem(item) });
+  return apiError(context, "not_found", "The item could not be found.", 404);
 });
 
 itemRoutes.delete("/items/:id", async (context) => {
@@ -194,7 +181,7 @@ itemRoutes.post("/items/:candidateId/swap", async (context) => {
   }
 
   const updatedAt = new Date().toISOString();
-  const [deleteResult, moveResult] = await context.env.READR_DB.batch([
+  const [deleteResult, moveResult] = await context.env.READR_DB.batch<ItemRow>([
     context.env.READR_DB.prepare(`
       DELETE FROM items
       WHERE id = ?
@@ -209,17 +196,15 @@ itemRoutes.post("/items/:candidateId/swap", async (context) => {
       UPDATE items
       SET status = 'desk', finished_at = NULL, updated_at = ?
       WHERE id = ? AND user_id = ? AND status <> 'desk'
+      RETURNING ${ITEM_COLUMNS}
     `).bind(updatedAt, candidateId, userId),
   ]);
 
-  if (deleteResult.meta.changes !== 1 || moveResult.meta.changes !== 1) {
+  if (deleteResult.meta.changes !== 1 || moveResult.meta.changes !== 1 || moveResult.results.length !== 1) {
     return apiError(context, "invalid_swap", "The items changed. Try the swap again.", 409);
   }
 
-  const item = await findItem(context.env.READR_DB, userId, candidateId);
-  return item === null
-    ? apiError(context, "internal_error", "The item could not be moved.", 500)
-    : context.json({ item: toItem(item), displacedId });
+  return context.json({ item: toItem(moveResult.results[0]), displacedId });
 });
 
 itemRoutes.get("/items/:id/media-progress", async (context) => {
@@ -274,7 +259,7 @@ itemRoutes.put("/items/:id/media-progress", async (context) => {
     : apiError(context, "internal_error", "Playback progress could not be saved.", 500);
 });
 
-export { findItem, findYouTubeItem, itemRoutes, toItem };
+export { itemRoutes };
 
 async function readCreateInput(context: Context<AppEnv>): Promise<CreateItemInput | null> {
   const body = await readJson(context);
@@ -304,52 +289,11 @@ async function readJson(context: Context<AppEnv>): Promise<unknown> {
   }
 }
 
-async function findItem(db: D1Database, userId: string, id: string): Promise<ItemRow | null> {
-  return db.prepare(`
-    SELECT ${ITEM_COLUMNS}
-    FROM items
-    WHERE id = ? AND user_id = ?
-  `).bind(id, userId).first<ItemRow>();
-}
-
-async function findYouTubeItem(
-  db: D1Database,
-  userId: string,
-  videoId: YouTubeVideoId,
-): Promise<ItemRow | null> {
-  const indexed = await db.prepare(`
-    SELECT ${ITEM_COLUMNS}
-    FROM items
-    WHERE user_id = ? AND youtube_video_id = ?
-    LIMIT 1
-  `).bind(userId, videoId).first<ItemRow>();
-  if (indexed !== null) return indexed;
-
-  const historical = await db.prepare(`
-    SELECT ${ITEM_COLUMNS}
-    FROM items
-    WHERE user_id = ? AND youtube_video_id IS NULL AND url IS NOT NULL
-    ORDER BY added_at ASC, id ASC
-  `).bind(userId).all<ItemRow>();
-
-  return historical.results.find((row) => parseYouTubeUrl(row.url)?.videoId === videoId) ?? null;
-}
-
-function toItem(row: ItemRow): Item {
-  const item = parseItem({
-    id: row.id,
-    title: row.title,
-    url: row.url,
-    type: row.type,
-    status: row.status,
-    addedAt: row.added_at,
-    finishedAt: row.finished_at,
-    note: row.note,
-  });
-  if (item === null) {
-    throw new Error(`Invalid item row: ${row.id}`);
-  }
-  return item;
+function toListItem(row: ItemListRow): ItemListItem {
+  return {
+    ...toItem(row),
+    metadataSummary: toMetadataSummary(row),
+  };
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -372,19 +316,30 @@ type CreateItemInput = {
   type: ItemType;
 };
 
-export type ItemRow = {
-  id: string;
-  user_id: string;
-  title: string;
-  url: string | null;
-  type: string;
-  status: string;
-  added_at: string;
-  finished_at: string | null;
-  note: string | null;
-  updated_at: string;
-  youtube_video_id: string | null;
+type ItemListRow = ItemRow & {
+  metadata_item_id: string | null;
+  metadata_image_url: string | null;
+  metadata_image_kind: string | null;
+  metadata_site_name: string | null;
+  metadata_author: string | null;
 };
+
+function toMetadataSummary(row: ItemListRow): ItemMetadataSummary | null {
+  if (row.metadata_item_id === null) return null;
+  const imageKind = row.metadata_image_kind === null
+    ? null
+    : isItemVisualKind(row.metadata_image_kind) ? row.metadata_image_kind : undefined;
+  if (imageKind === undefined || (row.metadata_image_url === null && imageKind !== null) ||
+    (row.metadata_image_url !== null && imageKind === null)) {
+    throw new Error(`Invalid metadata row for item: ${row.id}`);
+  }
+  return {
+    imageUrl: row.metadata_image_url,
+    imageKind,
+    siteName: row.metadata_site_name,
+    author: row.metadata_author,
+  };
+}
 
 type MediaProgressRow = {
   position_seconds: number;

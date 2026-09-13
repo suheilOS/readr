@@ -104,7 +104,6 @@ export default function App() {
     error,
     unauthenticated,
     retry,
-    refreshSilently,
     addItem,
     captureUrlWithError,
     reconcileItem,
@@ -247,7 +246,6 @@ export default function App() {
   useExtensionCapture({
     persistUrl: persistQuickCapture,
     reconcileItem,
-    refreshSilently,
   });
 
   useEffect(() => {

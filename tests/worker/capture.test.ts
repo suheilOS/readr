@@ -30,6 +30,15 @@ describe('URL capture', () => {
     await settle();
     const details = await request(user, `/api/items/${result!.item.id}/metadata`);
     expect(await details.json()).toMatchObject({ item: { title: 'Source title' }, metadata: { enrichment: { kind: 'ready' } } });
+    const list = await request(user, '/api/items');
+    expect(await list.json()).toMatchObject({
+      items: [{ metadataSummary: {
+        imageUrl: 'https://example.com/image.jpg',
+        imageKind: 'article-image',
+        siteName: 'example.com',
+        author: 'Ada',
+      } }],
+    });
   });
 
   it('converges simultaneous normalized URL captures without orphan items', async () => {
@@ -70,6 +79,21 @@ describe('URL capture', () => {
     const rows = await env.READR_DB.prepare('SELECT title, type FROM items WHERE user_id = ?').bind(user).all();
     expect(rows.results).toHaveLength(2);
     expect(rows.results.every((row) => row.type === 'book' && row.title !== 'Source title')).toBe(true);
+  });
+
+  it('does not scan capture-indexed historical items for a new URL identity', async () => {
+    const user = crypto.randomUUID();
+    const historicalResponse = await request(user, '/api/items', {
+      title: 'Historical item', type: 'article', url: 'https://example.com/history?utm_source=old',
+    });
+    const historical = await historicalResponse.json() as { item: { id: string } };
+    await env.READR_DB.prepare(
+      'INSERT INTO capture_urls (user_id, normalized_url, item_id) VALUES (?, ?, ?)',
+    ).bind(user, 'https://example.com/another-url', historical.item.id).run();
+
+    const captured = await request(user, '/api/capture', { url: 'https://example.com/history?utm_medium=new' });
+    expect(captured.status).toBe(201);
+    expect(parseCaptureResult(await captured.json())?.item.id).not.toBe(historical.item.id);
   });
 
   it('shares YouTube identity with the legacy capture route', async () => {

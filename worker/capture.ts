@@ -3,10 +3,10 @@ import { inferUrlType, parseCaptureInput } from '../shared/capture';
 import { parseYouTubeUrl } from '../shared/media';
 import { requireAuth, type AppEnv } from './auth';
 import { requireSameOrigin } from './csrf';
-import { enrichItem, readMetadata } from './enrichment';
+import { enrichItem, readItemWithMetadata, readMetadata } from './enrichment';
 import { ExtractionError, readJsonRequestBody } from './extract';
 import { jsonError } from './http';
-import { findItem, findYouTubeItem, toItem } from './items';
+import { findItem, findYouTubeItem, toItem } from './itemRepository';
 import { normalizeCaptureUrl } from './metadata';
 
 export const captureRoutes = new Hono<AppEnv>();
@@ -68,14 +68,13 @@ captureRoutes.post('/capture', async (context) => {
 });
 
 captureRoutes.get('/items/:id/metadata', async (context) => {
-  const db = context.env.READR_DB;
-  const userId = context.get('userId');
-  const id = context.req.param('id');
-  // Read status first so a completed status cannot accompany a pre-enrichment item snapshot.
-  const metadata = await readMetadata(db, userId, id);
-  const item = await findItem(db, userId, id);
-  if (item === null) return error('not_found', 'The item could not be found.', 404);
-  return context.json({ item: toItem(item), metadata });
+  const result = await readItemWithMetadata(
+    context.env.READR_DB,
+    context.get('userId'),
+    context.req.param('id'),
+  );
+  if (result === null) return error('not_found', 'The item could not be found.', 404);
+  return context.json({ item: toItem(result.item), metadata: result.metadata });
 });
 
 captureRoutes.post('/items/:id/enrichment/retry', async (context) => {
@@ -100,8 +99,16 @@ async function findCaptureItem(db: D1Database, userId: string, url: URL): Promis
   const youtube = parseYouTubeUrl(url.href);
   if (youtube !== null) return (await findYouTubeItem(db, userId, youtube.videoId))?.id ?? null;
   // Lazy adoption preserves historical duplicates and their notes/progress without a destructive migration.
-  const historical = await db.prepare('SELECT id, url FROM items WHERE user_id = ? AND url IS NOT NULL ORDER BY added_at, id')
-    .bind(userId).all<{ id: string; url: string }>();
+  const historical = await db.prepare(`
+    SELECT items.id, items.url
+    FROM items
+    WHERE items.user_id = ? AND items.url IS NOT NULL
+      AND NOT EXISTS (
+        SELECT 1 FROM capture_urls
+        WHERE capture_urls.user_id = items.user_id AND capture_urls.item_id = items.id
+      )
+    ORDER BY items.added_at, items.id
+  `).bind(userId).all<{ id: string; url: string }>();
   return historical.results.find((row) => normalizeCaptureUrl(row.url)?.href === url.href)?.id ?? null;
 }
 

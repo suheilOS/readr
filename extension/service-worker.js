@@ -101,6 +101,7 @@ async function runCapture(clickedTab) {
 async function enrichYouTubeBestEffort({ sourceTabId, readrTab, captureId, expectedVideoId, itemId }) {
   try {
     await assertCurrentYouTubeTab(sourceTabId, expectedVideoId);
+    await injectYouTubeCaptureScript(sourceTabId);
     const captured = await sendTabMessage(sourceTabId, {
       type: "capture-youtube-media",
       expectedVideoId,
@@ -248,6 +249,16 @@ function sendTabMessage(tabId, message, timeoutMs) {
           reject(error);
         },
       );
+  });
+}
+
+async function injectYouTubeCaptureScript(tabId) {
+  if (typeof chrome.scripting?.executeScript !== "function") {
+    throw captureError("YouTube capture is unavailable.", "youtube_capture_unavailable");
+  }
+  await chrome.scripting.executeScript({
+    target: { tabId },
+    files: ["youtube-capture.js"],
   });
 }
 

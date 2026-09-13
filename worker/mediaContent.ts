@@ -7,7 +7,7 @@ import {
   YOUTUBE_CAPTURE_LIMITS,
   type YouTubeCapturedContent,
 } from "../shared/media";
-import { findItem, findYouTubeItem, toItem, type ItemRow } from "./items";
+import { ITEM_COLUMNS, findItem, findYouTubeItem, toItem, type ItemRow } from "./itemRepository";
 
 const MAX_CAPTURE_REQUEST_BYTES = YOUTUBE_CAPTURE_LIMITS.payloadBytes + 8 * 1024;
 
@@ -28,13 +28,14 @@ export async function captureYouTubeContent(context: Context<AppEnv>): Promise<R
     let created = false;
     if (existing === null) {
       const itemId = crypto.randomUUID();
-      const insertResult = await context.env.READR_DB.prepare(`
+      const insertedItem = await context.env.READR_DB.prepare(`
         INSERT OR IGNORE INTO items (
           id, user_id, title, url, youtube_video_id, type, status, added_at, finished_at, note, updated_at
         ) VALUES (?, ?, ?, ?, ?, 'video', 'inbox', ?, NULL, NULL, ?)
-      `).bind(itemId, userId, body.title, sourceUrl.canonicalUrl, body.videoId, now, now).run();
-      created = insertResult.meta.changes === 1;
-      existing = await findYouTubeItem(context.env.READR_DB, userId, body.videoId);
+        RETURNING ${ITEM_COLUMNS}
+      `).bind(itemId, userId, body.title, sourceUrl.canonicalUrl, body.videoId, now, now).first<ItemRow>();
+      created = insertedItem !== null;
+      existing = insertedItem ?? await findYouTubeItem(context.env.READR_DB, userId, body.videoId);
     }
 
     if (existing === null) {
@@ -156,10 +157,13 @@ async function persistYouTubeContent(
 ): Promise<ItemRow | null> {
   const capturedAt = new Date().toISOString();
   try {
-    await db.batch([
+    const [identityResult] = await db.batch<ItemRow>([
       updateYouTubeIdentity(db, userId, item, content.videoId, capturedAt),
       mediaUpsertStatement(db, item.id, content, capturedAt),
     ]);
+    const updatedItem = identityResult.results[0];
+    if (updatedItem === undefined) return null;
+    return updatedItem;
   } catch (error) {
     // The item read above and this batch are separate D1 operations. If a
     // concurrent delete won the race, the media foreign key can reject the
@@ -168,7 +172,6 @@ async function persistYouTubeContent(
     if (await findItem(db, userId, item.id) === null) return null;
     throw error;
   }
-  return findItem(db, userId, item.id);
 }
 
 function updateYouTubeIdentity(
@@ -180,10 +183,10 @@ function updateYouTubeIdentity(
 ): D1PreparedStatement {
   return item.youtube_video_id === null
     ? db.prepare(
-        "UPDATE items SET youtube_video_id = ?, updated_at = ? WHERE id = ? AND user_id = ?",
+        `UPDATE items SET youtube_video_id = ?, updated_at = ? WHERE id = ? AND user_id = ? RETURNING ${ITEM_COLUMNS}`,
       ).bind(videoId, updatedAt, item.id, userId)
     : db.prepare(
-        "UPDATE items SET updated_at = ? WHERE id = ? AND user_id = ?",
+        `UPDATE items SET updated_at = ? WHERE id = ? AND user_id = ? RETURNING ${ITEM_COLUMNS}`,
       ).bind(updatedAt, item.id, userId);
 }
 

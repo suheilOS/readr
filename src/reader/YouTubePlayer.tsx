@@ -1,4 +1,4 @@
-import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
+import { forwardRef, memo, useEffect, useImperativeHandle, useRef, useState } from "react";
 import {
   youtubePlayerOrigin,
   type YouTubePlayerHost,
@@ -26,7 +26,7 @@ type YouTubePlayerProps = {
   onTimeChange: (seconds: number) => void;
 };
 
-export const YouTubePlayer = forwardRef<YouTubePlayerHandle, YouTubePlayerProps>(
+export const YouTubePlayer = memo(forwardRef<YouTubePlayerHandle, YouTubePlayerProps>(
   function YouTubePlayer({
     videoId,
     playerHost,
@@ -128,4 +128,4 @@ export const YouTubePlayer = forwardRef<YouTubePlayerHandle, YouTubePlayerProps>
       </div>
     );
   },
-);
+));

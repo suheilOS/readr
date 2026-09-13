@@ -1,6 +1,8 @@
 import {
   parseItem,
+  parseItemListItem,
   type Item,
+  type ItemListItem,
   type ItemType,
   type ItemUrl,
 } from "../shared/item";
@@ -20,7 +22,7 @@ export type NewItemInput = {
 };
 
 type ItemResponse = { item: Item };
-type ItemsResponse = { items: Item[] };
+type ItemsResponse = { items: ItemListItem[] };
 type SwapResponse = { item: Item; displacedId: string };
 
 export class ItemApiError extends Error {
@@ -35,7 +37,7 @@ export class ItemApiError extends Error {
   }
 }
 
-export async function fetchItems(signal?: AbortSignal): Promise<Item[]> {
+export async function fetchItems(signal?: AbortSignal): Promise<ItemListItem[]> {
   const response = await request("/api/items", { signal });
   const body = readItemsResponse(response);
   return body.items;
@@ -181,9 +183,9 @@ function readItemsResponse(response: { body: unknown }): ItemsResponse {
     throw new ItemApiError("The server returned invalid items.", 502, "invalid_response");
   }
 
-  const items: Item[] = [];
+  const items: ItemListItem[] = [];
   for (const value of response.body.items) {
-    const item = parseItem(value);
+    const item = parseItemListItem(value);
     if (item === null) {
       throw new ItemApiError("The server returned invalid items.", 502, "invalid_response");
     }

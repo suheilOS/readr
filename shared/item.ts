@@ -22,6 +22,16 @@ export const ITEM_STATUSES = ["inbox", "desk", "library"] as const;
 
 export type ItemStatus = (typeof ITEM_STATUSES)[number];
 
+export type ItemVisualKind = "thumbnail" | "cover" | "article-image";
+
+/** Lightweight metadata returned with list items for future card rendering. */
+export type ItemMetadataSummary = {
+  imageUrl: string | null;
+  imageKind: ItemVisualKind | null;
+  siteName: string | null;
+  author: string | null;
+};
+
 export type Item = {
   id: string;
   title: string;
@@ -31,6 +41,11 @@ export type Item = {
   addedAt: string;
   finishedAt: string | null;
   note: string | null;
+};
+
+/** Item shape returned by the library list, including its batched card summary. */
+export type ItemListItem = Item & {
+  metadataSummary: ItemMetadataSummary | null;
 };
 
 export function parseItemUrl(value: unknown): ItemUrl | null {
@@ -96,6 +111,17 @@ export function parseItem(value: unknown): Item | null {
   };
 }
 
+export function parseItemListItem(value: unknown): ItemListItem | null {
+  if (!isRecord(value)) return null;
+  const item = parseItem(value);
+  const metadataSummary = value.metadataSummary === undefined
+    ? null
+    : parseItemMetadataSummary(value.metadataSummary);
+  return item === null || metadataSummary === undefined
+    ? null
+    : { ...item, metadataSummary };
+}
+
 export function itemTypeLabel(type: ItemType): string {
   return TYPE_OPTIONS.find((option) => option.value === type)?.label ?? type;
 }
@@ -122,6 +148,38 @@ export function readerKindFor(item: Pick<Item, "type" | "url">): ReaderKind | nu
   if (item.url === null) return null;
   if (parseYouTubeUrl(item.url) !== null) return "youtube";
   return item.type === "article" || item.type === "paper" ? "article" : null;
+}
+
+export function isItemVisualKind(value: unknown): value is ItemVisualKind {
+  return value === "thumbnail" || value === "cover" || value === "article-image";
+}
+
+function parseItemMetadataSummary(value: unknown): ItemMetadataSummary | null | undefined {
+  if (value === null) return null;
+  if (!isRecord(value) || !nullableString(value.imageUrl) ||
+    !nullableString(value.siteName) || !nullableString(value.author)) {
+    return undefined;
+  }
+
+  const imageKind = value.imageKind === null
+    ? null
+    : isItemVisualKind(value.imageKind) ? value.imageKind : undefined;
+  if (imageKind === undefined || (value.imageUrl !== null && parseItemUrl(value.imageUrl) === null) ||
+    (value.imageUrl === null && imageKind !== null) ||
+    (value.imageUrl !== null && imageKind === null)) {
+    return undefined;
+  }
+
+  return {
+    imageUrl: value.imageUrl,
+    imageKind,
+    siteName: value.siteName,
+    author: value.author,
+  };
+}
+
+function nullableString(value: unknown): value is string | null {
+  return value === null || typeof value === "string";
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
