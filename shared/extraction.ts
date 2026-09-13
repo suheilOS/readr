@@ -10,12 +10,17 @@ export type ExtractedArticle = {
   wordCount: number;
 };
 
+export type ArticleContentResponse = {
+  content: ExtractedArticle;
+};
+
 export const EXTRACT_ERROR_CODES = [
   "bad_request",
   "method_not_allowed",
   "unsupported_media_type",
   "request_too_large",
   "rate_limited",
+  "not_found",
   "unsafe_url",
   "upstream_error",
   "upstream_timeout",
@@ -48,6 +53,10 @@ export function parseExtractRequest(value: unknown): ExtractRequest | null {
   }
 
   return { url: value.url.trim() };
+}
+
+export function isArticleContentResponse(value: unknown): value is ArticleContentResponse {
+  return isRecord(value) && isExtractedArticle(value.content);
 }
 
 export function isExtractedArticle(value: unknown): value is ExtractedArticle {

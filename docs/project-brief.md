@@ -70,14 +70,15 @@ If these feel flat, no amount of metadata scraping rescues the product.
 
 ## In-app reader scope
 
-Articles and papers open inside the app through a distraction-free view. A Worker route does the extraction:
+Articles and papers open inside the app through a distraction-free view. Article content is prepared when a URL is captured:
 
-1. `POST /api/extract` receives a URL
-2. The Worker strips tracking parameters, blocks private-network addresses, then fetches server side
-3. Defuddle with linkedom's worker-safe DOM parser extracts main content, title, author, and word count
-4. The client sanitizes returned HTML with DOMPurify before rendering
+1. Capture commits an article-content job without waiting for the source website
+2. A background Worker fetches the page, then Defuddle with linkedom's worker-safe DOM parser extracts main content, title, author, and word count
+3. The extracted reader snapshot is stored in D1 and served by `GET /api/items/:id/article-content`
+4. Historical items and failed background jobs extract on first open and persist the successful fallback
+5. The client sanitizes returned HTML with DOMPurify before rendering
 
-Extraction failures fall back to an Open original link. Version 1 ships no per-site selector overrides.
+`POST /api/extract` remains as an authenticated, instrumented compatibility endpoint. Extraction failures fall back to an Open original link. Version 1 ships no per-site selector overrides.
 
 Typography is the entire article-reading interface: measure, line height, hierarchy. No floating settings bars, font pickers, or outlines.
 

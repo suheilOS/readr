@@ -24,6 +24,28 @@ type ErrorStatus = {
 
 type SizeErrorCode = "request_too_large" | "response_too_large";
 
+export type ExtractionTimings = {
+  fetchSource: number;
+  parseHtml: number;
+  defuddle: number;
+};
+
+export type TimedExtraction = {
+  article: ExtractedArticle;
+  timings: ExtractionTimings;
+};
+
+export function formatExtractionServerTiming(timings: ExtractionTimings): string {
+  const entries: readonly [string, number][] = [
+    ["fetch-source", timings.fetchSource],
+    ["parse-html", timings.parseHtml],
+    ["defuddle", timings.defuddle],
+  ];
+  return entries
+    .map(([name, duration]) => `${name};dur=${Math.max(0, duration).toFixed(1)}`)
+    .join(", ");
+}
+
 export class ExtractionError extends Error {
   readonly code: ExtractErrorCode;
   readonly status: number;
@@ -36,7 +58,7 @@ export class ExtractionError extends Error {
   }
 }
 
-export async function extractFromRequest(request: Request): Promise<ExtractedArticle> {
+export async function extractFromRequestWithTimings(request: Request): Promise<TimedExtraction> {
   const requestBody = await readJsonRequestBody(request);
   const input = parseExtractRequest(requestBody);
   if (input === null) {
@@ -64,12 +86,24 @@ export async function extractFromRequest(request: Request): Promise<ExtractedArt
     });
   }
 
+  return extractFromUrlWithTimings(sourceUrl);
+}
+
+export async function extractFromUrlWithTimings(sourceUrl: URL): Promise<TimedExtraction> {
+  const fetchStartedAt = performance.now();
   const fetchedPage = await fetchHtml(sourceUrl);
+  const fetchSource = performance.now() - fetchStartedAt;
+
+  const parseStartedAt = performance.now();
   const { document } = parseHTML(fetchedPage.html);
+  const parseHtml = performance.now() - parseStartedAt;
+
+  const defuddleStartedAt = performance.now();
   const result = new Defuddle(document, {
     url: fetchedPage.sourceUrl,
     useAsync: false,
   }).parse();
+  const defuddle = performance.now() - defuddleStartedAt;
   const title = result.title.trim();
   const html = result.content.trim();
 
@@ -82,13 +116,16 @@ export async function extractFromRequest(request: Request): Promise<ExtractedArt
   }
 
   return {
-    sourceUrl: fetchedPage.sourceUrl,
-    title,
-    author: result.author.trim() || null,
-    html,
-    wordCount: Number.isSafeInteger(result.wordCount) && result.wordCount >= 0
-      ? result.wordCount
-      : countWords(html),
+    article: {
+      sourceUrl: fetchedPage.sourceUrl,
+      title,
+      author: result.author.trim() || null,
+      html,
+      wordCount: Number.isSafeInteger(result.wordCount) && result.wordCount >= 0
+        ? result.wordCount
+        : countWords(html),
+    },
+    timings: { fetchSource, parseHtml, defuddle },
   };
 }
 

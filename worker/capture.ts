@@ -4,6 +4,11 @@ import { parseYouTubeUrl } from '../shared/media';
 import { requireAuth, type AppEnv } from './auth';
 import { requireSameOrigin } from './csrf';
 import { enrichItem, readItemWithMetadata, readMetadata } from './enrichment';
+import {
+  extractArticleContent,
+  getArticleContent,
+  queueArticleContentForCapture,
+} from './articleContent';
 import { ExtractionError, readJsonRequestBody } from './extract';
 import { jsonError } from './http';
 import { findItem, findYouTubeItem, toItem } from './itemRepository';
@@ -52,6 +57,7 @@ captureRoutes.post('/capture', async (context) => {
         INSERT OR IGNORE INTO item_metadata (item_id, source_url, inferred_type, inference_source, next_attempt_at)
         SELECT item_id, ?, ?, ?, ? FROM capture_urls WHERE user_id = ? AND normalized_url = ?
       `).bind(url.href, inference.type, inference.source, Date.now(), userId, url.href),
+      queueArticleContentForCapture(db, userId, url.href, Date.now()),
     ]);
     const identity = await db.prepare('SELECT item_id FROM capture_urls WHERE user_id = ? AND normalized_url = ?')
       .bind(userId, url.href).first<{ item_id: string }>();
@@ -59,13 +65,21 @@ captureRoutes.post('/capture', async (context) => {
     if (item === null) return error('capture_conflict', 'The item changed during capture. Try again.', 409);
     // The response is built from the committed row, before upstream enrichment can affect it.
     const response = context.json({ item: toItem(item), created: insert.meta.changes === 1 }, insert.meta.changes === 1 ? 201 : 200);
-    context.executionCtx.waitUntil(enrichItem(db, item.id));
+    // Enrichment runs first so MIME-detected PDFs do not trigger a second full
+    // article download. It catches upstream failures internally, so reader
+    // extraction still runs for ordinary pages when metadata is unavailable.
+    context.executionCtx.waitUntil((async () => {
+      await enrichItem(db, item.id);
+      await extractArticleContent(db, item.id);
+    })());
     return response;
   } catch (cause) {
     if (cause instanceof ExtractionError) return error(cause.code, cause.message, cause.status);
     throw cause;
   }
 });
+
+captureRoutes.get('/items/:id/article-content', getArticleContent);
 
 captureRoutes.get('/items/:id/metadata', async (context) => {
   const result = await readItemWithMetadata(

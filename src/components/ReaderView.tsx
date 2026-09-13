@@ -3,8 +3,8 @@ import { canReadInApp, itemMetaLine, readerKindFor, type Item } from "../../shar
 import type { ExtractedArticle } from "../../shared/extraction";
 import {
   ArticleExtractionError,
-  extractArticle,
-} from "../reader/extractArticle";
+  fetchArticleContent,
+} from "../reader/fetchArticleContent";
 import { sanitizeArticleHtml } from "../reader/sanitizeArticle";
 import { ArrowLeftIcon } from "./icons";
 import { Spinner } from "./Spinner";
@@ -72,7 +72,7 @@ function ArticleReader({ item, onClose }: ReaderViewProps) {
       }
 
       try {
-        const article = await extractArticle(itemUrl, controller.signal);
+        const article = await fetchArticleContent(item.id, controller.signal);
         const readyArticle: ExtractedArticle = {
           title: article.title,
           author: article.author,

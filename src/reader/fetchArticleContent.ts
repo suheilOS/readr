@@ -1,6 +1,6 @@
 import {
+  isArticleContentResponse,
   isExtractErrorBody,
-  isExtractedArticle,
   type ExtractedArticle,
 } from "../../shared/extraction";
 
@@ -14,19 +14,15 @@ export class ArticleExtractionError extends Error {
   }
 }
 
-export async function extractArticle(
-  url: string,
+export async function fetchArticleContent(
+  itemId: string,
   signal: AbortSignal,
 ): Promise<ExtractedArticle> {
   let response: Response;
 
   try {
-    response = await fetch("/api/extract", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ url }),
+    response = await fetch(`/api/items/${encodeURIComponent(itemId)}/article-content`, {
+      credentials: "include",
       signal,
     });
   } catch (error) {
@@ -64,12 +60,12 @@ export async function extractArticle(
     );
   }
 
-  if (!isExtractedArticle(responseBody)) {
+  if (!isArticleContentResponse(responseBody)) {
     throw new ArticleExtractionError(
       "The page returned incomplete content. Please try the original link.",
       "invalid_response",
     );
   }
 
-  return responseBody;
+  return responseBody.content;
 }

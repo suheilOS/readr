@@ -8,6 +8,7 @@ import { extractPageMetadata } from '../../worker/metadata';
 
 const contexts: ReturnType<typeof createExecutionContext>[] = [];
 const page = '<title>Source title</title><meta name="author" content="Ada"><meta property="og:image" content="/image.jpg">';
+const articlePage = '<!doctype html><html><head><title>A Quiet Article</title></head><body><article><h1>A Quiet Article</h1><p>This article has enough readable content for Defuddle.</p><p>It is persisted for later reads.</p></article></body></html>';
 
 beforeAll(async () => { await applyD1Migrations(env.READR_DB, env.TEST_MIGRATIONS); });
 beforeEach(() => { vi.stubGlobal('fetch', vi.fn(async () => html(page))); });
@@ -24,8 +25,10 @@ describe('URL capture', () => {
     expect(result?.item).toMatchObject({ title: 'example.com', url: 'https://example.com/slow', type: 'article', status: 'inbox' });
     const row = await env.READR_DB.prepare('SELECT state FROM item_metadata WHERE item_id = ?').bind(result!.item.id).first();
     expect(row).not.toBeNull();
-    // Let the D1 lease acquisition reach fetch before releasing the upstream request.
+    // Let both durable extraction jobs reach fetch before releasing the upstream requests.
     await vi.waitFor(() => expect(release).toBeTypeOf('function'));
+    release(html(page));
+    await vi.waitFor(() => expect(fetch).toHaveBeenCalledTimes(2));
     release(html(page));
     await settle();
     const details = await request(user, `/api/items/${result!.item.id}/metadata`);
@@ -53,7 +56,44 @@ describe('URL capture', () => {
     const rows = await env.READR_DB.prepare('SELECT id FROM items WHERE user_id = ?').bind(user).all();
     expect(rows.results).toHaveLength(1);
     await settle();
-    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(fetch).toHaveBeenCalledTimes(2);
+  });
+
+  it('stores article content during capture and reuses it on read', async () => {
+    let calls = 0;
+    vi.stubGlobal('fetch', vi.fn(async () => html(calls++ === 0 ? page : articlePage)));
+    const user = crypto.randomUUID();
+    const item = await capture(user, { url: 'https://example.com/stored-article' });
+    await settle();
+
+    const firstRead = await request(user, `/api/items/${item.id}/article-content`);
+    expect(firstRead.status).toBe(200);
+    expect(await firstRead.json()).toMatchObject({
+      content: { sourceUrl: 'https://example.com/stored-article', title: 'A Quiet Article' },
+    });
+    expect(fetch).toHaveBeenCalledTimes(2);
+
+    const secondRead = await request(user, `/api/items/${item.id}/article-content`);
+    expect(secondRead.status).toBe(200);
+    expect(await secondRead.json()).toMatchObject({ content: { title: 'A Quiet Article' } });
+    expect(fetch).toHaveBeenCalledTimes(2);
+  });
+
+  it('extracts a historical article on first read and stores the fallback', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => html(articlePage)));
+    const user = crypto.randomUUID();
+    const response = await request(user, '/api/items', {
+      title: 'Historical article', type: 'article', url: 'https://example.com/historical-article',
+    });
+    const body = await response.json() as { item: { id: string } };
+
+    const firstRead = await request(user, `/api/items/${body.item.id}/article-content`);
+    expect(firstRead.status).toBe(200);
+    expect(await firstRead.json()).toMatchObject({ content: { title: 'A Quiet Article' } });
+
+    const secondRead = await request(user, `/api/items/${body.item.id}/article-content`);
+    expect(secondRead.status).toBe(200);
+    expect(fetch).toHaveBeenCalledOnce();
   });
 
   it('keeps duplicate library state, notes, and explicit fields', async () => {
@@ -173,7 +213,7 @@ describe('durable enrichment', () => {
       await env.READR_DB.prepare('UPDATE item_metadata SET next_attempt_at = 0 WHERE item_id = ?').bind(item.id).run();
       await enrichItem(env.READR_DB, item.id);
     }
-    expect(fetch).toHaveBeenCalledTimes(3);
+    expect(fetch).toHaveBeenCalledTimes(4);
     expect((await readMetadata(env.READR_DB, user, item.id))?.enrichment.kind).toBe('failed');
   });
 
@@ -198,6 +238,8 @@ describe('durable enrichment', () => {
     await vi.waitFor(() => expect(release).toBeTypeOf('function'));
     await env.READR_DB.prepare("UPDATE item_metadata SET lease_token = 'replacement' WHERE item_id = ?").bind(item.id).run();
     release(html(page));
+    await vi.waitFor(() => expect(fetch).toHaveBeenCalledTimes(2));
+    release(html(page));
     await settle();
     expect((await readMetadata(env.READR_DB, user, item.id))?.sourceTitle).toBeNull();
     await env.READR_DB.prepare("UPDATE item_metadata SET state = 'failed', error_code = 'interrupted', lease_token = NULL, lease_until = NULL WHERE item_id = ?").bind(item.id).run();
@@ -218,7 +260,7 @@ describe('durable enrichment', () => {
     const user = crypto.randomUUID();
     const item = await capture(user, { url: 'https://example.com/redirect' });
     await settle();
-    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(fetch).toHaveBeenCalledTimes(2);
     expect((await readMetadata(env.READR_DB, user, item.id))?.enrichment.kind).not.toBe('ready');
   });
 

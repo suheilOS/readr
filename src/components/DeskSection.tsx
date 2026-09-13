@@ -24,6 +24,7 @@ type DeskSectionProps = {
   onSendToInbox: (item: Item) => Promise<boolean>;
   onDiscard: (item: Item, trigger: HTMLButtonElement) => void;
   onRead: (item: Item) => void;
+  onReadIntent: () => void;
   onSelectSwapTarget: (item: Item) => Promise<boolean>;
   onCancelSwap: () => void;
   pendingAction: PendingItemAction | null;
@@ -37,6 +38,7 @@ export function DeskSection({
   onSendToInbox,
   onDiscard,
   onRead,
+  onReadIntent,
   onSelectSwapTarget,
   onCancelSwap,
   pendingAction,
@@ -105,6 +107,8 @@ export function DeskSection({
                       className="pill-button"
                       aria-label={`Open in readr: ${item.title}`}
                       data-reader-item-id={item.id}
+                      onMouseEnter={onReadIntent}
+                      onFocus={onReadIntent}
                       onClick={() => onRead(item)}
                     >
                       {readerKindFor(item) === "youtube" ? (

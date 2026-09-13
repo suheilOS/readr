@@ -93,6 +93,7 @@ describe("POST /api/extract", () => {
     });
     expect(body).toHaveProperty("html");
     expect(body).toHaveProperty("wordCount");
+    expect(response.headers.get("server-timing")).toContain("fetch-source");
   });
 
   it("revalidates redirects before following them", async () => {

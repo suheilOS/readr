@@ -57,7 +57,7 @@ The existing repository has these relevant boundaries:
 - `shared/item.ts` defines the item model, item options, URL validation, and presentation helpers.
 - `src/itemApi.ts` owns the same-origin Readr API calls and applies the shared response parser.
 - `src/useItemLibrary.ts` loads and mutates server-backed item state.
-- `worker/index.ts` serves static assets and exposes authenticated Hono API routes, including `POST /api/extract`.
+- `worker/index.ts` serves static assets and exposes authenticated Hono API routes, including the stored article-content reader endpoint and the instrumented `POST /api/extract` compatibility endpoint.
 - `wrangler.jsonc` has Readr D1, the Auth Service Binding, static assets, and the extraction rate limiter.
 - Theme and sound preferences already use separate localStorage keys and will remain local.
 
@@ -183,6 +183,7 @@ POST   /api/media/youtube/transcript
 POST   /api/media/youtube       (legacy compatibility)
 POST   /api/media/youtube/capture
 GET    /api/items/:id/media-content
+GET    /api/items/:id/article-content
 GET    /api/items/:id/media-progress
 PUT    /api/items/:id/media-progress
 ```
@@ -199,7 +200,7 @@ The server, not browser state updates, enforces the product rules:
 
 Use conditional SQL and D1 atomic batches where a rule depends on more than one write. The client treats the API response as authoritative.
 
-`POST /api/extract` keeps its existing URL safety, response-size, timeout, and rate-limit protections. It becomes authenticated because Readr no longer supports anonymous product usage.
+`GET /api/items/:id/article-content` serves a persisted extraction when available and otherwise performs the authenticated, ownership-checked fallback extraction before storing it. Capture creates a durable D1-backed article job; `waitUntil` starts it promptly and the scheduled handler recovers queued or expired leases. `POST /api/extract` remains authenticated and keeps its URL safety, response-size, timeout, rate-limit, and `Server-Timing` protections for compatibility.
 
 ## Readr client plan
 

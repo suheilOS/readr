@@ -1,7 +1,11 @@
 import type { Context } from "hono";
 import { Hono } from "hono";
 import type { YouTubeMetadata, YouTubeReaderContent, YouTubeTranscriptContent } from "../shared/media";
-import { extractFromRequest, ExtractionError } from "./extract";
+import {
+  extractFromRequestWithTimings,
+  ExtractionError,
+  formatExtractionServerTiming,
+} from "./extract";
 import { requireAuth, type AppEnv } from "./auth";
 import { itemRoutes } from "./items";
 import { requireSameOrigin } from "./csrf";
@@ -19,6 +23,7 @@ import {
 } from "./mediaContent";
 import { captureRoutes } from './capture';
 import { recoverEnrichment } from './enrichment';
+import { recoverArticleContent } from './articleContent';
 
 export const app = new Hono<AppEnv>();
 
@@ -107,7 +112,10 @@ app.onError((error, context) => {
 export default {
   fetch: app.fetch,
   scheduled: async (_controller, env) => {
-    await recoverEnrichment(env.READR_DB);
+    await Promise.all([
+      recoverEnrichment(env.READR_DB),
+      recoverArticleContent(env.READR_DB),
+    ]);
   },
 } satisfies ExportedHandler<AppEnv['Bindings']>;
 
@@ -125,11 +133,12 @@ async function handleExtraction(context: Context<AppEnv>): Promise<Response> {
   }
 
   try {
-    const article = await extractFromRequest(context.req.raw);
-    return Response.json(article, {
+    const result = await extractFromRequestWithTimings(context.req.raw);
+    return Response.json(result.article, {
       headers: {
         "Cache-Control": "no-store",
         "X-Content-Type-Options": "nosniff",
+        "Server-Timing": formatExtractionServerTiming(result.timings),
       },
     });
   } catch (error) {

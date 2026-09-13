@@ -65,6 +65,7 @@ GET    /api/items
 POST   /api/items
 POST   /api/capture
 GET    /api/items/:id/metadata
+GET    /api/items/:id/article-content
 POST   /api/items/:id/enrichment/retry
 POST   /api/items/:id/move-to-desk
 POST   /api/items/:id/move-to-inbox
@@ -90,22 +91,19 @@ The item API owns IDs, timestamps, ownership checks, validation, desk capacity, 
 
 Metadata runs after the response. `item_metadata` stores source title, author, site, description, visual, inference evidence, and processing status separately from lifecycle data. Automatically generated titles and types can be updated; manually supplied fields and all pre-existing titles/types are protected. `GET /api/items/:id/metadata` returns `{ item, metadata }`, including the current authoritative item; metadata is `null` for items not yet enrolled in enrichment. Failed enrichment can be retried with `POST /api/items/:id/enrichment/retry`. These routes use the existing session and same-origin write protection.
 
-The D1 job record survives request termination. A one-minute scheduled handler recovers pending jobs and expired leases, processes at most ten jobs with concurrency two, and stops after three attempts. Source requests have a ten-second total timeout, a 1 MiB HTML limit, and public-URL checks on redirects. YouTube uses the existing oEmbed path with a four-second timeout and a 64 KiB response limit. PDF MIME detection cancels the body. Enrichment does not run reader extraction or fetch transcripts.
+The D1 job record survives request termination. A one-minute scheduled handler recovers pending jobs and expired leases, processes at most ten jobs with concurrency two, and stops after three attempts. Source requests have a ten-second total timeout, a 1 MiB HTML limit, and public-URL checks on redirects. YouTube uses the existing oEmbed path with a four-second timeout and a 64 KiB response limit. PDF MIME detection cancels the body. Article reader extraction is a separate job; metadata enrichment does not fetch transcripts.
 
-Apply migration `0006_capture_metadata.sql` before deploying this Worker. Local immediate enrichment works with the normal development server; scheduled recovery can be exercised with Wrangler's scheduled-event testing. Deployment does not bulk-enrich old items. The web form, paste shortcut, and one-click extension are implemented in Phases 2 and 3 of [the capture roadmap](docs/capture-roadmap.md).
+Apply migrations through `0008_article_content.sql` before deploying this Worker. Local immediate enrichment works with the normal development server; scheduled recovery can be exercised with Wrangler's scheduled-event testing. Deployment does not bulk-enrich old items. The web form, paste shortcut, and one-click extension are implemented in Phases 2 and 3 of [the capture roadmap](docs/capture-roadmap.md).
 
 ### Reader endpoint
 
-The Worker exposes the extraction route:
+Article capture creates a durable D1-backed extraction job. The Worker starts it after capture with `waitUntil`, and the scheduled handler recovers queued or expired leases. Ready snapshots are served by:
 
 ```http
-POST /api/extract
-Content-Type: application/json
-
-{"url":"https://example.com/article"}
+GET /api/items/:id/article-content
 ```
 
-The Worker accepts public HTTP(S) page URLs, removes common tracking parameters, fetches the HTML server-side, and extracts the readable content with Defuddle. The client sanitizes the returned HTML before rendering it. The endpoint rejects unsafe URLs, unsupported content, oversized requests or pages, rate-limited clients, and upstream failures with structured error responses.
+Historical items and failed background jobs use the same extraction path on first open and persist a successful result. The Worker accepts public HTTP(S) page URLs, removes common tracking parameters, fetches the HTML server-side, and extracts readable content with Defuddle. The client sanitizes returned HTML before rendering it. Stored content is bounded below D1's row limit; unusually large successful extractions are still returned for the current read but are not persisted. `POST /api/extract` remains as an authenticated compatibility endpoint and reports `Server-Timing` phases (`fetch-source`, `parse-html`, and `defuddle`).
 
 The YouTube metadata and transcript endpoints accept watch, short, embed, live, and `youtu.be` URLs, reduce them to a validated video ID, and run independently. Metadata comes from YouTube's oEmbed endpoint; transcript segments and chapters come from Defuddle's asynchronous YouTube extraction path, which fetches player and timed-text data directly without relying on watch-page HTML. Neither endpoint returns extracted iframe HTML. Transcript failures degrade to the player and original link, while metadata failures leave the stored item title in place. The old combined `POST /api/media/youtube` response remains temporarily for already-open tabs during deployment and should not be used by new clients. Playback progress lives in a separate `media_progress` table and saves periodically while playing and when the page closes.
 

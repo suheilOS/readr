@@ -33,16 +33,18 @@ test("reads sanitized content under the production security policy", async ({ pa
     });
   });
 
-  await page.route("**/api/extract", async (route) => {
+  await page.route("**/api/items/reader-smoke/article-content", async (route) => {
     await route.fulfill({
       status: 200,
       contentType: "application/json",
       body: JSON.stringify({
-        sourceUrl: "https://example.com/story",
-        title: "Extracted article",
-        author: "Reader Test",
-        wordCount: 420,
-        html: '<p>Safe article text.</p><script>alert(1)</script><img src="http://127.0.0.1/private.png" onerror="alert(2)">',
+        content: {
+          sourceUrl: "https://example.com/story",
+          title: "Extracted article",
+          author: "Reader Test",
+          wordCount: 420,
+          html: '<p>Safe article text.</p><script>alert(1)</script><img src="http://127.0.0.1/private.png" onerror="alert(2)">',
+        },
       }),
     });
   });

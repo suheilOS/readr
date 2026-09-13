@@ -54,11 +54,15 @@ type DiscardRequest = {
   restoreFocus: FocusAdjacentAction;
 };
 
-const ReaderView = lazy(() =>
+const loadReaderView = () =>
   import("./components/ReaderView").then(({ ReaderView: Component }) => ({
     default: Component,
-  })),
-);
+  }));
+const ReaderView = lazy(loadReaderView);
+
+function preloadReaderView(): void {
+  void loadReaderView();
+}
 
 function ReaderLoadingFallback({ onClose }: { onClose: () => void }) {
   return (
@@ -512,6 +516,7 @@ export default function App() {
                   onSendToInbox={sendToInbox}
                   onDiscard={requestDiscard}
                   onRead={openReader}
+                  onReadIntent={preloadReaderView}
                   onSelectSwapTarget={replaceDeskItem}
                   onCancelSwap={cancelSwap}
                   pendingAction={pendingAction}
