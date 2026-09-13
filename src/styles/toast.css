@@ -1,47 +1,69 @@
 /* Sonner 2.0.8 injects its base stylesheet at runtime; the CSP hashes live in public/_headers. */
 
+:root {
+  --readr-toast-success-text: var(--success-text);
+  --readr-toast-info-text: var(--info-text);
+  --readr-toast-warning-text: var(--warning-text);
+  --readr-toast-error-text: var(--danger);
+}
+
 :root [data-sonner-toaster].readr-toaster {
   --normal-bg: var(--surface);
   --normal-border: transparent;
   --normal-text: var(--text);
+  --success-text: var(--readr-toast-success-text);
+  --info-text: var(--readr-toast-info-text);
+  --warning-text: var(--readr-toast-warning-text);
+  --error-text: var(--readr-toast-error-text);
   --gray11: var(--muted-strong);
+  --toast-shadow: var(--menu-shadow);
   width: min(32rem, calc(100vw - 2rem));
   font-family: inherit;
+}
+
+:root:not([data-theme="dark"]) [data-sonner-toaster].readr-toaster {
+  --toast-shadow: var(--type-menu-shadow);
 }
 
 [data-sonner-toast][data-styled="true"].readr-toast {
   width: fit-content;
   max-width: 100%;
   min-width: 0;
+  inset-inline: 0;
+  margin-inline: auto;
   align-items: center;
   gap: 8px;
   padding: 8px 16px 8px 12px;
   border: 0;
   border-radius: var(--radius-pill);
   background: var(--surface);
-  box-shadow: var(--menu-shadow);
+  box-shadow: var(--toast-shadow);
   color: var(--text);
   font-family: inherit;
   font-size: var(--font-size-small);
   line-height: 1.4;
 }
 
-[data-sonner-toast][data-styled="true"].readr-toast[data-type="success"] {
+.readr-toaster [data-sonner-toast][data-styled="true"].readr-toast:focus-visible {
+  box-shadow: var(--toast-shadow), 0 0 0 2px var(--focus);
+}
+
+.readr-toaster [data-sonner-toast][data-styled="true"].readr-toast[data-type="success"] {
   background: var(--success-fill);
   color: var(--success-text);
 }
 
-[data-sonner-toast][data-styled="true"].readr-toast[data-type="info"] {
+.readr-toaster [data-sonner-toast][data-styled="true"].readr-toast[data-type="info"] {
   background: var(--info-fill);
   color: var(--info-text);
 }
 
-[data-sonner-toast][data-styled="true"].readr-toast[data-type="warning"] {
+.readr-toaster [data-sonner-toast][data-styled="true"].readr-toast[data-type="warning"] {
   background: var(--warning-fill);
   color: var(--warning-text);
 }
 
-[data-sonner-toast][data-styled="true"].readr-toast[data-type="error"] {
+.readr-toaster [data-sonner-toast][data-styled="true"].readr-toast[data-type="error"] {
   background: var(--danger-fill);
   color: var(--danger);
 }
@@ -62,6 +84,16 @@
 [data-sonner-toast][data-styled="true"].readr-toast [data-icon] svg {
   width: 16px;
   height: 16px;
+}
+
+.readr-toaster [data-sonner-toast][data-styled="true"].readr-toast[data-multiline="true"] [data-icon] {
+  width: 20px;
+  height: 20px;
+}
+
+.readr-toaster [data-sonner-toast][data-styled="true"].readr-toast[data-multiline="true"] [data-icon] svg {
+  width: 20px;
+  height: 20px;
 }
 
 [data-sonner-toast][data-styled="true"].readr-toast [data-button] {
