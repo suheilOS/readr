@@ -224,7 +224,7 @@ test("captures a pasted URL through the App and reconciles the saved item", asyn
 
   expect(prevented).toBe(true);
   await expect.poll(() => captureBody).toEqual({ url: "https://example.com/pasted" });
-  await expect(page.getByRole("region", { name: /Notifications/ })).toContainText('"Pasted URL" saved to your inbox.');
+  await expect(page.getByRole("region", { name: /Notifications/ })).toContainText("Saved to your inbox.");
   await expect(page.getByText("Pasted URL", { exact: true })).toBeVisible();
 });
 

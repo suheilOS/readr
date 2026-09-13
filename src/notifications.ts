@@ -1,4 +1,3 @@
-import { createElement, type ReactNode } from "react";
 import { toast as sonnerToast, type ExternalToast } from "sonner";
 import { requestSound, type SoundName } from "./components/ui/sound";
 
@@ -7,7 +6,6 @@ type ToastState = "pending" | "success" | "warning" | "info" | "error";
 type ToastAction = { label: string; run: () => void };
 
 type NotificationInput = {
-  title?: string;
   message: string;
   state?: ToastState;
   action?: ToastAction;
@@ -18,15 +16,7 @@ type NotificationInput = {
 const DEFAULT_LIFETIME = 2_400;
 const ACTION_LIFETIME = 6_000;
 
-export function notify({ title, message, state, action, lifetime, sound }: NotificationInput): void {
-  const content: ReactNode = title === undefined
-    ? message
-    : createElement(
-      "span",
-      null,
-      createElement("strong", { className: "font-semibold" }, `"${title}"`),
-      ` ${message}`,
-    );
+export function notify({ message, state, action, lifetime, sound }: NotificationInput): void {
   const options: ExternalToast = {
     duration: lifetime ?? (action === undefined ? DEFAULT_LIFETIME : ACTION_LIFETIME),
     action: action === undefined
@@ -36,22 +26,22 @@ export function notify({ title, message, state, action, lifetime, sound }: Notif
 
   switch (state) {
     case "pending":
-      sonnerToast.loading(content, { ...options, duration: Infinity });
+      sonnerToast.loading(message, { ...options, duration: Infinity });
       break;
     case "success":
-      sonnerToast.success(content, options);
+      sonnerToast.success(message, options);
       break;
     case "warning":
-      sonnerToast.warning(content, options);
+      sonnerToast.warning(message, options);
       break;
     case "info":
-      sonnerToast.info(content, options);
+      sonnerToast.info(message, options);
       break;
     case "error":
-      sonnerToast.error(content, options);
+      sonnerToast.error(message, options);
       break;
     default:
-      sonnerToast(content, options);
+      sonnerToast(message, options);
       break;
   }
 

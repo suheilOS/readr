@@ -131,7 +131,7 @@ export default function App() {
     ({ title, message, state, sound }: AnnouncementInput) => {
       const announcement = title === undefined ? message : `"${title}" ${message}`;
       setAnnouncement(announcement);
-      notify({ title, message, state, sound });
+      notify({ message, state, sound });
     },
     [],
   );
@@ -157,14 +157,14 @@ export default function App() {
       setLastAddedId(item.id);
       announce({
         title: item.title,
-        message: "saved to your inbox.",
+        message: "Saved to your inbox.",
         state: "success",
         sound: "success",
       });
     } else {
       announce({
         title: item.title,
-        message: `already in ${captureSectionLabel(item.status)}.`,
+        message: `Already in ${captureSectionLabel(item.status)}.`,
         state: "info",
       });
     }
@@ -283,7 +283,7 @@ export default function App() {
     setLastAddedId(item.id);
     announce({
       title: item.title,
-      message: "added to your inbox.",
+      message: "Added to your inbox.",
       state: "success",
       sound: "success",
     });
@@ -301,7 +301,7 @@ export default function App() {
     if (movedItem !== null) {
       announce({
         title: movedItem.title,
-        message: "moved to your desk.",
+        message: "Moved to your desk.",
         state: "success",
       });
     }
@@ -313,7 +313,7 @@ export default function App() {
     if (movedItem !== null) {
       announce({
         title: movedItem.title,
-        message: "returned to your inbox.",
+        message: "Returned to your inbox.",
         state: "success",
       });
       if (swapCandidateId === item.id) {
@@ -332,7 +332,7 @@ export default function App() {
     if (movedItem !== null) {
       announce({
         title: movedItem.title,
-        message: "moved to your desk.",
+        message: "Moved to your desk.",
         state: "success",
         sound: "success",
       });
@@ -361,7 +361,7 @@ export default function App() {
 
     announce({
       title: item.title,
-      message: "discarded.",
+      message: "Discarded.",
       state: "success",
     });
 
@@ -381,7 +381,7 @@ export default function App() {
     if (finishedItem !== null) {
       announce({
         title: finishedItem.title,
-        message: "moved to your library.",
+        message: "Moved to your library.",
         state: "success",
         sound: "success",
       });
@@ -575,11 +575,11 @@ function getAuthOrigin(): string {
 function captureSectionLabel(status: ItemStatus): string {
   switch (status) {
     case "inbox":
-      return "your Inbox";
+      return "your inbox";
     case "desk":
-      return "your Desk";
+      return "your desk";
     case "library":
-      return "your Library";
+      return "your library";
     default: {
       const exhaustive: never = status;
       return exhaustive;
