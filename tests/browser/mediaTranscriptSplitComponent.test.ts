@@ -36,7 +36,7 @@ afterEach(async () => {
 });
 
 describe("MediaTranscriptSplit", () => {
-  it("exposes constrained sizing and supports keyboard resize and reset", async () => {
+  it("starts at the maximum player size and supports keyboard resize and reset", async () => {
     await act(async () => {
       root?.render(createElement(MediaTranscriptSplit, {
         playerPaneId: "player-pane",
@@ -51,12 +51,12 @@ describe("MediaTranscriptSplit", () => {
     expect(separator?.getAttribute("aria-controls")).toBe("player-pane transcript-pane");
     expect(separator?.getAttribute("aria-valuemin")).toBe("31");
     expect(separator?.getAttribute("aria-valuemax")).toBe("62");
-    expect(separator?.getAttribute("aria-valuenow")).toBe("45");
+    expect(separator?.getAttribute("aria-valuenow")).toBe("62");
 
     await act(async () => {
-      separator?.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true }));
+      separator?.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowLeft", bubbles: true }));
     });
-    expect(separator?.getAttribute("aria-valuenow")).toBe("46");
+    expect(separator?.getAttribute("aria-valuenow")).toBe("61");
 
     await act(async () => {
       separator?.dispatchEvent(new KeyboardEvent("keydown", { key: "End", bubbles: true }));
@@ -66,6 +66,6 @@ describe("MediaTranscriptSplit", () => {
     await act(async () => {
       separator?.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
     });
-    expect(separator?.getAttribute("aria-valuenow")).toBe("45");
+    expect(separator?.getAttribute("aria-valuenow")).toBe("62");
   });
 });

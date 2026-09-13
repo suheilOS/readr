@@ -1,8 +1,8 @@
-export const DEFAULT_PLAYER_RATIO = 0.45;
 export const MIN_PLAYER_WIDTH = 360;
 export const MIN_TRANSCRIPT_WIDTH = 420;
 export const MAX_PLAYER_WIDTH = 720;
 export const MAX_PLAYER_RATIO = 0.64;
+export const DEFAULT_PLAYER_RATIO = MAX_PLAYER_RATIO;
 export const SPLITTER_WIDTH = 24;
 
 export type SplitBounds = {
