@@ -132,15 +132,6 @@
   font-weight: 600;
 }
 
-.empty-note {
-  margin: 4px 0 0;
-  padding: 8px 2px;
-  color: var(--muted);
-  font-size: var(--font-size-body);
-  line-height: 1.5;
-  text-wrap: pretty;
-}
-
 .search-empty {
   padding-block: clamp(40px, 10vh, 80px);
   text-align: center;

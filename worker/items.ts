@@ -159,13 +159,13 @@ itemRoutes.post("/items/:id/finish", async (context) => {
 itemRoutes.delete("/items/:id", async (context) => {
   const userId = context.get("userId");
   const id = context.req.param("id");
-  const result = await context.env.READR_DB.prepare(
+  await context.env.READR_DB.prepare(
     "DELETE FROM items WHERE id = ? AND user_id = ?",
   ).bind(id, userId).run();
 
-  return result.meta.changes === 1
-    ? context.json({ ok: true })
-    : apiError(context, "not_found", "The item could not be found.", 404);
+  // Discard is idempotent from the user's perspective. A different tab or
+  // device may have removed the item after this client loaded it.
+  return context.json({ ok: true });
 });
 
 itemRoutes.post("/items/:candidateId/swap", async (context) => {

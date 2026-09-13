@@ -112,11 +112,36 @@ describe("Readr item API", () => {
     expect(await otherItems.json()).toEqual({ items: [] });
 
     const otherDelete = await request(otherUserId, `/api/items/${createdBody.item.id}`, { method: "DELETE" });
-    expect(otherDelete.status).toBe(404);
+    expect(otherDelete.status).toBe(200);
+    expect(await otherDelete.json()).toEqual({ ok: true });
 
     const ownerItems = await request(ownerId, "/api/items");
     expect(ownerItems.status).toBe(200);
     expect(await ownerItems.json()).toMatchObject({ items: [{ title: "Private article" }] });
+  });
+
+  it("makes desk discard idempotent when the item is already gone", async () => {
+    const userId = `discard-${crypto.randomUUID()}`;
+    const created = await request(userId, "/api/items", {
+      method: "POST",
+      body: JSON.stringify({ title: "Desk item", url: null, type: "article" }),
+    });
+    expect(created.status).toBe(201);
+    const itemId = (await created.json() as { item: { id: string } }).item.id;
+    const moved = await request(userId, `/api/items/${itemId}/move-to-desk`, { method: "POST" });
+    expect(moved.status).toBe(200);
+
+    const firstDelete = await request(userId, `/api/items/${itemId}`, { method: "DELETE" });
+    expect(firstDelete.status).toBe(200);
+    expect(await firstDelete.json()).toEqual({ ok: true });
+
+    const repeatedDelete = await request(userId, `/api/items/${itemId}`, { method: "DELETE" });
+    expect(repeatedDelete.status).toBe(200);
+    expect(await repeatedDelete.json()).toEqual({ ok: true });
+
+    const items = await request(userId, "/api/items");
+    expect(items.status).toBe(200);
+    expect(await items.json()).toEqual({ items: [] });
   });
 
   it("enforces the five-item desk capacity on the server", async () => {

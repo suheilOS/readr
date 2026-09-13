@@ -1,25 +1,20 @@
-import { lazy, Suspense, useEffect, useState } from "react";
-import { TOAST_EVENT } from "./toast-api";
-
-const LazyToasts = lazy(async () => {
-  const module = await import("./toast");
-  return { default: module.Toasts };
-});
+import { Toaster } from "sonner";
 
 export function ToastHost() {
-  const [active, setActive] = useState(false);
-
-  useEffect(() => {
-    const activate = () => setActive(true);
-    window.addEventListener(TOAST_EVENT, activate);
-    return () => window.removeEventListener(TOAST_EVENT, activate);
-  }, []);
-
-  if (!active) return null;
-
   return (
-    <Suspense fallback={null}>
-      <LazyToasts />
-    </Suspense>
+    <Toaster
+      className="readr-toaster"
+      position="top-center"
+      gap={8}
+      visibleToasts={3}
+      swipeDirections={["top", "bottom", "left", "right"]}
+      offset={16}
+      mobileOffset={16}
+      containerAriaLabel="Notifications"
+      toastOptions={{
+        className: "readr-toast",
+        closeButton: false,
+      }}
+    />
   );
 }

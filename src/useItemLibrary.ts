@@ -200,10 +200,13 @@ export function useItemLibrary(): ItemLibrary {
   );
 
   const discard = useCallback(async (id: string): Promise<boolean> => {
-    const result = await runMutation({ kind: "discard", itemId: id }, async () => {
-      await discardItem(id);
-      return true;
-    });
+    const result = await runMutation(
+      { kind: "discard", itemId: id },
+      async () => {
+        await discardItem(id);
+        return true;
+      },
+    );
     if (result) {
       dataGenerationRef.current += 1;
       setItems((current) => current.filter((item) => item.id !== id));

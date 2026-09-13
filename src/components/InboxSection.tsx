@@ -1,6 +1,7 @@
 import { itemMetaLine, type Item } from "../../shared/item";
 import { runWithFocusRestoration } from "../focusAdjacentAction";
-import { ArrowUpIcon, TrashIcon } from "./icons";
+import { EmptyState } from "./EmptyState";
+import { ArrowUpIcon, InboxEmptyIcon, TrashIcon } from "./icons";
 import { isPendingItemAction, type PendingItemAction } from "../pendingItemAction";
 
 
@@ -93,7 +94,10 @@ export function InboxSection({
         ))}
       </ul>
       {items.length === 0 && (
-        <p className="empty-note">No items in your inbox yet. Add a title or link above.</p>
+        <EmptyState
+          icon={<InboxEmptyIcon />}
+          message="No items in your inbox yet. Add a title or link above."
+        />
       )}
     </section>
   );

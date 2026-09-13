@@ -1,0 +1,98 @@
+/* Sonner 2.0.8 injects its base stylesheet at runtime; the CSP hashes live in public/_headers. */
+
+:root [data-sonner-toaster].readr-toaster {
+  --normal-bg: var(--surface);
+  --normal-border: transparent;
+  --normal-text: var(--text);
+  --gray11: var(--muted-strong);
+  width: min(32rem, calc(100vw - 2rem));
+  font-family: inherit;
+}
+
+[data-sonner-toast][data-styled="true"].readr-toast {
+  width: fit-content;
+  max-width: 100%;
+  min-width: 0;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px 8px 12px;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+  box-shadow: var(--menu-shadow);
+  color: var(--text);
+  font-family: inherit;
+  font-size: var(--font-size-small);
+  line-height: 1.4;
+}
+
+[data-sonner-toast][data-styled="true"].readr-toast[data-type="success"] {
+  background: var(--success-fill);
+  color: var(--success-text);
+}
+
+[data-sonner-toast][data-styled="true"].readr-toast[data-type="info"] {
+  background: var(--info-fill);
+  color: var(--info-text);
+}
+
+[data-sonner-toast][data-styled="true"].readr-toast[data-type="warning"] {
+  background: var(--warning-fill);
+  color: var(--warning-text);
+}
+
+[data-sonner-toast][data-styled="true"].readr-toast[data-type="error"] {
+  background: var(--danger-fill);
+  color: var(--danger);
+}
+
+[data-sonner-toast][data-styled="true"].readr-toast[data-type="loading"],
+[data-sonner-toast][data-styled="true"].readr-toast:not([data-type]) {
+  background: color-mix(in srgb, var(--surface) 80%, transparent);
+  backdrop-filter: blur(12px);
+}
+
+[data-sonner-toast][data-styled="true"].readr-toast [data-icon] {
+  align-self: center;
+  width: 16px;
+  height: 16px;
+  margin: 0;
+}
+
+[data-sonner-toast][data-styled="true"].readr-toast [data-icon] svg {
+  width: 16px;
+  height: 16px;
+}
+
+[data-sonner-toast][data-styled="true"].readr-toast [data-button] {
+  height: 28px;
+  margin-inline-start: auto;
+  padding-inline: 12px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-pill);
+  background: var(--text);
+  color: var(--page-bg);
+  font-family: inherit;
+  font-size: var(--font-size-small);
+  font-weight: 500;
+  line-height: 1;
+  transition: opacity 120ms var(--ease-out), box-shadow 120ms var(--ease-out);
+}
+
+[data-sonner-toast][data-styled="true"].readr-toast [data-button]:hover {
+  opacity: 0.9;
+}
+
+[data-sonner-toast][data-styled="true"].readr-toast [data-button]:focus-visible {
+  box-shadow: 0 0 0 2px var(--focus);
+}
+
+[data-sonner-toast][data-styled="true"].readr-toast [data-content] {
+  min-width: 0;
+}
+
+[data-sonner-toast][data-styled="true"].readr-toast [data-title] {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  line-height: 1.4;
+}

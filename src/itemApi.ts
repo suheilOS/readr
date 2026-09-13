@@ -96,7 +96,12 @@ export async function finishItem(id: string): Promise<Item> {
 }
 
 export async function discardItem(id: string): Promise<void> {
-  await request(`/api/items/${encodeURIComponent(id)}`, { method: "DELETE" });
+  try {
+    await request(`/api/items/${encodeURIComponent(id)}`, { method: "DELETE" });
+  } catch (error: unknown) {
+    // A stale client has already reached the desired deleted state.
+    if (!(error instanceof ItemApiError) || error.code !== "not_found") throw error;
+  }
 }
 
 export async function swapItems(candidateId: string, displacedId: string): Promise<SwapResponse> {

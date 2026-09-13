@@ -4,8 +4,8 @@ import { itemMetaLine, type Item } from "../../shared/item";
 import { formatDate } from "../formatDate";
 import { runWithFocusRestoration } from "../focusAdjacentAction";
 import { isPendingItemAction, type PendingItemAction } from "../pendingItemAction";
-import { ArrowUpIcon, InboxIcon, MoreVerticalIcon } from "./icons";
-
+import { EmptyState } from "./EmptyState";
+import { ArrowUpIcon, InboxIcon, LibraryEmptyIcon, MoreVerticalIcon } from "./icons";
 
 type LibrarySectionProps = {
   items: Item[];
@@ -51,7 +51,10 @@ export function LibrarySection({
         ))}
       </ul>
       {items.length === 0 && (
-        <p className="empty-note">No finished items yet. Items appear here when you finish them.</p>
+        <EmptyState
+          icon={<LibraryEmptyIcon />}
+          message="No finished items yet. Items appear here when you finish them."
+        />
       )}
     </section>
   );

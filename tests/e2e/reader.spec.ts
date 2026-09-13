@@ -126,6 +126,49 @@ test("keeps full-desk replacement mode open while a swap is pending", async ({ p
   await expect(page.getByText("Inbox candidate", { exact: true })).toBeVisible();
 });
 
+test("completes discard when a desk item is already gone on the server", async ({ page }) => {
+  const deskItem = {
+    id: "desk-stale",
+    title: "Stale desk item",
+    url: null,
+    type: "article",
+    status: "desk",
+    addedAt: "2026-08-23T00:00:00.000Z",
+    finishedAt: null,
+    note: null,
+  };
+
+  await page.route("**/api/items", async (route) => {
+    if (route.request().method() !== "GET") {
+      await route.continue();
+      return;
+    }
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ items: [deskItem] }),
+    });
+  });
+  await page.route("**/api/items/desk-stale", async (route) => {
+    await route.fulfill({
+      status: 404,
+      contentType: "application/json",
+      body: JSON.stringify({ error: { code: "not_found", message: "The item could not be found." } }),
+    });
+  });
+
+  await page.goto("/");
+  await page.getByRole("button", { name: "More actions for Stale desk item" }).click();
+  await page.getByRole("menuitem", { name: "Discard" }).click();
+  await expect(page.getByRole("heading", { name: 'Discard "Stale desk item"?' })).toBeVisible();
+
+  await page.getByRole("button", { name: "Discard", exact: true }).click();
+
+  await expect(page.getByRole("heading", { name: 'Discard "Stale desk item"?' })).toHaveCount(0);
+  await expect(page.getByText("Stale desk item", { exact: true })).toHaveCount(0);
+  await expect(page.locator(".persistence-warning")).toHaveCount(0);
+});
+
 test("captures a pasted URL through the App and reconciles the saved item", async ({ page }) => {
   const capturedItem = {
     id: "pasted-capture",
@@ -181,7 +224,7 @@ test("captures a pasted URL through the App and reconciles the saved item", asyn
 
   expect(prevented).toBe(true);
   await expect.poll(() => captureBody).toEqual({ url: "https://example.com/pasted" });
-  await expect(page.locator(".toast-pill")).toContainText('"Pasted URL" saved to your inbox.');
+  await expect(page.getByRole("region", { name: /Notifications/ })).toContainText('"Pasted URL" saved to your inbox.');
   await expect(page.getByText("Pasted URL", { exact: true })).toBeVisible();
 });
 

@@ -3,9 +3,11 @@ import { Menu } from "@base-ui/react/menu";
 import { canReadInApp, DESK_CAPACITY, type Item, itemMetaLine, readerKindFor } from "../../shared/item";
 import { runWithFocusRestoration } from "../focusAdjacentAction";
 import { isPendingItemAction, type PendingItemAction } from "../pendingItemAction";
+import { EmptyState } from "./EmptyState";
 import {
   BookOpenIcon,
   CheckIcon,
+  DeskEmptyIcon,
   ExternalLinkIcon,
   InboxIcon,
   MoreVerticalIcon,
@@ -164,7 +166,10 @@ export function DeskSection({
         ))}
       </ul>
       {!swapActive && items.length === 0 && (
-        <p className="empty-note">No items on your desk yet. Move one here from your inbox.</p>
+        <EmptyState
+          icon={<DeskEmptyIcon />}
+          message="No items on your desk yet. Move one here from your inbox."
+        />
       )}
     </section>
   );
