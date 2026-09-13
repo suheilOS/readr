@@ -1,0 +1,26 @@
+.item-source-line {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 6px;
+  overflow-wrap: anywhere;
+  font-size: var(--font-size-small);
+  line-height: 1.45;
+  text-wrap: pretty;
+  color: var(--muted-strong);
+}
+
+.item-source-line a {
+  min-width: 0;
+  color: inherit;
+  text-decoration: none;
+}
+
+.site-favicon {
+  display: block;
+  width: 16px;
+  height: 16px;
+  flex: 0 0 auto;
+  border-radius: 3px;
+  object-fit: contain;
+}

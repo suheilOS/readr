@@ -7,10 +7,10 @@ import {
   readerKindFor,
 } from "../../shared/item";
 import { runWithFocusRestoration } from "../focusAdjacentAction";
-import { itemAuthorFor, itemVisualFor } from "../itemPresentation";
+import { itemVisualFor } from "../itemPresentation";
 import { isPendingItemAction, type PendingItemAction } from "../pendingItemAction";
 import { EmptyState } from "./EmptyState";
-import { ItemMetadataLine } from "./ItemMetadataLine";
+import { ItemSourceLine } from "./ItemSourceLine";
 import { ItemVisual } from "./ItemVisual";
 import {
   BookOpenIcon,
@@ -182,13 +182,13 @@ export function DeskSection({
                         )}
                       </button>
                     </div>
+                    <DeskActionsMenu
+                      item={item}
+                      onSendToInbox={onSendToInbox}
+                      onDiscard={onDiscard}
+                      pendingAction={pendingAction}
+                    />
                   </div>
-                  <DeskActionsMenu
-                    item={item}
-                    onSendToInbox={onSendToInbox}
-                    onDiscard={onDiscard}
-                    pendingAction={pendingAction}
-                  />
                 </article>
               )}
             </li>
@@ -212,13 +212,10 @@ function DeskCardDetails({
   item: ItemListItem;
   titleContent: ReactNode;
 }) {
-  const author = itemAuthorFor(item);
-
   return (
     <>
-      <ItemMetadataLine item={item} className="desk-card-meta" />
       {titleContent}
-      {author !== null && <span className="desk-card-author">{author}</span>}
+      <ItemSourceLine item={item} />
     </>
   );
 }

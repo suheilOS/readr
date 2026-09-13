@@ -112,8 +112,11 @@ describe("DeskSection", () => {
     await act(async () => renderDesk([item], "normal", deskItems.length));
 
     expect(document.querySelector(".desk-card .item-visual img")?.getAttribute("loading")).toBe("lazy");
-    expect(document.querySelector(".desk-card-meta")?.textContent).toBe("Article·Example");
-    expect(document.querySelector(".desk-card-author")?.textContent).toBe("Reader Test");
+    expect(document.querySelector(".desk-card .item-source-line")?.textContent).toBe("Example");
+    expect(document.querySelector(".desk-card .item-source-line a")?.getAttribute("href"))
+      .toBe("https://example.com/article");
+    expect(document.querySelector(".desk-card .item-source-line .site-favicon")?.getAttribute("src"))
+      .toBe("/api/favicon?host=example.com");
     expect(document.querySelector(".desk-card .pill-button")?.textContent).toContain("Read");
     expect(document.querySelector(".finish-button")?.textContent).toContain("Finish");
   });

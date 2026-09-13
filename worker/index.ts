@@ -24,6 +24,7 @@ import {
 import { captureRoutes } from './capture';
 import { recoverEnrichment } from './enrichment';
 import { recoverArticleContent } from './articleContent';
+import { getFavicon } from "./favicon";
 
 export const app = new Hono<AppEnv>();
 
@@ -39,6 +40,14 @@ app.all("/api/auth/sign-out", () => jsonError({
 
 app.route('/api', captureRoutes);
 app.route("/api", itemRoutes);
+
+app.get("/api/favicon", requireAuth, getFavicon);
+app.all("/api/favicon", () => jsonError({
+  error: {
+    code: "method_not_allowed",
+    message: "Use GET to request a favicon.",
+  },
+}, 405, { Allow: "GET" }));
 
 app.post("/api/extract", requireAuth, requireSameOrigin, handleExtraction);
 app.all("/api/extract", () => jsonError({

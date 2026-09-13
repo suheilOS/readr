@@ -53,11 +53,15 @@ describe("LibrarySection", () => {
     expect(document.querySelector(".library-item.has-visual")).not.toBeNull();
     expect(document.querySelector(".item-visual--article-image img")?.getAttribute("loading"))
       .toBe("lazy");
-    expect(document.querySelector(".library-item-meta")?.textContent).toBe("Article·The Verge");
     expect(document.querySelector(".library-item-title")?.textContent)
       .toBe("How AI is changing software development");
-    expect(document.querySelector(".library-item-subline")?.textContent)
-      .toBe("Nilay Patel·Finished Sep 12");
+    expect(document.querySelector(".library-item .item-source-line")?.textContent).toBe("The Verge");
+    expect(document.querySelector(".library-item .item-source-line a")?.getAttribute("href"))
+      .toBe("https://www.theverge.com/story");
+    expect(document.querySelector(".library-item .item-source-line .site-favicon")?.getAttribute("src"))
+      .toBe("/api/favicon?host=www.theverge.com");
+    expect(document.querySelector(".library-item-finished")?.textContent)
+      .toBe("Finished Sep 12");
     expect(document.querySelector(".library-item-note")?.textContent)
       .toBe("A useful note about the article.");
     expect(document.querySelector(".library-menu-trigger")?.getAttribute("aria-label"))
@@ -84,6 +88,10 @@ describe("LibrarySection", () => {
     await act(async () => renderLibrary([video]));
 
     expect(document.querySelector(".item-visual-play")).not.toBeNull();
+    expect(document.querySelector(".item-source-line")?.textContent).toBe("Tsoding");
+    expect(document.querySelector(".item-source-line a")).toBeNull();
+    expect(document.querySelector(".site-favicon")?.getAttribute("src"))
+      .toBe("/api/favicon?host=www.youtube.com");
   });
 
   it("uses a portrait visual slot for books and no slot when metadata has no image", async () => {

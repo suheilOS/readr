@@ -1,15 +1,39 @@
 import {
   itemUrlHost,
   type ItemListItem,
+  type ItemUrl,
   type ItemVisualSummary,
 } from "../shared/item";
 
-export function itemSourceFor(item: ItemListItem): string | null {
+function itemSourceFor(item: ItemListItem): string | null {
   return item.metadataSummary?.siteName?.trim() || itemUrlHost(item.url);
 }
 
-export function itemAuthorFor(item: ItemListItem): string | null {
+function itemAuthorFor(item: ItemListItem): string | null {
   return item.metadataSummary?.author?.trim() || null;
+}
+
+type ItemSourcePresentation = {
+  label: string;
+  href: ItemUrl | null;
+  hostname: string | null;
+};
+
+export function itemSourcePresentationFor(
+  item: ItemListItem,
+): ItemSourcePresentation | null {
+  const author = itemAuthorFor(item);
+  const source = itemSourceFor(item);
+  const presentsAuthor = item.type === "video" || item.type === "podcast";
+  const label = presentsAuthor ? author ?? source : source ?? author;
+
+  if (label === null) return null;
+
+  return {
+    label,
+    href: presentsAuthor ? null : item.url,
+    hostname: item.url === null ? null : new URL(item.url).hostname,
+  };
 }
 
 export function itemVisualFor(item: ItemListItem): ItemVisualSummary | null {

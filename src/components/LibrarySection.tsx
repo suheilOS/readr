@@ -3,10 +3,10 @@ import { Menu } from "@base-ui/react/menu";
 import { readerKindFor, type Item, type ItemListItem } from "../../shared/item";
 import { formatCompactDate, formatDate } from "../formatDate";
 import { runWithFocusRestoration } from "../focusAdjacentAction";
-import { itemAuthorFor, itemVisualFor } from "../itemPresentation";
+import { itemVisualFor } from "../itemPresentation";
 import { isPendingItemAction, type PendingItemAction } from "../pendingItemAction";
 import { EmptyState } from "./EmptyState";
-import { ItemMetadataLine } from "./ItemMetadataLine";
+import { ItemSourceLine } from "./ItemSourceLine";
 import { ItemVisual } from "./ItemVisual";
 import { ArrowUpIcon, InboxIcon, LibraryEmptyIcon, MoreVerticalIcon } from "./icons";
 
@@ -75,21 +75,18 @@ export function LibrarySection({
 }
 
 function LibraryItemDetails({ item }: { item: ItemListItem }) {
-  const author = itemAuthorFor(item);
-
   return (
     <>
-      <ItemMetadataLine item={item} className="library-item-meta" />
       <h3 className="library-item-title">{item.title}</h3>
-      {(author !== null || item.finishedAt !== null) && (
-        <div className="library-item-subline">
-          {author !== null && <span>{author}</span>}
-          {item.finishedAt !== null && (
-            <time dateTime={item.finishedAt} title={formatDate(item.finishedAt)}>
-              Finished {formatCompactDate(item.finishedAt)}
-            </time>
-          )}
-        </div>
+      <ItemSourceLine item={item} />
+      {item.finishedAt !== null && (
+        <time
+          className="library-item-finished"
+          dateTime={item.finishedAt}
+          title={formatDate(item.finishedAt)}
+        >
+          Finished {formatCompactDate(item.finishedAt)}
+        </time>
       )}
     </>
   );

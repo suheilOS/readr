@@ -22,6 +22,7 @@
 }
 
 .desk-card-body {
+  position: relative;
   display: flex;
   min-width: 0;
   flex-direction: column;
@@ -47,20 +48,6 @@
 }
 
 
-.desk-card-meta {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 4px 7px;
-  margin: 0 0 8px;
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  line-height: 1.3;
-  text-transform: uppercase;
-  color: var(--muted);
-}
-
 .card-title {
   display: block;
   max-width: 42rem;
@@ -73,14 +60,8 @@
   color: var(--heading);
 }
 
-.desk-card-author {
-  display: block;
+.desk-card-body > .item-source-line {
   margin-top: 8px;
-  overflow-wrap: anywhere;
-  font-size: var(--font-size-small);
-  line-height: 1.45;
-  text-wrap: pretty;
-  color: var(--muted-strong);
 }
 
 .card-actions {
@@ -183,8 +164,8 @@
 
 .desk-menu-trigger {
   position: absolute;
-  inset-block-start: 12px;
-  inset-inline-end: 12px;
+  inset-block-start: 0;
+  inset-inline-end: 0;
 }
 
 .search-empty {
