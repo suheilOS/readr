@@ -17,7 +17,7 @@ import { SoundOffIcon, SoundOnIcon } from "../icons";
 const STORAGE_KEY = "kobra-sound-muted";
 const LEGACY_STORAGE_KEY = "reader:sounds";
 const VOLUME_KEY = "kobra-sound-volume";
-const DEFAULT_VOLUME = 0.5;
+const DEFAULT_VOLUME = 0.35;
 const SOUND_REQUEST = "kobra:sound-request";
 
 const PATCH = {

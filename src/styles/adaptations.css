@@ -37,14 +37,15 @@
     color: var(--muted-strong);
   }
 
-  .browse-control:hover {
+  .browse-control:hover,
+  .add-toggle:hover {
     background: var(--fill-strong);
     color: var(--text);
   }
 
-  .browse-clear:not(:disabled):hover {
-    background: var(--text);
-    color: var(--page-bg);
+  .browse-clear:hover {
+    background: var(--divider);
+    color: var(--text);
   }
 
   .browse-option:hover {
@@ -191,8 +192,12 @@
     scale: 1;
   }
 
-  .add-toggle[data-panel-open] {
+  .add-toggle svg,
+  .add-toggle[data-panel-open] .add-toggle__plus,
+  .add-toggle[data-panel-open] .add-toggle__close {
+    filter: none;
     transform: none;
+    transition: opacity 100ms ease;
   }
 
   .row-new {

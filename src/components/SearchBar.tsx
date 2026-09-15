@@ -1,5 +1,5 @@
 import { useRef } from "react";
-import { XIcon } from "./icons";
+import { SearchIcon, XIcon } from "./icons";
 
 type SearchBarProps = {
   query: string;
@@ -16,6 +16,7 @@ export function SearchBar({ query, onQueryChange }: SearchBarProps) {
 
   return (
     <div className="search-bar">
+      <SearchIcon className="search-icon" />
       <input
         ref={inputRef}
         className="search-input"

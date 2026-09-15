@@ -36,7 +36,7 @@ import { focusAdjacentAction, type FocusAdjacentAction } from "./focusAdjacentAc
 import { ThemeToggle, type Theme } from "./components/ThemeToggle";
 import { UtilityDock } from "./components/UtilityDock";
 import { Spinner } from "./components/Spinner";
-import { ArrowLeftIcon, PlusIcon } from "./components/icons";
+import { ArrowLeftIcon, PlusIcon, XIcon } from "./components/icons";
 import { notify } from "./notifications";
 import type { CaptureInput } from "../shared/capture";
 import { useExtensionCapture } from "./useExtensionCapture";
@@ -513,7 +513,8 @@ export default function App() {
                 data-slot="collapsible-trigger"
                 data-focus-fallback
               >
-                <PlusIcon />
+                <PlusIcon className="add-toggle__plus" />
+                <XIcon className="add-toggle__close" />
               </Collapsible.Trigger>
             </div>
             <Collapsible.Panel id="capture-panel" className="capture-panel" keepMounted>

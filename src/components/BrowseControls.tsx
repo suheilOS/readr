@@ -76,7 +76,7 @@ export function BrowseControls({
             sideOffset={8}
           >
             <Popover.Popup className="browse-popover">
-              <Popover.Title className="browse-popover__title">Sort items</Popover.Title>
+              <Popover.Title className="visually-hidden">Sort items</Popover.Title>
               <fieldset className="browse-options">
                 <legend className="visually-hidden">Sort order</legend>
                 {ITEM_SORT_OPTIONS.map((option) => (
@@ -121,7 +121,7 @@ export function BrowseControls({
             sideOffset={8}
           >
             <Popover.Popup className="browse-popover">
-              <Popover.Title className="browse-popover__title">Filter items</Popover.Title>
+              <Popover.Title className="visually-hidden">Filter items</Popover.Title>
               <fieldset className="browse-options">
                 <legend className="visually-hidden">Filter by type</legend>
                 {TYPE_OPTIONS.map((option) => {
@@ -147,21 +147,20 @@ export function BrowseControls({
                   );
                 })}
               </fieldset>
-              <div className="browse-popover__footer">
-                <span className="browse-popover__summary">
-                  {activeFilterCount === 0
-                    ? "All types"
-                    : `${activeFilterCount} type${activeFilterCount === 1 ? "" : "s"} selected`}
-                </span>
-                <button
-                  className="browse-clear"
-                  type="button"
-                  disabled={activeFilterCount === 0}
-                  onClick={clearFilters}
-                >
-                  Clear filters
-                </button>
-              </div>
+              {activeFilterCount > 0 && (
+                <div className="browse-popover__footer">
+                  <span className="browse-popover__summary">
+                    {activeFilterCount} selected
+                  </span>
+                  <button
+                    className="browse-clear"
+                    type="button"
+                    onClick={clearFilters}
+                  >
+                    Clear
+                  </button>
+                </div>
+              )}
             </Popover.Popup>
           </Popover.Positioner>
         </Popover.Portal>

@@ -22,7 +22,7 @@
   width: 100%;
   min-width: 0;
   padding-block: 9px;
-  padding-inline: 14px 42px;
+  padding-inline: 42px;
   background: var(--surface);
   border: none;
   border-radius: var(--radius-control);
@@ -104,6 +104,18 @@
   min-width: 0;
 }
 
+.search-icon {
+  position: absolute;
+  top: 50%;
+  inset-inline-start: 14px;
+  z-index: 1;
+  width: 18px;
+  height: 18px;
+  color: var(--muted);
+  pointer-events: none;
+  transform: translateY(-50%);
+}
+
 .search-input::-webkit-search-cancel-button {
   display: none;
   appearance: none;
@@ -154,6 +166,7 @@
 }
 
 .add-toggle {
+  position: relative;
   flex-shrink: 0;
   display: grid;
   place-items: center;
@@ -162,19 +175,13 @@
   padding: 0;
   border: none;
   border-radius: var(--radius-pill);
-  background: var(--toggle-bg);
-  color: var(--heading);
+  background: transparent;
+  color: var(--muted-strong);
   cursor: pointer;
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
   transition:
-    transform 160ms var(--ease-out),
+    background-color 120ms var(--ease-out),
     color 120ms ease,
     scale 120ms var(--ease-out);
-}
-
-.add-toggle[data-panel-open] {
-  transform: rotate(45deg);
 }
 
 .add-toggle:active {
@@ -182,13 +189,37 @@
 }
 
 .add-toggle svg {
+  position: absolute;
   display: block;
+  transition:
+    opacity 150ms var(--ease-out),
+    transform 150ms var(--ease-out),
+    filter 150ms var(--ease-out);
+}
+
+.add-toggle__plus {
+  width: 20px;
+  height: 20px;
+}
+
+.add-toggle__close {
   width: 18px;
   height: 18px;
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 2;
-  stroke-linecap: round;
+  opacity: 0;
+  filter: blur(4px);
+  transform: scale(0.25);
+}
+
+.add-toggle[data-panel-open] .add-toggle__plus {
+  opacity: 0;
+  filter: blur(4px);
+  transform: scale(0.25);
+}
+
+.add-toggle[data-panel-open] .add-toggle__close {
+  opacity: 1;
+  filter: blur(0);
+  transform: scale(1);
 }
 
 .capture-panel {
