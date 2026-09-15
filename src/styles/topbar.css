@@ -53,6 +53,14 @@
     visibility 0s linear;
 }
 
+.topbar .browse-controls {
+  visibility: visible;
+  transition:
+    opacity 160ms var(--ease-out),
+    transform 160ms var(--ease-out),
+    visibility 0s linear;
+}
+
 .capture-title {
   display: flex;
   align-items: center;
@@ -68,7 +76,8 @@
     visibility 0s linear 160ms;
 }
 
-.topbar.capture-open .search-slot {
+.topbar.capture-open .search-slot,
+.topbar.capture-open .browse-controls {
   opacity: 0;
   pointer-events: none;
   transform: translateY(-6px);

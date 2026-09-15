@@ -7,6 +7,7 @@ import {
   type ItemSort,
 } from "../itemSorting";
 import { CheckIcon, FilterIcon, SortIcon } from "./icons";
+import { ItemTypeIcon } from "./ItemTypeIcon";
 
 type OpenPopover = "sort" | "filter" | null;
 
@@ -122,7 +123,7 @@ export function BrowseControls({
             <Popover.Popup className="browse-popover">
               <Popover.Title className="browse-popover__title">Filter items</Popover.Title>
               <fieldset className="browse-options">
-                <legend className="browse-popover__legend">Type</legend>
+                <legend className="visually-hidden">Filter by type</legend>
                 {TYPE_OPTIONS.map((option) => {
                   const checked = selectedTypeSet.has(option.value);
                   return (
@@ -135,13 +136,13 @@ export function BrowseControls({
                         checked={checked}
                         onChange={(event) => toggleType(option.value, event.target.checked)}
                       />
-                      <span
-                        className={`browse-option__indicator${checked ? " is-checked" : ""}`}
-                        aria-hidden="true"
-                      >
+                      <span className="browse-option__label">
+                        <ItemTypeIcon type={option.value} className="browse-option__type-icon" />
+                        <span>{option.label}</span>
+                      </span>
+                      <span className="browse-option__indicator" aria-hidden="true">
                         {checked && <CheckIcon />}
                       </span>
-                      <span className="browse-option__label">{option.label}</span>
                     </label>
                   );
                 })}

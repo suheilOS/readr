@@ -39,7 +39,7 @@
 .type-select {
   position: relative;
   display: flex;
-  min-width: 8.5rem;
+  width: 9rem;
 }
 
 .type-trigger {

@@ -73,14 +73,14 @@ describe("BrowseControls", () => {
     await act(async () => filterButton?.click());
 
     const selectedInput = document.querySelector<HTMLInputElement>("input[name='item-filter-article']");
-    const selectedIndicator = selectedInput?.nextElementSibling;
-    expect(selectedIndicator?.classList.contains("is-checked")).toBe(true);
-    expect(selectedIndicator?.querySelector("svg")).not.toBeNull();
+    const selectedOption = selectedInput?.closest(".browse-option");
+    expect(selectedOption?.querySelector(".browse-option__type-icon")).not.toBeNull();
+    expect(selectedOption?.querySelector(".browse-option__indicator svg")).not.toBeNull();
 
     const unselectedInput = document.querySelector<HTMLInputElement>("input[name='item-filter-video']");
-    const unselectedIndicator = unselectedInput?.nextElementSibling;
-    expect(unselectedIndicator?.classList.contains("is-checked")).toBe(false);
-    expect(unselectedIndicator?.querySelector("svg")).toBeNull();
+    const unselectedOption = unselectedInput?.closest(".browse-option");
+    expect(unselectedOption?.querySelector(".browse-option__type-icon")).not.toBeNull();
+    expect(unselectedOption?.querySelector(".browse-option__indicator svg")).toBeNull();
   });
 
   it("clears selected filters", async () => {

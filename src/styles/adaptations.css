@@ -116,8 +116,10 @@
 
   .search-slot,
   .capture-title,
+  .topbar .browse-controls,
   .topbar.capture-open .search-slot,
-  .topbar.capture-open .capture-title {
+  .topbar.capture-open .capture-title,
+  .topbar.capture-open .browse-controls {
     transform: none;
     transition:
       opacity 100ms ease,
