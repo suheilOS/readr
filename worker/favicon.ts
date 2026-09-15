@@ -1,10 +1,13 @@
 import type { Context } from "hono";
 import type { AppEnv } from "./auth";
+import { readBodyBytesWithLimit } from "./extract";
 import { jsonError } from "./http";
 import { normalizePublicUrl } from "./urlSafety";
 
 const FAVICON_BROWSER_TTL_SECONDS = 86_400;
 const FAVICON_EDGE_TTL_SECONDS = 604_800;
+const FAVICON_TIMEOUT_MS = 3_000;
+const FAVICON_MAX_BYTES = 256 * 1024;
 const FAVICON_CONTENT_TYPES = new Set([
   "image/avif",
   "image/gif",
@@ -39,6 +42,7 @@ export async function getFavicon(context: Context<AppEnv>): Promise<Response> {
   try {
     upstream = await fetch(providerUrl, {
       headers: { Accept: "image/avif,image/webp,image/png,image/*" },
+      signal: AbortSignal.timeout(FAVICON_TIMEOUT_MS),
     });
   } catch (error) {
     console.warn(JSON.stringify({
@@ -55,7 +59,19 @@ export async function getFavicon(context: Context<AppEnv>): Promise<Response> {
     return faviconUnavailable();
   }
 
-  const response = new Response(upstream.body, {
+  let body: Uint8Array;
+  try {
+    body = await readBodyBytesWithLimit(upstream.body, FAVICON_MAX_BYTES, "response_too_large");
+  } catch (error) {
+    console.warn(JSON.stringify({
+      message: "favicon response rejected",
+      hostname,
+      error: error instanceof Error ? error.message : String(error),
+    }));
+    return faviconUnavailable();
+  }
+
+  const response = new Response(body, {
     headers: {
       "Cache-Control": `public, max-age=${FAVICON_BROWSER_TTL_SECONDS}, s-maxage=${FAVICON_EDGE_TTL_SECONDS}, stale-while-revalidate=86400`,
       "Content-Type": contentType,

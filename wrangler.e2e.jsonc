@@ -4,6 +4,9 @@
   "main": "./worker/index.ts",
   "compatibility_date": "2026-08-21",
   "compatibility_flags": ["global_fetch_strictly_public", "nodejs_compat"],
+  "vars": {
+    "APP_ENV": "e2e"
+  },
   "assets": {
     "directory": "./dist/client",
     "binding": "ASSETS",

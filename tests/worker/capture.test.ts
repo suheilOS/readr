@@ -247,9 +247,41 @@ describe('URL capture', () => {
     expect((await request(secondUser, `/api/items/${first.id}/enrichment/retry`, {})).status).toBe(404);
   });
 
+  it('enforces capture URL ownership at the database boundary', async () => {
+    const firstUser = crypto.randomUUID();
+    const secondUser = crypto.randomUUID();
+    const created = await request(firstUser, '/api/items', {
+      title: 'Owned item', type: 'article', url: 'https://example.com/owned',
+    });
+    const { item } = await created.json() as { item: { id: string } };
+
+    await env.READR_DB.prepare(
+      'INSERT INTO capture_urls (user_id, normalized_url, item_id) VALUES (?, ?, ?)',
+    ).bind(firstUser, 'https://example.com/owned', item.id).run();
+    await expect(env.READR_DB.prepare(
+      'INSERT INTO capture_urls (user_id, normalized_url, item_id) VALUES (?, ?, ?)',
+    ).bind(secondUser, 'https://example.com/other', item.id).run()).rejects.toThrow(/owner mismatch/);
+    await expect(env.READR_DB.prepare(
+      'UPDATE capture_urls SET user_id = ? WHERE user_id = ? AND normalized_url = ?',
+    ).bind(secondUser, firstUser, 'https://example.com/owned').run()).rejects.toThrow(/owner mismatch/);
+  });
+
   it('requires authentication and same-origin writes', async () => {
     expect((await request(null, '/api/capture', { url: 'https://example.com' })).status).toBe(401);
     expect((await request(crypto.randomUUID(), '/api/capture', { url: 'https://example.com' }, 'https://evil.test')).status).toBe(403);
+  });
+
+  it('does not trust development origins in production', async () => {
+    const productionEnv = Object.assign({}, env, { APP_ENV: 'production' }) as Env;
+    const response = await request(
+      crypto.randomUUID(),
+      '/api/capture',
+      { url: 'https://example.com/production-origin' },
+      'http://localhost:4173',
+      env.EXTRACT_RATE_LIMITER,
+      productionEnv,
+    );
+    expect(response.status).toBe(403);
   });
 
   it.each(['http://127.0.0.1/a', 'https://localhost/a', 'file:///tmp/a', 'https://example.com:444/a', 'https://me:secret@example.com/a'])('rejects unsafe input %s', async (url) => {
@@ -426,7 +458,7 @@ async function capture(user: string, body: unknown) {
   return result.item;
 }
 
-async function request(user: string | null, path: string, body?: unknown, origin = 'https://readr.test', rateLimiter = env.EXTRACT_RATE_LIMITER): Promise<Response> {
+async function request(user: string | null, path: string, body?: unknown, origin = 'https://readr.test', rateLimiter = env.EXTRACT_RATE_LIMITER, requestEnv: Env = env): Promise<Response> {
   const context = createExecutionContext();
   contexts.push(context);
   return worker.fetch(new Request(`https://readr.test${path}`, {
@@ -434,7 +466,7 @@ async function request(user: string | null, path: string, body?: unknown, origin
     headers: { Origin: origin, ...(user === null ? {} : { Cookie: `session=${user}` }), ...(body === undefined ? {} : { 'Content-Type': 'application/json' }) },
     ...(body === undefined ? {} : { body: JSON.stringify(body) }),
   }), {
-    ...env,
+    ...requestEnv,
     EXTRACT_RATE_LIMITER: rateLimiter,
     AUTH_SERVICE: {
       getSession: async () => user === null ? null : { userId: user, sessionId: 'test', expiresAt: '2099-01-01' },

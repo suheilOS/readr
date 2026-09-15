@@ -320,6 +320,20 @@ export async function readBodyWithLimit(
   tooLargeCode: SizeErrorCode,
   encoding = "utf-8",
 ): Promise<string> {
+  const bytes = await readBodyBytesWithLimit(body, maxBytes, tooLargeCode);
+
+  try {
+    return new TextDecoder(encoding).decode(bytes);
+  } catch {
+    return new TextDecoder().decode(bytes);
+  }
+}
+
+export async function readBodyBytesWithLimit(
+  body: ReadableStream<Uint8Array> | null,
+  maxBytes: number,
+  tooLargeCode: SizeErrorCode,
+): Promise<Uint8Array> {
   if (body === null) {
     throw new ExtractionError({
       code: "upstream_error",
@@ -361,12 +375,7 @@ export async function readBodyWithLimit(
     bytes.set(chunk, offset);
     offset += chunk.byteLength;
   }
-
-  try {
-    return new TextDecoder(encoding).decode(bytes);
-  } catch {
-    return new TextDecoder().decode(bytes);
-  }
+  return bytes;
 }
 
 function parseCharset(contentType: string): string {

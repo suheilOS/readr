@@ -8,13 +8,17 @@ export const requireSameOrigin = createMiddleware<AppEnv>(async (context, next) 
   }
 
   const origin = context.req.header("Origin");
-  const allowedOrigins = new Set([
-    new URL(context.req.url).origin,
-    "http://localhost:4173",
-    "http://127.0.0.1:4173",
-    "http://localhost:8787",
-    "http://127.0.0.1:8787",
-  ]);
+  const allowedOrigins = new Set([new URL(context.req.url).origin]);
+  if (context.env.APP_ENV !== "production") {
+    for (const localOrigin of [
+      "http://localhost:4173",
+      "http://127.0.0.1:4173",
+      "http://localhost:8787",
+      "http://127.0.0.1:8787",
+    ]) {
+      allowedOrigins.add(localOrigin);
+    }
+  }
   if (origin !== undefined && allowedOrigins.has(origin)) {
     await next();
     return;

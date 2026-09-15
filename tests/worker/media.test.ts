@@ -91,6 +91,21 @@ describe("YouTube media extraction", () => {
     expect(upstreamFetch).not.toHaveBeenCalledWith(canonicalUrl, expect.anything());
   });
 
+  it("bounds player diagnostics before parsing oversized responses", async () => {
+    const oversizedPlayer = { padding: "x".repeat(1024 * 1024) };
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes("youtubei/v1/player")) return Response.json(oversizedPlayer);
+      if (url.includes("youtubei/v1/next")) return Response.json({});
+      return new Response("", { status: 404 });
+    }));
+
+    const response = await callWorker("transcript", { url: canonicalUrl, language: "en" });
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({ transcript: { kind: "unavailable" } });
+  });
+
   it("rejects degraded metadata instead of replacing the stored title", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => Response.json({
       title: "- YouTube",

@@ -6,6 +6,7 @@ dist-ssr
 .bun-tmp
 test-results
 playwright-report
+/docs/security-audit-output/
 *.local
 .env
 .env.*

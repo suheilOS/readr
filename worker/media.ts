@@ -14,6 +14,7 @@ import { ExtractionError, readBodyWithLimit, readJsonRequestBody } from "./extra
 
 const METADATA_TIMEOUT_MS = 4_000;
 const TRANSCRIPT_TIMEOUT_MS = 8_000;
+const YOUTUBE_PLAYER_RESPONSE_MAX_BYTES = 1 * 1024 * 1024;
 
 type ValidatedMediaRequest = {
   input: MediaRequest;
@@ -253,7 +254,11 @@ function createYouTubeTranscriptFetch(
       let result = response.ok ? "ok" : "upstream_error";
       let playerDiagnostics: YouTubePlayerDiagnostics | null = null;
       if (stage === "player_data" && response.ok) {
-        const playerData: unknown = await response.clone().json().catch(() => undefined);
+        const playerData: unknown = await readBodyWithLimit(
+          response.clone().body,
+          YOUTUBE_PLAYER_RESPONSE_MAX_BYTES,
+          "response_too_large",
+        ).then((body) => JSON.parse(body) as unknown).catch(() => undefined);
         if (playerData === undefined) {
           result = "invalid_json";
           playerDiagnostics = emptyPlayerDiagnostics(clientName);

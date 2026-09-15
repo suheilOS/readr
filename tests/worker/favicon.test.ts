@@ -42,6 +42,16 @@ describe("favicon route", () => {
     expect(fetchMock).toHaveBeenCalledOnce();
     expect(String(fetchMock.mock.calls[0]?.[0])).toContain("domain_url=https%3A%2F%2Fexample.com");
   });
+
+  it("rejects oversized favicon responses", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(new Uint8Array(256 * 1024 + 1), {
+      headers: { "Content-Type": "image/png" },
+    })));
+
+    const response = await callWorker("oversized-favicon.example");
+
+    expect(response.status).toBe(404);
+  });
 });
 
 async function callWorker(hostname: string): Promise<Response> {
