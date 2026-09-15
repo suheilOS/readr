@@ -6,7 +6,7 @@ import {
   itemSortOptionFor,
   type ItemSort,
 } from "../itemSorting";
-import { FilterIcon, SortIcon } from "./icons";
+import { CheckIcon, FilterIcon, SortIcon } from "./icons";
 
 type OpenPopover = "sort" | "filter" | null;
 
@@ -87,7 +87,7 @@ export function BrowseControls({
                       checked={sort === option.value}
                       onChange={() => chooseSort(option.value)}
                     />
-                    <span>{option.label}</span>
+                    <span className="browse-option__label">{option.label}</span>
                   </label>
                 ))}
               </fieldset>
@@ -123,18 +123,28 @@ export function BrowseControls({
               <Popover.Title className="browse-popover__title">Filter items</Popover.Title>
               <fieldset className="browse-options">
                 <legend className="browse-popover__legend">Type</legend>
-                {TYPE_OPTIONS.map((option) => (
-                  <label className="browse-option" key={option.value}>
-                    <input
-                      type="checkbox"
-                      name={`item-filter-${option.value}`}
-                      value={option.value}
-                      checked={selectedTypeSet.has(option.value)}
-                      onChange={(event) => toggleType(option.value, event.target.checked)}
-                    />
-                    <span>{option.label}</span>
-                  </label>
-                ))}
+                {TYPE_OPTIONS.map((option) => {
+                  const checked = selectedTypeSet.has(option.value);
+                  return (
+                    <label className="browse-option" key={option.value}>
+                      <input
+                        className="browse-option__input"
+                        type="checkbox"
+                        name={`item-filter-${option.value}`}
+                        value={option.value}
+                        checked={checked}
+                        onChange={(event) => toggleType(option.value, event.target.checked)}
+                      />
+                      <span
+                        className={`browse-option__indicator${checked ? " is-checked" : ""}`}
+                        aria-hidden="true"
+                      >
+                        {checked && <CheckIcon />}
+                      </span>
+                      <span className="browse-option__label">{option.label}</span>
+                    </label>
+                  );
+                })}
               </fieldset>
               <div className="browse-popover__footer">
                 <span className="browse-popover__summary">

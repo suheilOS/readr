@@ -56,7 +56,7 @@
 
 .browse-popover {
   width: min(248px, var(--available-width));
-  padding: 16px;
+  padding: 4px;
   border: 0;
   border-radius: var(--radius-surface);
   background: var(--surface);
@@ -77,6 +77,7 @@
 
 .browse-popover__title {
   margin: 0;
+  padding: 6px 10px 2px;
   color: var(--heading);
   font-size: var(--font-size-body);
   font-weight: 600;
@@ -84,6 +85,7 @@
 
 .browse-popover__legend {
   margin: 0;
+  padding: 0 10px;
   color: var(--muted);
   font-size: var(--font-size-small);
   font-weight: 500;
@@ -93,7 +95,7 @@
   display: grid;
   gap: 2px;
   min-width: 0;
-  margin: 12px 0 0;
+  margin: 4px 0 0;
   padding: 0;
   border: 0;
 }
@@ -110,7 +112,7 @@
   font-size: var(--font-size-small);
 }
 
-.browse-option input {
+.browse-option input[type="radio"] {
   width: 16px;
   height: 16px;
   flex: 0 0 auto;
@@ -118,7 +120,46 @@
   accent-color: var(--text);
 }
 
-.browse-option span {
+.browse-option__input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.browse-option__indicator {
+  display: grid;
+  width: 18px;
+  height: 18px;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 1.5px solid var(--muted);
+  border-radius: var(--radius-pill);
+  color: transparent;
+}
+
+.browse-option__indicator.is-checked {
+  border-color: transparent;
+  color: var(--text);
+}
+
+.browse-option__indicator svg {
+  display: block;
+  width: 18px;
+  height: 18px;
+  fill: currentColor;
+}
+
+.browse-option__input:focus-visible + .browse-option__indicator {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.browse-option__label {
   min-width: 0;
   overflow-wrap: anywhere;
 }
@@ -128,8 +169,8 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  margin-top: 12px;
-  padding-top: 12px;
+  margin: 8px 6px 4px;
+  padding: 8px 4px 0;
   border-top: 1px solid var(--divider);
 }
 

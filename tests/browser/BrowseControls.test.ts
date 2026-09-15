@@ -65,6 +65,24 @@ describe("BrowseControls", () => {
     expect(onTypesChange).toHaveBeenCalledWith(["article", "video"]);
   });
 
+  it("uses the app check icon for selected filters", async () => {
+    await act(async () => renderControls("added-desc", ["article"]));
+
+    const filterButton = document.querySelector<HTMLButtonElement>("[aria-label='Filter items, 1 active']");
+    expect(filterButton).not.toBeNull();
+    await act(async () => filterButton?.click());
+
+    const selectedInput = document.querySelector<HTMLInputElement>("input[name='item-filter-article']");
+    const selectedIndicator = selectedInput?.nextElementSibling;
+    expect(selectedIndicator?.classList.contains("is-checked")).toBe(true);
+    expect(selectedIndicator?.querySelector("svg")).not.toBeNull();
+
+    const unselectedInput = document.querySelector<HTMLInputElement>("input[name='item-filter-video']");
+    const unselectedIndicator = unselectedInput?.nextElementSibling;
+    expect(unselectedIndicator?.classList.contains("is-checked")).toBe(false);
+    expect(unselectedIndicator?.querySelector("svg")).toBeNull();
+  });
+
   it("clears selected filters", async () => {
     const onTypesChange = vi.fn();
     await act(async () => renderControls("added-desc", ["article", "video"], vi.fn(), onTypesChange));
