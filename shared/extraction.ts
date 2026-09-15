@@ -14,6 +14,12 @@ export type ArticleContentResponse = {
   content: ExtractedArticle;
 };
 
+export type ArticleContentPendingResponse = { status: "processing" };
+
+export function isArticleContentPendingResponse(value: unknown): value is ArticleContentPendingResponse {
+  return isRecord(value) && value.status === "processing";
+}
+
 export const EXTRACT_ERROR_CODES = [
   "bad_request",
   "method_not_allowed",

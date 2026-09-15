@@ -1,11 +1,8 @@
 import { startTransition, useEffect, useRef, useState } from "react";
 import { canReadInApp, itemMetaLine, readerKindFor, type Item } from "../../shared/item";
 import type { ExtractedArticle } from "../../shared/extraction";
-import {
-  ArticleExtractionError,
-  fetchArticleContent,
-} from "../reader/fetchArticleContent";
-import { sanitizeArticleHtml } from "../reader/sanitizeArticle";
+import { ArticleExtractionError } from "../reader/fetchArticleContent";
+import type { ArticleCache } from "../reader/articleCache";
 import { ArrowLeftIcon } from "./icons";
 import { Spinner } from "./Spinner";
 import { YouTubeReader } from "../reader/YouTubeReader";
@@ -15,6 +12,7 @@ import "../reader/reader.css";
 type ReaderViewProps = {
   item: Item;
   onClose: () => void;
+  articleCache: ArticleCache;
 };
 
 type ReaderState =
@@ -22,7 +20,7 @@ type ReaderState =
   | { status: "ready"; article: ExtractedArticle }
   | { status: "error"; message: string };
 
-export function ReaderView({ item, onClose }: ReaderViewProps) {
+export function ReaderView({ item, onClose, articleCache }: ReaderViewProps) {
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") onClose();
@@ -42,11 +40,14 @@ export function ReaderView({ item, onClose }: ReaderViewProps) {
     );
   }
 
-  return <ArticleReader item={item} onClose={onClose} />;
+  return <ArticleReader key={`${item.id}:${item.type}:${item.url}`} item={item} onClose={onClose} articleCache={articleCache} />;
 }
 
-function ArticleReader({ item, onClose }: ReaderViewProps) {
-  const [state, setState] = useState<ReaderState>({ status: "loading" });
+function ArticleReader({ item, onClose, articleCache }: ReaderViewProps) {
+  const [state, setState] = useState<ReaderState>(() => {
+    const article = articleCache.peek(item);
+    return article === null ? { status: "loading" } : { status: "ready", article };
+  });
   const headingRef = useRef<HTMLHeadingElement>(null);
 
   useEffect(() => {
@@ -54,10 +55,11 @@ function ArticleReader({ item, onClose }: ReaderViewProps) {
   }, [item.id]);
 
   useEffect(() => {
-    const controller = new AbortController();
+    // ArticleReader is keyed by identity: its initializer owns the loading or
+    // cached state. Cleanup only ignores results; the cache owns cancellation.
+    let disposed = false;
     const itemType = item.type;
     const itemUrl = item.url;
-    setState({ status: "loading" });
 
     async function loadArticle() {
       if (itemUrl === null || !canReadInApp({ type: itemType, url: itemUrl })) {
@@ -72,16 +74,9 @@ function ArticleReader({ item, onClose }: ReaderViewProps) {
       }
 
       try {
-        const article = await fetchArticleContent(item.id, controller.signal);
-        const readyArticle: ExtractedArticle = {
-          title: article.title,
-          author: article.author,
-          sourceUrl: article.sourceUrl,
-          wordCount: article.wordCount,
-          html: sanitizeArticleHtml(article.html, article.sourceUrl),
-        };
+        const readyArticle = await articleCache.load({ id: item.id, type: itemType, url: itemUrl });
 
-        if (controller.signal.aborted) {
+        if (disposed) {
           return;
         }
 
@@ -89,7 +84,7 @@ function ArticleReader({ item, onClose }: ReaderViewProps) {
           setState({ status: "ready", article: readyArticle });
         });
       } catch (error) {
-        if (controller.signal.aborted) {
+        if (disposed) {
           return;
         }
 
@@ -103,8 +98,8 @@ function ArticleReader({ item, onClose }: ReaderViewProps) {
     }
 
     void loadArticle();
-    return () => controller.abort();
-  }, [item.id, item.type, item.url]);
+    return () => { disposed = true; };
+  }, [item.id, item.type, item.url, articleCache]);
 
   const originalUrl = item.url;
   const title = state.status === "ready" ? state.article.title : item.title;
@@ -160,7 +155,7 @@ function ArticleReader({ item, onClose }: ReaderViewProps) {
   );
 }
 
-function ReaderHeader({ item, onClose }: ReaderViewProps) {
+function ReaderHeader({ item, onClose }: Pick<ReaderViewProps, "item" | "onClose">) {
   return (
     <header className="reader-header">
       <button type="button" className="reader-back" onClick={onClose}>

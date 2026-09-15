@@ -33,7 +33,9 @@ test("reads sanitized content under the production security policy", async ({ pa
     });
   });
 
+  let articleRequests = 0;
   await page.route("**/api/items/reader-smoke/article-content", async (route) => {
+    articleRequests += 1;
     await route.fulfill({
       status: 200,
       contentType: "application/json",
@@ -55,6 +57,8 @@ test("reads sanitized content under the production security policy", async ({ pa
   expect(response?.headers()["referrer-policy"]).toBe("strict-origin-when-cross-origin");
 
   const readButton = page.getByRole("button", { name: "Open in readr: Stored article" });
+  await readButton.hover();
+  await expect.poll(() => articleRequests).toBe(1);
   await readButton.click();
   await expect(page.getByRole("heading", { name: "Extracted article" })).toBeFocused();
   await expect(page.locator(".reader-content script")).toHaveCount(0);
@@ -62,10 +66,28 @@ test("reads sanitized content under the production security policy", async ({ pa
 
   await page.getByRole("button", { name: "Back" }).click();
   await expect(readButton).toBeFocused();
+  await readButton.click();
+  await expect(page.getByRole("heading", { name: "Extracted article" })).toBeFocused();
+  await expect(page.locator(".reader-content")).toContainText("Safe article text.");
+  expect(articleRequests).toBe(1);
   expect(cspErrors).toEqual([]);
 });
 
-test("keeps full-desk replacement mode open while a swap is pending", async ({ page }) => {
+for (const reducedMotion of ["no-preference", "reduce"] as const) {
+test(`keeps full-desk replacement mode open while a swap is pending (${reducedMotion})`, async ({ page }) => {
+  await page.emulateMedia({ reducedMotion });
+  await page.addInitScript(() => {
+    const original = document.startViewTransition.bind(document);
+    Object.defineProperty(document, "startViewTransition", {
+      value: (update: () => void) => {
+        document.documentElement.dataset.transitions = String(Number(document.documentElement.dataset.transitions ?? 0) + 1);
+        return original(() => {
+          update();
+          document.documentElement.dataset.swapAtCommit = String(document.querySelector(".swap-banner") !== null);
+        });
+      },
+    });
+  });
   const deskItems = Array.from({ length: 5 }, (_, index) => ({
     id: `desk-${index + 1}`,
     title: `Desk item ${index + 1}`,
@@ -126,7 +148,48 @@ test("keeps full-desk replacement mode open while a swap is pending", async ({ p
   releaseSwap();
   await expect(page.locator(".swap-banner")).toHaveCount(0);
   await expect(page.getByText("Inbox candidate", { exact: true })).toBeVisible();
+  expect(await page.locator("html").getAttribute("data-transitions")).toBe(reducedMotion === "reduce" ? null : "1");
+  if (reducedMotion === "no-preference") {
+    await expect(page.locator("html")).toHaveAttribute("data-swap-at-commit", "false");
+  }
 });
+}
+
+for (const succeeds of [true, false]) {
+  test(`moves before the API responds and ${succeeds ? "confirms" : "rolls back"}`, async ({ page }) => {
+    const item = {
+      id: "optimistic", title: "Optimistic article", url: null, type: "article", status: "inbox",
+      addedAt: "2026-08-22T00:00:00.000Z", finishedAt: null, note: null,
+    };
+    let release!: () => void;
+    const response = new Promise<void>((resolve) => { release = resolve; });
+    await page.route("**/api/items", (route) => route.fulfill({ json: { items: [item] } }));
+    await page.route("**/api/items/optimistic/move-to-desk", async (route) => {
+      await response;
+      await route.fulfill(succeeds
+        ? { json: { item: { ...item, status: "desk" } } }
+        : { status: 409, json: { error: { code: "desk_full", message: "Your desk is full." } } });
+    });
+    await page.goto("/");
+    const move = page.getByRole("button", { name: "Move to desk: Optimistic article" });
+    await move.click();
+    try {
+      await expect(page.locator(".desk .card-title")).toHaveText(item.title);
+      await expect(move).toHaveCount(0);
+      await expect(page.getByRole("button", { name: "Finish: Optimistic article" })).toBeDisabled();
+    } finally {
+      release();
+    }
+    if (succeeds) {
+      await expect(page.getByRole("button", { name: "Finish: Optimistic article" })).toBeEnabled();
+      await expect(page.locator(".persistence-warning")).toHaveCount(0);
+    } else {
+      await expect(move).toBeEnabled();
+      await expect(page.locator(".desk .card-title")).toHaveCount(0);
+      await expect(page.locator(".persistence-warning")).toContainText("Your desk is full.");
+    }
+  });
+}
 
 test("completes discard when a desk item is already gone on the server", async ({ page }) => {
   const deskItem = {

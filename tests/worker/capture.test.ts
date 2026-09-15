@@ -5,6 +5,7 @@ import worker from '../../worker/index';
 import { inferUrlType, parseCaptureResult, parseItemMetadata } from '../../shared/capture';
 import { enrichItem, readMetadata, recoverEnrichment } from '../../worker/enrichment';
 import { extractPageMetadata } from '../../worker/metadata';
+import { ensureArticleContentJob, extractArticleContent } from '../../worker/articleContent';
 
 const contexts: ReturnType<typeof createExecutionContext>[] = [];
 const page = '<title>Source title</title><meta name="author" content="Ada"><meta property="og:image" content="/image.jpg">';
@@ -93,6 +94,93 @@ describe('URL capture', () => {
 
     const secondRead = await request(user, `/api/items/${body.item.id}/article-content`);
     expect(secondRead.status).toBe(200);
+    expect(fetch).toHaveBeenCalledOnce();
+  });
+
+  it('does not steal a live background article extraction lease', async () => {
+    let release!: (response: Response) => void;
+    const upstream = vi.fn()
+      .mockResolvedValueOnce(html(page))
+      .mockImplementation(() => new Promise<Response>((resolve) => { release = resolve; }));
+    vi.stubGlobal('fetch', upstream);
+    const user = crypto.randomUUID();
+    const item = await capture(user, { url: 'https://example.com/background-lease' });
+    try {
+      await vi.waitFor(() => expect(upstream).toHaveBeenCalledTimes(2));
+      const before = await env.READR_DB.prepare('SELECT lease_token, attempts FROM article_content WHERE item_id = ?').bind(item.id).first();
+      const responses = await Promise.all([
+        request(user, `/api/items/${item.id}/article-content`),
+        request(user, `/api/items/${item.id}/article-content`),
+      ]);
+      for (const response of responses) {
+        expect(response.status).toBe(202);
+        expect(response.headers.get('Retry-After')).toBe('1');
+        expect(response.headers.get('Cache-Control')).toBe('no-store');
+        expect(await response.json()).toEqual({ status: 'processing' });
+      }
+      expect(upstream).toHaveBeenCalledTimes(2);
+      expect(await env.READR_DB.prepare('SELECT lease_token, attempts FROM article_content WHERE item_id = ?').bind(item.id).first()).toEqual(before);
+    } finally {
+      release(html(articlePage));
+      await settle();
+    }
+    expect((await request(user, `/api/items/${item.id}/article-content`)).status).toBe(200);
+    expect(upstream).toHaveBeenCalledTimes(2);
+  });
+
+  it('deduplicates concurrent foreground article extractions', async () => {
+    let release!: (response: Response) => void;
+    const upstream = vi.fn(() => new Promise<Response>((resolve) => { release = resolve; }));
+    vi.stubGlobal('fetch', upstream);
+    const user = crypto.randomUUID();
+    const created = await request(user, '/api/items', { title: 'Historical', type: 'article', url: 'https://example.com/concurrent' });
+    const { item } = await created.json() as { item: { id: string } };
+    const first = request(user, `/api/items/${item.id}/article-content`);
+    try {
+      await vi.waitFor(() => expect(upstream).toHaveBeenCalledOnce());
+      const second = await request(user, `/api/items/${item.id}/article-content`);
+      expect(second.status).toBe(202);
+      expect(upstream).toHaveBeenCalledOnce();
+    } finally {
+      release(html(articlePage));
+    }
+    expect((await first).status).toBe(200);
+    expect((await request(user, `/api/items/${item.id}/article-content`)).status).toBe(200);
+    expect(upstream).toHaveBeenCalledOnce();
+  });
+
+  it.each(['expired', 'failed'] as const)('allows a foreground retry for an %s extraction', async (state) => {
+    vi.stubGlobal('fetch', vi.fn(async () => html(articlePage)));
+    const user = crypto.randomUUID();
+    const created = await request(user, '/api/items', { title: 'Retry', type: 'article', url: 'https://example.com/retry' });
+    const { item } = await created.json() as { item: { id: string } };
+    await ensureArticleContentJob(env.READR_DB, item.id, 'https://example.com/retry');
+    await env.READR_DB.prepare(`UPDATE article_content SET state = ?, attempts = 3,
+      lease_token = ?, lease_until = ? WHERE item_id = ?`)
+      .bind(state === 'expired' ? 'processing' : 'failed', state === 'expired' ? 'old' : null, state === 'expired' ? 0 : null, item.id).run();
+    const response = await request(user, `/api/items/${item.id}/article-content`);
+    expect(response.status).toBe(200);
+    expect(fetch).toHaveBeenCalledOnce();
+  });
+
+  it('returns ready content when extraction completes between the first read and claim', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => html(articlePage)));
+    const user = crypto.randomUUID();
+    const sourceUrl = 'https://example.com/completion-race';
+    const created = await request(user, '/api/items', { title: 'Race', type: 'article', url: sourceUrl });
+    const { item } = await created.json() as { item: { id: string } };
+    await ensureArticleContentJob(env.READR_DB, item.id, sourceUrl);
+    // Complete the real background job at the async boundary between the
+    // initial read and claim. No SQL matching or partial D1 impersonation.
+    const rateLimiter: Env['EXTRACT_RATE_LIMITER'] = {
+      limit: async () => {
+        await extractArticleContent(env.READR_DB, item.id);
+        return { success: true };
+      },
+    };
+    const response = await request(user, `/api/items/${item.id}/article-content`, undefined, 'https://readr.test', rateLimiter);
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({ content: { title: 'A Quiet Article' } });
     expect(fetch).toHaveBeenCalledOnce();
   });
 
@@ -338,7 +426,7 @@ async function capture(user: string, body: unknown) {
   return result.item;
 }
 
-async function request(user: string | null, path: string, body?: unknown, origin = 'https://readr.test'): Promise<Response> {
+async function request(user: string | null, path: string, body?: unknown, origin = 'https://readr.test', rateLimiter = env.EXTRACT_RATE_LIMITER): Promise<Response> {
   const context = createExecutionContext();
   contexts.push(context);
   return worker.fetch(new Request(`https://readr.test${path}`, {
@@ -347,6 +435,7 @@ async function request(user: string | null, path: string, body?: unknown, origin
     ...(body === undefined ? {} : { body: JSON.stringify(body) }),
   }), {
     ...env,
+    EXTRACT_RATE_LIMITER: rateLimiter,
     AUTH_SERVICE: {
       getSession: async () => user === null ? null : { userId: user, sessionId: 'test', expiresAt: '2099-01-01' },
       signOut: async () => new Response(),

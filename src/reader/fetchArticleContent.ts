@@ -1,5 +1,6 @@
 import {
   isArticleContentResponse,
+  isArticleContentPendingResponse,
   isExtractErrorBody,
   type ExtractedArticle,
 } from "../../shared/extraction";
@@ -18,6 +19,35 @@ export async function fetchArticleContent(
   itemId: string,
   signal: AbortSignal,
 ): Promise<ExtractedArticle> {
+  // Only retry the explicit processing response, never HTTP/auth/extraction errors.
+  for (let attempt = 0; attempt <= 20; attempt += 1) {
+    signal.throwIfAborted();
+    const result = await requestArticleContent(itemId, signal);
+    if (result !== null) return result;
+    if (attempt < 20) await waitForRetry(signal);
+  }
+  throw new ArticleExtractionError(
+    "This article is still being prepared. Please reopen it in a moment.",
+    "processing",
+  );
+}
+
+function waitForRetry(signal: AbortSignal): Promise<void> {
+  return new Promise((resolve, reject) => {
+    signal.throwIfAborted();
+    const timer = window.setTimeout(() => {
+      signal.removeEventListener("abort", abort);
+      resolve();
+    }, 1_000);
+    function abort() {
+      window.clearTimeout(timer);
+      reject(signal.reason);
+    }
+    signal.addEventListener("abort", abort, { once: true });
+  });
+}
+
+async function requestArticleContent(itemId: string, signal: AbortSignal): Promise<ExtractedArticle | null> {
   let response: Response;
 
   try {
@@ -36,6 +66,12 @@ export async function fetchArticleContent(
     );
   }
 
+  // Authentication failures may come from a proxy with an empty/HTML body.
+  // Preserve the auth signal so the session cache is always cleared.
+  if (response.status === 401) {
+    throw new ArticleExtractionError("Sign in to open this article.", "unauthorized");
+  }
+
   let responseBody: unknown;
   try {
     responseBody = await response.json();
@@ -45,6 +81,8 @@ export async function fetchArticleContent(
       "invalid_response",
     );
   }
+
+  if (response.status === 202 && isArticleContentPendingResponse(responseBody)) return null;
 
   if (!response.ok) {
     if (isExtractErrorBody(responseBody)) {

@@ -1,7 +1,7 @@
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { parseItemUrl, type ItemListItem } from "../../shared/item";
+import { parseItemUrl, type Item, type ItemListItem } from "../../shared/item";
 import { useItemLibrary, type ItemLibrary } from "../../src/useItemLibrary";
 
 const api = vi.hoisted(() => ({
@@ -49,10 +49,12 @@ function getLibrary(): ItemLibrary {
 
 function deferred<T>() {
   let resolvePromise: (value: T) => void = () => undefined;
-  const promise = new Promise<T>((resolve) => {
+  let rejectPromise: (reason: unknown) => void = () => undefined;
+  const promise = new Promise<T>((resolve, reject) => {
     resolvePromise = resolve;
+    rejectPromise = reject;
   });
-  return { promise, resolve: resolvePromise };
+  return { promise, resolve: resolvePromise, reject: rejectPromise };
 }
 
 beforeEach(async () => {
@@ -74,9 +76,123 @@ afterEach(async () => {
   root = null;
   currentLibrary = null;
   document.body.replaceChildren();
+  Reflect.deleteProperty(document, "startViewTransition");
+  vi.unstubAllGlobals();
 });
 
 describe("useItemLibrary mutation state", () => {
+  it.each([
+    ["moveToDesk", "moveItemToDesk", "desk"],
+    ["moveToInbox", "moveItemToInbox", "inbox"],
+    ["finish", "finishItem", "library"],
+  ] as const)("%s updates before the response and uses the server timestamp", async (method, apiMethod, status) => {
+    const movement = deferred<Item>();
+    api[apiMethod].mockReturnValue(movement.promise);
+    const original = { ...item, status: "library" as const, finishedAt: "2026-08-20T12:00:00.000Z" };
+    await act(async () => getLibrary().reconcileItem(original));
+    let result!: Promise<Item | null>;
+    await act(async () => { result = getLibrary()[method](item.id); });
+    expect(getLibrary().items[0].status).toBe(status);
+    expect(getLibrary().pendingAction).not.toBeNull();
+    if (status === "library") expect(getLibrary().items[0].finishedAt).not.toBe(original.finishedAt);
+    else expect(getLibrary().items[0].finishedAt).toBeNull();
+    const finishedAt = status === "library" ? "2026-08-25T12:00:00.000Z" : null;
+    await act(async () => {
+      movement.resolve({ ...original, status, finishedAt });
+      await result;
+    });
+    expect(getLibrary().items[0]).toMatchObject({ status, finishedAt });
+    expect(getLibrary().pendingAction).toBeNull();
+  });
+
+  it.each([true, false])("starts persistence before the visual commit and handles an early response (success: %s)", async (succeeds) => {
+    await act(async () => getLibrary().reconcileItem(item));
+    vi.stubGlobal("matchMedia", vi.fn(() => ({ matches: false })));
+    const commits: Array<() => void> = [];
+    Object.defineProperty(document, "startViewTransition", {
+      configurable: true,
+      value: (update: () => void) => ({
+        updateCallbackDone: new Promise<void>((resolve) => { commits.push(() => { update(); resolve(); }); }),
+      }),
+    });
+    if (succeeds) api.moveItemToDesk.mockResolvedValue({ ...item, status: "desk" });
+    else api.moveItemToDesk.mockRejectedValue(new Error("Move failed"));
+    let result!: Promise<Item | null>;
+    await act(async () => { result = getLibrary().moveToDesk(item.id); });
+    expect(api.moveItemToDesk).toHaveBeenCalledOnce();
+    expect(getLibrary().items[0].status).toBe("inbox");
+    expect(getLibrary().pendingAction).not.toBeNull();
+    expect(commits).toHaveLength(1);
+    await act(async () => { commits[0](); });
+    if (!succeeds) {
+      expect(commits).toHaveLength(2);
+      expect(getLibrary().items[0].status).toBe("desk");
+      await act(async () => { commits[1](); });
+    }
+    await act(async () => { await result; });
+    expect(getLibrary().items[0].status).toBe(succeeds ? "desk" : "inbox");
+    expect(getLibrary().pendingAction).toBeNull();
+  });
+
+  it("rolls back lifecycle fields without losing concurrent metadata or captures", async () => {
+    const movement = deferred<Item>();
+    api.moveItemToDesk.mockReturnValue(movement.promise);
+    await act(async () => getLibrary().reconcileItem(item));
+    let result!: Promise<Item | null>;
+    await act(async () => { result = getLibrary().moveToDesk(item.id); });
+    await act(async () => {
+      getLibrary().reconcileItemMetadata({ ...item, title: "Enriched title" }, null);
+      getLibrary().reconcileItem({ ...item, id: "new-capture" });
+    });
+    await act(async () => {
+      movement.reject(new Error("Your desk is full."));
+      await result;
+    });
+    expect(getLibrary().items).toEqual([
+      { ...item, id: "new-capture" },
+      { ...item, title: "Enriched title" },
+    ]);
+    expect(getLibrary().error).toBe("Your desk is full.");
+    expect(getLibrary().pendingAction).toBeNull();
+  });
+
+  it("preserves newer metadata when the lifecycle response arrives", async () => {
+    const movement = deferred<Item>();
+    api.moveItemToDesk.mockReturnValue(movement.promise);
+    await act(async () => getLibrary().reconcileItem(item));
+    let result!: Promise<Item | null>;
+    await act(async () => { result = getLibrary().moveToDesk(item.id); });
+    await act(async () => getLibrary().reconcileItemMetadata({ ...item, title: "Enriched title" }, null));
+    await act(async () => {
+      movement.resolve({ ...item, status: "desk" });
+      await result;
+    });
+    expect(getLibrary().items[0]).toMatchObject({ title: "Enriched title", status: "desk" });
+  });
+
+  it("keeps the swap locked until its single transition commits", async () => {
+    const displaced = { ...item, id: "displaced", status: "desk" as const };
+    await act(async () => {
+      getLibrary().reconcileItem(item);
+      getLibrary().reconcileItem(displaced);
+    });
+    vi.stubGlobal("matchMedia", vi.fn(() => ({ matches: false })));
+    let callback!: () => void;
+    const transition = vi.fn((update: () => void) => ({
+      updateCallbackDone: new Promise<void>((resolve) => { callback = () => { update(); resolve(); }; }),
+    }));
+    Object.defineProperty(document, "startViewTransition", { configurable: true, value: transition });
+    api.swapItems.mockResolvedValue({ item: { ...item, status: "desk" }, displacedId: displaced.id });
+    let result!: Promise<Item | null>;
+    await act(async () => { result = getLibrary().swap(item.id, displaced.id); });
+    expect(getLibrary().pendingAction).not.toBeNull();
+    expect(getLibrary().items).toHaveLength(2);
+    await act(async () => { callback(); await result; });
+    expect(transition).toHaveBeenCalledOnce();
+    expect(getLibrary().items).toEqual([{ ...item, status: "desk" }]);
+    expect(getLibrary().pendingAction).toBeNull();
+  });
+
   it("keeps capture available while a lifecycle mutation is pending", async () => {
     const movement = deferred<Item>();
     const creation = deferred<Item>();
@@ -214,7 +330,7 @@ describe("useItemLibrary mutation state", () => {
     });
     expect(getLibrary().capturePending).toBe(false);
     expect(getLibrary().pendingAction).toEqual({ kind: "move-to-desk", itemId: item.id });
-    expect(getLibrary().items).toEqual([capturedItem, item]);
+    expect(getLibrary().items).toEqual([capturedItem, { ...item, status: "desk" }]);
 
     await act(async () => {
       movement.resolve({ ...item, status: "desk" });
@@ -248,6 +364,16 @@ describe("useItemLibrary mutation state", () => {
 });
 
 describe("useItemLibrary reconciliation", () => {
+  it("preserves array and item identity for unchanged metadata", async () => {
+    await act(async () => getLibrary().reconcileItem(item));
+    const before = getLibrary().items;
+    await act(async () => getLibrary().reconcileItemMetadata(item, null));
+    expect(getLibrary().items).toBe(before);
+    expect(getLibrary().items[0]).toBe(before[0]);
+    await act(async () => getLibrary().reconcileItemMetadata({ ...item, id: "removed" }, null));
+    expect(getLibrary().items).toBe(before);
+  });
+
   it("inserts new server items and updates existing server items without reloading", async () => {
     await act(async () => {
       getLibrary().reconcileItem(item);
@@ -299,6 +425,21 @@ describe("useItemLibrary reconciliation", () => {
         author: "Reader Test",
       },
     }]);
+  });
+
+  it("allows a retry to complete after an unchanged metadata poll", async () => {
+    await act(async () => getLibrary().reconcileItem(item));
+    const retry = deferred<Item[]>();
+    api.fetchItems.mockReturnValue(retry.promise);
+    await act(async () => getLibrary().retry());
+    expect(getLibrary().loading).toBe(true);
+    await act(async () => getLibrary().reconcileItemMetadata(item, null));
+    await act(async () => {
+      retry.resolve([{ ...item, note: "Loaded by retry" }]);
+      await retry.promise;
+    });
+    expect(getLibrary().items[0].note).toBe("Loaded by retry");
+    expect(getLibrary().loading).toBe(false);
   });
 
   it("does not let an initial fetch overwrite a capture during a silent refresh", async () => {

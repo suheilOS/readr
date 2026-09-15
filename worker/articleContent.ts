@@ -1,5 +1,5 @@
 import type { Context } from 'hono';
-import type { ArticleContentResponse, ExtractedArticle, ExtractErrorCode } from '../shared/extraction';
+import type { ArticleContentPendingResponse, ArticleContentResponse, ExtractedArticle, ExtractErrorCode } from '../shared/extraction';
 import { isExtractedArticle } from '../shared/extraction';
 import { ENRICHMENT_RETRY_DELAYS_MS } from '../shared/capture';
 import { findItem } from './itemRepository';
@@ -61,7 +61,7 @@ export async function extractArticleContent(db: D1Database, itemId: string): Pro
     return;
   }
 
-  const job = await claimArticleContent(db, itemId, false);
+  const job = await claimArticleContent(db, itemId, 'background');
   if (job === null) return;
   await runArticleExtraction(db, job);
 }
@@ -105,9 +105,9 @@ export async function getArticleContent(
     return articleContentError('unsupported_content', 'This item cannot be opened as an article.', 422);
   }
 
-  const stored = await readReadyArticle(context.env.READR_DB, itemId);
+  const stored = await readArticleResponse(context.env.READR_DB, itemId);
   if (stored !== null) {
-    return articleContentJson({ content: stored });
+    return articleContentJson(stored);
   }
 
   const sourceUrl = item.url === null ? null : normalizeCaptureUrl(item.url);
@@ -122,8 +122,12 @@ export async function getArticleContent(
   }
 
   await ensureArticleContentJob(context.env.READR_DB, itemId, sourceUrl.href);
-  const job = await claimArticleContent(context.env.READR_DB, itemId, true);
+  const job = await claimArticleContent(context.env.READR_DB, itemId, 'foreground');
   if (job === null) {
+    // Another reader/background job may have claimed or completed extraction
+    // since our first read. Never steal its live lease or report a false 500.
+    const current = await readArticleResponse(context.env.READR_DB, itemId);
+    if (current !== null) return articleContentJson(current);
     return articleContentError('internal_error', 'The article could not be opened.', 500);
   }
 
@@ -170,25 +174,22 @@ async function runArticleExtraction(
 async function claimArticleContent(
   db: D1Database,
   itemId: string,
-  force: boolean,
+  mode: 'foreground' | 'background',
 ): Promise<ArticleContentJob | null> {
   const token = crypto.randomUUID();
   const now = Date.now();
-  const condition = force
+  // Foreground reads may retry failed/exhausted work, but neither caller may
+  // replace a live lease. Keep that invariant outside the retry policy.
+  const retryPolicy = mode === 'foreground'
     ? `state <> 'ready'`
-    : `attempts < ? AND (
-        (state = 'queued' AND next_attempt_at <= ?) OR
-        (state = 'processing' AND lease_until <= ?)
-      )`;
-  const bindings = force
-    ? [token, now + LEASE_MS, itemId]
-    : [token, now + LEASE_MS, itemId, MAX_ATTEMPTS, now, now];
+    : `attempts < ? AND ((state = 'queued' AND next_attempt_at <= ?) OR state = 'processing')`;
+  const retryBindings = mode === 'foreground' ? [] : [MAX_ATTEMPTS, now];
   return db.prepare(`
     UPDATE article_content
     SET state = 'processing', lease_token = ?, lease_until = ?, attempts = attempts + 1
-    WHERE item_id = ? AND ${condition}
+    WHERE item_id = ? AND (state <> 'processing' OR lease_until <= ?) AND ${retryPolicy}
     RETURNING item_id, source_url, attempts, lease_token
-  `).bind(...bindings).first<ArticleContentJob>();
+  `).bind(token, now + LEASE_MS, itemId, now, ...retryBindings).first<ArticleContentJob>();
 }
 
 async function extractAndStoreArticle(
@@ -268,13 +269,17 @@ async function markArticleContentFailed(
   ).run();
 }
 
-async function readReadyArticle(db: D1Database, itemId: string): Promise<ExtractedArticle | null> {
+async function readArticleResponse(
+  db: D1Database,
+  itemId: string,
+): Promise<ArticleContentResponse | ArticleContentPendingResponse | null> {
   const row = await db.prepare(`
-    SELECT source_url, title, author, word_count, html
+    SELECT state, source_url, title, author, word_count, html
     FROM article_content
-    WHERE item_id = ? AND state = 'ready'
-  `).bind(itemId).first<StoredArticleRow>();
+    WHERE item_id = ? AND (state = 'ready' OR (state = 'processing' AND lease_until > ?))
+  `).bind(itemId, Date.now()).first<StoredArticleRow>();
   if (row === null) return null;
+  if (row.state === 'processing') return { status: 'processing' };
 
   const article: unknown = {
     sourceUrl: row.source_url,
@@ -290,7 +295,7 @@ async function readReadyArticle(db: D1Database, itemId: string): Promise<Extract
       message: 'The stored article data is invalid.',
     });
   }
-  return article;
+  return { content: article };
 }
 
 function toSafeUrl(sourceUrl: string): URL {
@@ -318,7 +323,7 @@ function articleContentError(
 }
 
 function articleContentJson(
-  body: ArticleContentResponse,
+  body: ArticleContentResponse | ArticleContentPendingResponse,
   timings?: ExtractionTimings,
 ): Response {
   const headers: Record<string, string> = {
@@ -326,7 +331,9 @@ function articleContentJson(
     'X-Content-Type-Options': 'nosniff',
   };
   if (timings !== undefined) headers['Server-Timing'] = formatExtractionServerTiming(timings);
-  return Response.json(body, { headers });
+  const pending = 'status' in body;
+  if (pending) headers['Retry-After'] = '1';
+  return Response.json(body, { status: pending ? 202 : 200, headers });
 }
 
 type ArticleContentJob = {
@@ -337,6 +344,7 @@ type ArticleContentJob = {
 };
 
 type StoredArticleRow = {
+  state: 'ready' | 'processing';
   source_url: string;
   title: string | null;
   author: string | null;

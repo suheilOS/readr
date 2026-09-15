@@ -8,9 +8,10 @@ import { ThemeToggle, type Theme } from "./ThemeToggle";
 type UtilityDockProps = {
   theme: Theme;
   onToggleTheme: () => void;
+  onSignOut: () => void;
 };
 
-export function UtilityDock({ theme, onToggleTheme }: UtilityDockProps) {
+export function UtilityDock({ theme, onToggleTheme, onSignOut }: UtilityDockProps) {
   const [customizationOpen, setCustomizationOpen] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
   const [signOutError, setSignOutError] = useState<string | null>(null);
@@ -33,6 +34,7 @@ export function UtilityDock({ theme, onToggleTheme }: UtilityDockProps) {
         throw new Error(`Sign-out request failed with status ${response.status}`);
       }
 
+      onSignOut();
       window.location.reload();
     } catch {
       setSignOutError("We could not sign you out. Try again.");

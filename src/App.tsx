@@ -10,6 +10,7 @@ import {
 import { Collapsible } from "@base-ui/react/collapsible";
 import {
   canReadInApp,
+  readerKindFor,
   DESK_CAPACITY,
   type ItemStatus,
   type Item,
@@ -36,7 +37,7 @@ import { ArrowLeftIcon, PlusIcon } from "./components/icons";
 import { notify } from "./notifications";
 import type { CaptureInput } from "../shared/capture";
 import { useExtensionCapture } from "./useExtensionCapture";
-import { commitWithViewTransition } from "./viewTransition";
+import { createArticleCache } from "./reader/articleCache";
 import { readPasteCaptureUrl } from "./pasteCapture";
 import { useEnrichmentRefresh } from "./useEnrichmentRefresh";
 
@@ -59,10 +60,6 @@ const loadReaderView = () =>
     default: Component,
   }));
 const ReaderView = lazy(loadReaderView);
-
-function preloadReaderView(): void {
-  void loadReaderView();
-}
 
 function ReaderLoadingFallback({ onClose }: { onClose: () => void }) {
   return (
@@ -119,6 +116,17 @@ export default function App() {
     swap,
   } = useItemLibrary();
   const busy = pendingAction !== null;
+  const [articleCache] = useState(createArticleCache);
+  useEffect(() => {
+    if (unauthenticated) articleCache.clear();
+    else articleCache.retain(items);
+  }, [articleCache, items, unauthenticated]);
+  useEffect(() => () => articleCache.clear(), [articleCache]);
+
+  function preloadReaderView(item: Item): void {
+    void loadReaderView().catch(() => undefined);
+    if (readerKindFor(item) === "article") articleCache.prefetch(item);
+  }
   const [query, setQuery] = useState("");
   const [discardCandidate, setDiscardCandidate] = useState<Item | null>(null);
   const [swapCandidateId, setSwapCandidateId] = useState<string | null>(null);
@@ -276,6 +284,9 @@ export default function App() {
   } = useMemo(() => selectItemGroups(items, query), [items, query]);
 
   const deskFull = deskItems.length >= DESK_CAPACITY;
+  // The item update ends replacement mode in the same render/transition.
+  // Selection cleanup must not require a callback into the library's commit.
+  const swapActive = items.some((item) => item.id === swapCandidateId && item.status !== "desk");
   const addItemFormState: AddItemFormState = capturePending ? "submitting" : "idle";
 
   async function handleAdd(input: NewItemInput): Promise<boolean> {
@@ -332,13 +343,13 @@ export default function App() {
 
     const movedItem = await swap(swapCandidateId, displaced.id);
     if (movedItem !== null) {
+      setSwapCandidateId(null);
       announce({
         title: movedItem.title,
         message: "Moved to your desk.",
         state: "success",
         sound: "success",
       });
-      commitWithViewTransition(() => setSwapCandidateId(null));
     }
     return movedItem !== null;
   }
@@ -456,7 +467,7 @@ export default function App() {
       )}
       {readerItem !== null ? (
         <Suspense fallback={<ReaderLoadingFallback onClose={closeReader} />}>
-          <ReaderView item={readerItem} onClose={closeReader} />
+          <ReaderView item={readerItem} onClose={closeReader} articleCache={articleCache} />
         </Suspense>
       ) : (
         <div className="page">
@@ -500,18 +511,18 @@ export default function App() {
               </div>
             </Collapsible.Panel>
           </Collapsible.Root>
-          {searching && visibleItemCount === 0 && swapCandidateId === null ? (
+          {searching && visibleItemCount === 0 && !swapActive ? (
             <section className="search-empty" aria-labelledby="search-empty-heading">
               <h2 id="search-empty-heading">No results</h2>
               <p>No items match “<bdi>{displayQuery}</bdi>”. Try another search.</p>
             </section>
           ) : (
             <>
-              {(!searching || visibleDeskItems.length > 0 || swapCandidateId !== null) && (
+              {(!searching || visibleDeskItems.length > 0 || swapActive) && (
                 <DeskSection
-                  items={swapCandidateId === null ? visibleDeskItems : deskItems}
+                  items={swapActive ? deskItems : visibleDeskItems}
                   deskCount={deskItems.length}
-                  mode={swapCandidateId === null ? "normal" : "swap"}
+                  mode={swapActive ? "swap" : "normal"}
                   onFinish={finishItem}
                   onSendToInbox={sendToInbox}
                   onDiscard={requestDiscard}
@@ -543,7 +554,7 @@ export default function App() {
           )}
         </div>
       )}
-      <UtilityDock theme={theme} onToggleTheme={toggleTheme} />
+      <UtilityDock theme={theme} onToggleTheme={toggleTheme} onSignOut={articleCache.clear} />
       <DiscardConfirmationDialog
         item={discardCandidate}
         onCancel={() => {

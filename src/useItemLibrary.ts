@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Item, ItemListItem } from "../shared/item";
 import { toItemMetadataSummary, type CaptureInput, type CaptureResult, type ItemMetadata } from "../shared/capture";
 import type { PendingItemAction } from "./pendingItemAction";
@@ -50,6 +50,21 @@ export type ItemLibrary = {
 
 export function useItemLibrary(): ItemLibrary {
   const [items, setItems] = useState<ItemListItem[]>([]);
+  const itemsRef = useRef(items);
+  // Async writers share one current snapshot. Compute changes before notifying
+  // React so no-op detection and generation changes stay outside state updaters.
+  const updateItems = useCallback((update: (current: ItemListItem[]) => ItemListItem[]): boolean => {
+    const next = update(itemsRef.current);
+    if (next === itemsRef.current) return false;
+    itemsRef.current = next;
+    setItems(next);
+    return true;
+  }, []);
+  // Keep optimistic lifecycle fields separate: rollback must not undo captures
+  // or metadata received while the request was in flight.
+  const [optimisticMove, setOptimisticMove] = useState<Pick<Item, "id" | "status" | "finishedAt"> | null>(null);
+  const displayedItems = useMemo(() => optimisticMove === null ? items : items.map((item) =>
+    item.id === optimisticMove.id ? { ...item, ...optimisticMove } : item), [items, optimisticMove]);
   const [loading, setLoading] = useState(true);
   const [pendingAction, setPendingAction] = useState<PendingItemAction | null>(null);
   const [capturePending, setCapturePending] = useState(false);
@@ -74,7 +89,7 @@ export function useItemLibrary(): ItemLibrary {
     void fetchItems(controller.signal)
       .then((nextItems) => {
         if (generation !== dataGenerationRef.current) return;
-        setItems(nextItems);
+        updateItems(() => nextItems);
         setUnauthenticated(false);
       })
       .catch((error: unknown) => {
@@ -88,7 +103,7 @@ export function useItemLibrary(): ItemLibrary {
       });
 
     return () => controller.abort();
-  }, [loadRequest]);
+  }, [loadRequest, updateItems]);
 
   const runMutation = useCallback(async <T,>(
     action: PendingItemAction,
@@ -144,17 +159,17 @@ export function useItemLibrary(): ItemLibrary {
   const addItem = useCallback(async (input: NewItemInput): Promise<Item | null> => {
     const { result } = await runCapture(
       () => createItem(input),
-      (item) => setItems((current) => upsertItem(current, item)),
+      (item) => updateItems((current) => upsertItem(current, item)),
     );
     return result;
-  }, [runCapture]);
+  }, [runCapture, updateItems]);
 
   const captureUrlWithError = useCallback(
     (input: CaptureInput): Promise<CaptureAttempt> => runCapture(
       () => requestCaptureUrl(input),
-      ({ item }) => setItems((current) => upsertItem(current, item)),
+      ({ item }) => updateItems((current) => upsertItem(current, item)),
     ),
-    [runCapture],
+    [runCapture, updateItems],
   );
 
   const captureUrl = useCallback(
@@ -164,40 +179,54 @@ export function useItemLibrary(): ItemLibrary {
 
   const reconcileItem = useCallback((item: Item): void => {
     dataGenerationRef.current += 1;
-    setItems((current) => upsertItem(current, item));
-  }, []);
+    updateItems((current) => upsertItem(current, item));
+  }, [updateItems]);
 
   const reconcileItemMetadata = useCallback((
     item: Pick<Item, "id" | "title" | "type">,
     metadata: ItemMetadata | null,
   ): void => {
-    dataGenerationRef.current += 1;
-    setItems((current) => current.map((currentItem) => currentItem.id === item.id
-      ? {
-          ...currentItem,
-          title: item.title,
-          type: item.type,
-          metadataSummary: toItemMetadataSummary(metadata),
-        }
-      : currentItem));
-  }, []);
+    const summary = toItemMetadataSummary(metadata);
+    const changed = updateItems((current) => {
+      const existing = current.find((currentItem) => currentItem.id === item.id);
+      if (existing === undefined || (existing.title === item.title && existing.type === item.type &&
+        sameMetadataSummary(existing.metadataSummary, summary))) return current;
+      return current.map((currentItem) => currentItem.id === item.id
+        ? { ...currentItem, title: item.title, type: item.type, metadataSummary: summary }
+        : currentItem);
+    });
+    if (changed) dataGenerationRef.current += 1;
+  }, [updateItems]);
 
   const updateItem = useCallback(async (
     kind: "move-to-desk" | "move-to-inbox" | "finish",
     operation: ItemMutation,
     id: string,
   ): Promise<Item | null> => {
-    const item = await runMutation({ kind, itemId: id }, () => operation(id));
-    if (item !== null) {
-      dataGenerationRef.current += 1;
-      commitWithViewTransition(() => {
-        setItems((current) => current.map((currentItem) => currentItem.id === item.id
-          ? replaceListItem(currentItem, item)
+    return runMutation({ kind, itemId: id }, async () => {
+      const optimisticCommit = commitWithViewTransition(() => setOptimisticMove({
+        id,
+        status: kind === "finish" ? "library" : kind === "move-to-desk" ? "desk" : "inbox",
+        finishedAt: kind === "finish" ? new Date().toISOString() : null,
+      }));
+      try {
+        const [item] = await Promise.all([operation(id), optimisticCommit]);
+        dataGenerationRef.current += 1;
+        updateItems((current) => current.map((currentItem) => currentItem.id === item.id
+          ? { ...currentItem, status: item.status, finishedAt: item.finishedAt }
           : currentItem));
-      });
-    }
-    return item;
-  }, [runMutation]);
+        setOptimisticMove(null);
+        return item;
+      } catch (error) {
+        // A fast request failure must not roll back before the queued visual
+        // update runs, otherwise that callback could reapply the failed move.
+        await optimisticCommit;
+        dataGenerationRef.current += 1;
+        await commitWithViewTransition(() => setOptimisticMove(null));
+        throw error;
+      }
+    });
+  }, [runMutation, updateItems]);
 
   const moveToDesk = useCallback(
     (id: string) => updateItem("move-to-desk", moveItemToDesk, id),
@@ -222,26 +251,23 @@ export function useItemLibrary(): ItemLibrary {
     );
     if (result) {
       dataGenerationRef.current += 1;
-      setItems((current) => current.filter((item) => item.id !== id));
+      updateItems((current) => current.filter((item) => item.id !== id));
     }
     return result ?? false;
-  }, [runMutation]);
+  }, [runMutation, updateItems]);
 
   const swap = useCallback(async (candidateId: string, displacedId: string): Promise<Item | null> => {
-    const result = await runMutation(
-      { kind: "replace", itemId: displacedId },
-      () => swapItems(candidateId, displacedId),
-    );
-    if (result !== null) {
+    return runMutation({ kind: "replace", itemId: displacedId }, async () => {
+      const result = await swapItems(candidateId, displacedId);
       dataGenerationRef.current += 1;
-      commitWithViewTransition(() => {
-        setItems((current) => current
+      await commitWithViewTransition(() => {
+        updateItems((current) => current
           .filter((item) => item.id !== result.displacedId)
           .map((item) => item.id === result.item.id ? replaceListItem(item, result.item) : item));
       });
-    }
-    return result?.item ?? null;
-  }, [runMutation]);
+      return result.item;
+    });
+  }, [runMutation, updateItems]);
 
   const retry = useCallback(() => {
     requestLoad(true);
@@ -251,7 +277,7 @@ export function useItemLibrary(): ItemLibrary {
   }, [requestLoad]);
 
   return {
-    items,
+    items: displayedItems,
     loading,
     pendingAction,
     capturePending,
@@ -270,6 +296,12 @@ export function useItemLibrary(): ItemLibrary {
     discard,
     swap,
   };
+}
+
+function sameMetadataSummary(a: ItemListItem["metadataSummary"], b: ItemListItem["metadataSummary"]): boolean {
+  if (a === null || b === null) return a === b;
+  return a.imageUrl === b.imageUrl && a.imageKind === b.imageKind &&
+    a.siteName === b.siteName && a.author === b.author;
 }
 
 function upsertItem(items: ItemListItem[], item: Item): ItemListItem[] {
