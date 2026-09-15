@@ -13,6 +13,7 @@ import {
   readerKindFor,
   DESK_CAPACITY,
   type ItemStatus,
+  type ItemType,
   type Item,
 } from "../shared/item";
 import {
@@ -25,7 +26,9 @@ import { DiscardConfirmationDialog } from "./components/DiscardConfirmationDialo
 import { InboxSection } from "./components/InboxSection";
 import { LibrarySection } from "./components/LibrarySection";
 import { SearchBar } from "./components/SearchBar";
+import { BrowseControls } from "./components/BrowseControls";
 import { selectItemGroups } from "./itemSelectors";
+import { DEFAULT_ITEM_SORT, type ItemSort } from "./itemSorting";
 import { useItemLibrary } from "./useItemLibrary";
 import { useReaderRoute } from "./useReaderRoute";
 import { pendingItemActionLabel } from "./pendingItemAction";
@@ -128,6 +131,8 @@ export default function App() {
     if (readerKindFor(item) === "article") articleCache.prefetch(item);
   }
   const [query, setQuery] = useState("");
+  const [sort, setSort] = useState<ItemSort>(DEFAULT_ITEM_SORT);
+  const [selectedTypes, setSelectedTypes] = useState<ItemType[]>([]);
   const [discardCandidate, setDiscardCandidate] = useState<Item | null>(null);
   const [swapCandidateId, setSwapCandidateId] = useState<string | null>(null);
   const [captureOpen, setCaptureOpen] = useState(false);
@@ -281,8 +286,12 @@ export default function App() {
     visibleDeskItems,
     visibleInboxItems,
     visibleLibraryItems,
-  } = useMemo(() => selectItemGroups(items, query), [items, query]);
+  } = useMemo(
+    () => selectItemGroups(items, query, { sort, types: selectedTypes }),
+    [items, query, selectedTypes, sort],
+  );
 
+  const browseActive = searching || selectedTypes.length > 0;
   const deskFull = deskItems.length >= DESK_CAPACITY;
   // The item update ends replacement mode in the same render/transition.
   // Selection cleanup must not require a callback into the library's commit.
@@ -408,9 +417,14 @@ export default function App() {
       : items.find((item) => item.id === readerItemId) ?? null;
   const visibleItemCount =
     visibleDeskItems.length + visibleInboxItems.length + visibleLibraryItems.length;
-  const searchAnnouncement = searching
-    ? `${visibleItemCount} result${visibleItemCount === 1 ? "" : "s"} found.`
+  const browseAnnouncement = browseActive
+    ? `${visibleItemCount} matching result${visibleItemCount === 1 ? "" : "s"} found.`
     : "";
+
+  function clearBrowse() {
+    setQuery("");
+    setSelectedTypes([]);
+  }
 
   function openReader(item: Item) {
     if (!canReadInApp(item)) {
@@ -457,7 +471,7 @@ export default function App() {
         {capturePending ? "Adding to inbox." : pendingItemActionLabel(pendingAction)}
       </p>
       <p className="visually-hidden" aria-live="polite" aria-atomic="true">
-        {searchAnnouncement}
+        {browseAnnouncement}
       </p>
       {error !== null && (
         <div className="persistence-warning" role="alert">
@@ -485,6 +499,12 @@ export default function App() {
                   Capture
                 </span>
               </div>
+              <BrowseControls
+                sort={sort}
+                onSortChange={setSort}
+                selectedTypes={selectedTypes}
+                onTypesChange={setSelectedTypes}
+              />
               <Collapsible.Trigger
                 ref={addButtonRef}
                 type="button"
@@ -511,14 +531,25 @@ export default function App() {
               </div>
             </Collapsible.Panel>
           </Collapsible.Root>
-          {searching && visibleItemCount === 0 && !swapActive ? (
+          {browseActive && visibleItemCount === 0 && !swapActive ? (
             <section className="search-empty" aria-labelledby="search-empty-heading">
-              <h2 id="search-empty-heading">No results</h2>
-              <p>No items match “<bdi>{displayQuery}</bdi>”. Try another search.</p>
+              <h2 id="search-empty-heading">No matching items</h2>
+              <p>
+                {searching && selectedTypes.length > 0
+                  ? <>No items match both “<bdi>{displayQuery}</bdi>” and the selected filters.</>
+                  : searching
+                    ? <>No items match “<bdi>{displayQuery}</bdi>”.</>
+                    : <>No items match the selected filters.</>}{" "}
+                <button type="button" className="inline-link-button" onClick={clearBrowse}>
+                  Clear {searching && selectedTypes.length > 0
+                    ? "search and filters"
+                    : searching ? "search" : "filters"}
+                </button>
+              </p>
             </section>
           ) : (
             <>
-              {(!searching || visibleDeskItems.length > 0 || swapActive) && (
+              {(!browseActive || visibleDeskItems.length > 0 || swapActive) && (
                 <DeskSection
                   items={swapActive ? deskItems : visibleDeskItems}
                   deskCount={deskItems.length}
@@ -533,7 +564,7 @@ export default function App() {
                   pendingAction={pendingAction}
                 />
               )}
-              {(!searching || visibleInboxItems.length > 0) && (
+              {(!browseActive || visibleInboxItems.length > 0) && (
                 <InboxSection
                   items={visibleInboxItems}
                   highlightId={lastAddedId}
@@ -542,7 +573,7 @@ export default function App() {
                   pendingAction={pendingAction}
                 />
               )}
-              {(!searching || visibleLibraryItems.length > 0) && (
+              {(!browseActive || visibleLibraryItems.length > 0) && (
                 <LibrarySection
                   items={visibleLibraryItems}
                   onSendToDesk={sendToDesk}

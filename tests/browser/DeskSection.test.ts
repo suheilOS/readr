@@ -85,8 +85,12 @@ describe("DeskSection", () => {
 
     await act(async () => renderDesk(groups.deskItems, "swap", groups.deskItems.length));
 
-    expect(document.querySelectorAll(".desk-card.swappable")).toHaveLength(5);
-    expect(document.querySelector(".desk-card.swappable")?.textContent).toContain("Desk item 1");
+    const swapTargets = Array.from(document.querySelectorAll(".desk-card.swappable"))
+      .map((card) => card.textContent);
+    expect(swapTargets).toHaveLength(5);
+    for (const deskItem of deskItems) {
+      expect(swapTargets.join("\n")).toContain(deskItem.title);
+    }
   });
 
   it("keeps the attention budget counter independent from filtered desk results", async () => {

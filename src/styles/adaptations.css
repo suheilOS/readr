@@ -18,6 +18,10 @@
   .library-menu-item,
   .search-input,
   .search-clear,
+  .browse-control,
+  .browse-popover,
+  .browse-option,
+  .browse-clear,
   .add-form input,
   .type-trigger,
   .type-menu,
@@ -31,6 +35,20 @@
   .search-clear:hover {
     background: var(--divider);
     color: var(--muted-strong);
+  }
+
+  .browse-control:hover {
+    background: var(--fill-strong);
+    color: var(--text);
+  }
+
+  .browse-clear:not(:disabled):hover {
+    background: var(--text);
+    color: var(--page-bg);
+  }
+
+  .browse-option:hover {
+    background: var(--divider);
   }
 
   .pill-button:hover,
@@ -117,7 +135,8 @@
   }
 
   .type-menu,
-  .library-menu {
+  .library-menu,
+  .browse-popover {
     transform: none;
     transition: none;
   }
@@ -125,7 +144,9 @@
   .type-menu[data-starting-style],
   .type-menu[data-ending-style],
   .library-menu[data-starting-style],
-  .library-menu[data-ending-style] {
+  .library-menu[data-ending-style],
+  .browse-popover[data-starting-style],
+  .browse-popover[data-ending-style] {
     transform: none;
   }
 
@@ -139,6 +160,8 @@
 
   .pill-button,
   .quiet-button,
+  .browse-control,
+  .browse-clear,
   .add-submit,
   .app-state__action,
   .desk-card.swappable {
@@ -148,6 +171,8 @@
 
   .pill-button:active,
   .quiet-button:active,
+  .browse-control:active,
+  .browse-clear:active,
   .add-submit:active,
   .app-state__action:active,
   .desk-card.swappable:active,
