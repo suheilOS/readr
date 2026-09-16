@@ -8,6 +8,7 @@ import {
   useState,
 } from "react";
 import { Collapsible } from "@base-ui/react/collapsible";
+import { Tooltip } from "@base-ui/react/tooltip";
 import {
   canReadInApp,
   readerKindFor,
@@ -36,7 +37,7 @@ import { focusAdjacentAction, type FocusAdjacentAction } from "./focusAdjacentAc
 import { ThemeToggle, type Theme } from "./components/ThemeToggle";
 import { UtilityDock } from "./components/UtilityDock";
 import { Spinner } from "./components/Spinner";
-import { ArrowLeftIcon, PlusIcon, XIcon } from "./components/icons";
+import { ArrowLeftIcon, PlusIcon, SearchEmptyIcon, XIcon } from "./components/icons";
 import { notify } from "./notifications";
 import type { CaptureInput } from "../shared/capture";
 import { useExtensionCapture } from "./useExtensionCapture";
@@ -491,6 +492,7 @@ export default function App() {
             onOpenChange={(open) => setCaptureOpen(open)}
           >
             <div className={`topbar${captureOpen ? " capture-open" : ""}`}>
+              <Tooltip.Provider delay={500}>
               <div className="topbar-slot">
                 <div className="search-slot" aria-hidden={captureOpen}>
                   <SearchBar query={query} onQueryChange={setQuery} />
@@ -505,17 +507,31 @@ export default function App() {
                 selectedTypes={selectedTypes}
                 onTypesChange={setSelectedTypes}
               />
-              <Collapsible.Trigger
-                ref={addButtonRef}
-                type="button"
-                className="add-toggle"
-                aria-label={captureOpen ? "Close add form" : "Add to inbox"}
-                data-slot="collapsible-trigger"
-                data-focus-fallback
-              >
-                <PlusIcon className="add-toggle__plus" />
-                <XIcon className="add-toggle__close" />
-              </Collapsible.Trigger>
+              <Tooltip.Root>
+                <Tooltip.Trigger
+                  render={(
+                    <Collapsible.Trigger
+                      ref={addButtonRef}
+                      type="button"
+                      className="add-toggle"
+                      aria-label={captureOpen ? "Close add form" : "Add to inbox"}
+                      data-slot="collapsible-trigger"
+                      data-focus-fallback
+                    >
+                      <PlusIcon className="add-toggle__plus" />
+                      <XIcon className="add-toggle__close" />
+                    </Collapsible.Trigger>
+                  )}
+                />
+                <Tooltip.Portal>
+                  <Tooltip.Positioner className="topbar-tooltip-positioner" side="bottom" sideOffset={6}>
+                    <Tooltip.Popup className="topbar-tooltip">
+                      {captureOpen ? "Close" : "Add to inbox"}
+                    </Tooltip.Popup>
+                  </Tooltip.Positioner>
+                </Tooltip.Portal>
+              </Tooltip.Root>
+              </Tooltip.Provider>
             </div>
             <Collapsible.Panel id="capture-panel" className="capture-panel" keepMounted>
               <div className="capture-clip">
@@ -534,6 +550,9 @@ export default function App() {
           </Collapsible.Root>
           {browseActive && visibleItemCount === 0 && !swapActive ? (
             <section className="search-empty" aria-labelledby="search-empty-heading">
+              <span className="empty-state-icon">
+                <SearchEmptyIcon />
+              </span>
               <h2 id="search-empty-heading">No matching items</h2>
               <p>
                 {searching && selectedTypes.length > 0

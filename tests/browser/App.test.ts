@@ -180,6 +180,7 @@ describe("App browse controls", () => {
 
     expect(document.querySelector(".search-empty")?.textContent)
       .toContain("No items match both “Video” and the selected filters.");
+    expect(document.querySelector(".search-empty .empty-state-icon svg")).not.toBeNull();
     const clearButton = document.querySelector<HTMLButtonElement>(".search-empty .inline-link-button");
     expect(clearButton?.textContent).toBe("Clear search and filters");
 

@@ -1,4 +1,5 @@
 import { Popover } from "@base-ui/react/popover";
+import { Tooltip } from "@base-ui/react/tooltip";
 import { useState } from "react";
 import { TYPE_OPTIONS, type ItemType } from "../../shared/item";
 import {
@@ -60,14 +61,25 @@ export function BrowseControls({
         open={openPopover === "sort"}
         onOpenChange={(open) => handlePopoverChange("sort", open)}
       >
-        <Popover.Trigger
-          className="browse-control"
-          type="button"
-          aria-label={`Sort items: ${currentSortLabel}`}
-          data-slot="popover-trigger"
-        >
-          <SortIcon />
-        </Popover.Trigger>
+        <Tooltip.Root>
+          <Tooltip.Trigger
+            render={(
+              <Popover.Trigger
+                className="browse-control"
+                type="button"
+                aria-label={`Sort items: ${currentSortLabel}`}
+                data-slot="popover-trigger"
+              >
+                <SortIcon />
+              </Popover.Trigger>
+            )}
+          />
+          <Tooltip.Portal>
+            <Tooltip.Positioner className="topbar-tooltip-positioner" side="bottom" sideOffset={6}>
+              <Tooltip.Popup className="topbar-tooltip">Sort</Tooltip.Popup>
+            </Tooltip.Positioner>
+          </Tooltip.Portal>
+        </Tooltip.Root>
         <Popover.Portal>
           <Popover.Positioner
             className="browse-popover-positioner"
@@ -75,7 +87,7 @@ export function BrowseControls({
             align="end"
             sideOffset={8}
           >
-            <Popover.Popup className="browse-popover">
+            <Popover.Popup className="browse-popover browse-popover--sort">
               <Popover.Title className="visually-hidden">Sort items</Popover.Title>
               <fieldset className="browse-options">
                 <legend className="visually-hidden">Sort order</legend>
@@ -101,18 +113,31 @@ export function BrowseControls({
         open={openPopover === "filter"}
         onOpenChange={(open) => handlePopoverChange("filter", open)}
       >
-        <Popover.Trigger
-          className="browse-control"
-          type="button"
-          aria-label={activeFilterCount === 0
-            ? "Filter items"
-            : `Filter items, ${activeFilterCount} active`}
-          data-active={activeFilterCount > 0 ? "" : undefined}
-          data-slot="popover-trigger"
-        >
-          <FilterIcon />
-          {activeFilterCount > 0 && <span className="browse-control__indicator" aria-hidden="true" />}
-        </Popover.Trigger>
+        <Tooltip.Root>
+          <Tooltip.Trigger
+            render={(
+              <Popover.Trigger
+                className="browse-control"
+                type="button"
+                aria-label={activeFilterCount === 0
+                  ? "Filter items"
+                  : `Filter items, ${activeFilterCount} active`}
+                data-active={activeFilterCount > 0 ? "" : undefined}
+                data-slot="popover-trigger"
+              >
+                <FilterIcon />
+                {activeFilterCount > 0 && (
+                  <span className="browse-control__indicator" aria-hidden="true" />
+                )}
+              </Popover.Trigger>
+            )}
+          />
+          <Tooltip.Portal>
+            <Tooltip.Positioner className="topbar-tooltip-positioner" side="bottom" sideOffset={6}>
+              <Tooltip.Popup className="topbar-tooltip">Filter</Tooltip.Popup>
+            </Tooltip.Positioner>
+          </Tooltip.Portal>
+        </Tooltip.Root>
         <Popover.Portal>
           <Popover.Positioner
             className="browse-popover-positioner"
@@ -120,7 +145,7 @@ export function BrowseControls({
             align="end"
             sideOffset={8}
           >
-            <Popover.Popup className="browse-popover">
+            <Popover.Popup className="browse-popover browse-popover--filter">
               <Popover.Title className="visually-hidden">Filter items</Popover.Title>
               <fieldset className="browse-options">
                 <legend className="visually-hidden">Filter by type</legend>

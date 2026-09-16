@@ -165,6 +165,34 @@
   outline-offset: 2px;
 }
 
+.topbar-tooltip-positioner {
+  z-index: 30;
+}
+
+.topbar-tooltip {
+  max-width: min(180px, var(--available-width));
+  padding: 6px 8px;
+  border-radius: var(--radius-compact);
+  background: var(--text);
+  box-shadow: var(--type-menu-shadow);
+  color: var(--page-bg);
+  font-size: var(--font-size-small);
+  font-weight: 500;
+  line-height: 1.2;
+  text-align: center;
+  text-wrap: balance;
+  transform-origin: var(--transform-origin);
+  transition:
+    opacity 140ms ease,
+    transform 140ms var(--ease-out);
+}
+
+.topbar-tooltip[data-starting-style],
+.topbar-tooltip[data-ending-style] {
+  opacity: 0;
+  transform: scale(0.96) translateY(-2px);
+}
+
 .add-toggle {
   position: relative;
   flex-shrink: 0;

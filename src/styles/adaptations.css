@@ -153,6 +153,13 @@
     transform: none;
   }
 
+  .topbar-tooltip,
+  .topbar-tooltip[data-starting-style],
+  .topbar-tooltip[data-ending-style] {
+    transform: none;
+    transition: opacity 100ms ease;
+  }
+
   .type-chevron {
     transition: none;
   }
