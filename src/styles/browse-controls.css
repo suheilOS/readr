@@ -72,6 +72,10 @@
   width: min(184px, var(--available-width));
 }
 
+.browse-popover--filter {
+  width: min(188px, var(--available-width));
+}
+
 .browse-popover[data-starting-style],
 .browse-popover[data-ending-style] {
   opacity: 0;
