@@ -274,7 +274,7 @@ test("captures a pasted URL through the App and reconciles the saved item", asyn
   await expect(page.getByRole("searchbox", { name: "Search titles and links" })).toBeVisible();
   await page.getByRole("button", { name: "Add to inbox" }).click();
   await expect(page.locator("#capture-url")).toBeFocused();
-  await page.getByRole("button", { name: "Close add form" }).click();
+  await page.getByRole("button", { name: "Close capture" }).click();
 
   const prevented = await page.evaluate(() => {
     const event = new Event("paste", { bubbles: true, cancelable: true });

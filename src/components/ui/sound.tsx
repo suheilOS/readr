@@ -11,7 +11,7 @@ import {
   type ComponentProps,
   type ReactNode,
 } from "react";
-import { cn } from "@/lib/utils";
+import { cn } from "../../lib/utils";
 import { SoundOffIcon, SoundOnIcon } from "../icons";
 
 const STORAGE_KEY = "kobra-sound-muted";

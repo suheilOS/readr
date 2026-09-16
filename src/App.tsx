@@ -7,8 +7,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { Collapsible } from "@base-ui/react/collapsible";
-import { Tooltip } from "@base-ui/react/tooltip";
+
 import {
   canReadInApp,
   readerKindFor,
@@ -17,17 +16,12 @@ import {
   type ItemType,
   type Item,
 } from "../shared/item";
-import {
-  AddItemForm,
-  type AddItemFormState,
-  type NewItemInput,
-} from "./components/AddItemForm";
+import type { AddItemFormState, NewItemInput } from "./components/AddItemForm";
 import { DeskSection } from "./components/DeskSection";
 import { DiscardConfirmationDialog } from "./components/DiscardConfirmationDialog";
 import { InboxSection } from "./components/InboxSection";
 import { LibrarySection } from "./components/LibrarySection";
-import { SearchBar } from "./components/SearchBar";
-import { BrowseControls } from "./components/BrowseControls";
+import { CommandDock, type CommandDockPanel } from "./components/CommandDock";
 import { selectItemGroups } from "./itemSelectors";
 import { DEFAULT_ITEM_SORT, type ItemSort } from "./itemSorting";
 import { useItemLibrary } from "./useItemLibrary";
@@ -35,9 +29,9 @@ import { useReaderRoute } from "./useReaderRoute";
 import { pendingItemActionLabel } from "./pendingItemAction";
 import { focusAdjacentAction, type FocusAdjacentAction } from "./focusAdjacentAction";
 import { ThemeToggle, type Theme } from "./components/ThemeToggle";
-import { UtilityDock } from "./components/UtilityDock";
+
 import { Spinner } from "./components/Spinner";
-import { ArrowLeftIcon, PlusIcon, SearchEmptyIcon, XIcon } from "./components/icons";
+import { ArrowLeftIcon, SearchEmptyIcon } from "./components/icons";
 import { notify } from "./notifications";
 import type { CaptureInput } from "../shared/capture";
 import { useExtensionCapture } from "./useExtensionCapture";
@@ -136,7 +130,8 @@ export default function App() {
   const [selectedTypes, setSelectedTypes] = useState<ItemType[]>([]);
   const [discardCandidate, setDiscardCandidate] = useState<Item | null>(null);
   const [swapCandidateId, setSwapCandidateId] = useState<string | null>(null);
-  const [captureOpen, setCaptureOpen] = useState(false);
+  const [activeDockPanel, setActiveDockPanel] = useState<CommandDockPanel>(null);
+  const captureOpen = activeDockPanel === "capture";
   const [lastAddedId, setLastAddedId] = useState<string | null>(null);
   const [announcement, setAnnouncement] = useState("");
   const [theme, setTheme] = useState<Theme>(getInitialTheme);
@@ -153,7 +148,7 @@ export default function App() {
     [],
   );
   const closeCapture = useCallback(() => {
-    setCaptureOpen(false);
+    setActiveDockPanel(null);
     requestAnimationFrame(() => addButtonRef.current?.focus());
   }, []);
   const { watch: watchEnrichment } = useEnrichmentRefresh(items, reconcileItemMetadata);
@@ -486,68 +481,7 @@ export default function App() {
         </Suspense>
       ) : (
         <div className="page">
-          <Collapsible.Root
-            className="capture-root"
-            open={captureOpen}
-            onOpenChange={(open) => setCaptureOpen(open)}
-          >
-            <div className={`topbar${captureOpen ? " capture-open" : ""}`}>
-              <Tooltip.Provider delay={500}>
-              <div className="topbar-slot">
-                <div className="search-slot" aria-hidden={captureOpen}>
-                  <SearchBar query={query} onQueryChange={setQuery} />
-                </div>
-                <span className="capture-title" aria-hidden={!captureOpen}>
-                  Capture
-                </span>
-              </div>
-              <BrowseControls
-                sort={sort}
-                onSortChange={setSort}
-                selectedTypes={selectedTypes}
-                onTypesChange={setSelectedTypes}
-              />
-              <Tooltip.Root>
-                <Tooltip.Trigger
-                  render={(
-                    <Collapsible.Trigger
-                      ref={addButtonRef}
-                      type="button"
-                      className="add-toggle"
-                      aria-label={captureOpen ? "Close add form" : "Add to inbox"}
-                      data-slot="collapsible-trigger"
-                      data-focus-fallback
-                    >
-                      <PlusIcon className="add-toggle__plus" />
-                      <XIcon className="add-toggle__close" />
-                    </Collapsible.Trigger>
-                  )}
-                />
-                <Tooltip.Portal>
-                  <Tooltip.Positioner className="topbar-tooltip-positioner" side="bottom" sideOffset={6}>
-                    <Tooltip.Popup className="topbar-tooltip">
-                      {captureOpen ? "Close" : "Add to inbox"}
-                    </Tooltip.Popup>
-                  </Tooltip.Positioner>
-                </Tooltip.Portal>
-              </Tooltip.Root>
-              </Tooltip.Provider>
-            </div>
-            <Collapsible.Panel id="capture-panel" className="capture-panel" keepMounted>
-              <div className="capture-clip">
-                <div className="capture-content">
-                  <AddItemForm
-                    onAdd={handleAdd}
-                    onCapture={handleFormCapture}
-                    onCancel={closeCapture}
-                    state={addItemFormState}
-                    formId="capture-form"
-                    urlRef={urlInputRef}
-                  />
-                </div>
-              </div>
-            </Collapsible.Panel>
-          </Collapsible.Root>
+
           {browseActive && visibleItemCount === 0 && !swapActive ? (
             <section className="search-empty" aria-labelledby="search-empty-heading">
               <span className="empty-state-icon">
@@ -605,7 +539,26 @@ export default function App() {
           )}
         </div>
       )}
-      <UtilityDock theme={theme} onToggleTheme={toggleTheme} onSignOut={articleCache.clear} />
+      {readerItem === null ? (
+        <CommandDock
+          activePanel={activeDockPanel}
+          onActivePanelChange={setActiveDockPanel}
+          query={query}
+          onQueryChange={setQuery}
+          sort={sort}
+          onSortChange={setSort}
+          selectedTypes={selectedTypes}
+          onTypesChange={setSelectedTypes}
+          theme={theme}
+          onToggleTheme={toggleTheme}
+          onSignOut={articleCache.clear}
+          onAdd={handleAdd}
+          onCapture={handleFormCapture}
+          captureState={addItemFormState}
+          captureTriggerRef={addButtonRef}
+          captureUrlRef={urlInputRef}
+        />
+      ) : null}
       <DiscardConfirmationDialog
         item={discardCandidate}
         onCancel={() => {

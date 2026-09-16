@@ -26,7 +26,7 @@ vi.mock("../../src/useReaderRoute", () => ({ useReaderRoute: mocks.useReaderRout
 vi.mock("../../src/useEnrichmentRefresh", () => ({ useEnrichmentRefresh: mocks.useEnrichmentRefresh }));
 vi.mock("../../src/useExtensionCapture", () => ({ useExtensionCapture: mocks.useExtensionCapture }));
 vi.mock("../../src/notifications", () => ({ notify: vi.fn() }));
-vi.mock("../../src/components/UtilityDock", () => ({ UtilityDock: () => null }));
+
 
 let root: Root | null = null;
 

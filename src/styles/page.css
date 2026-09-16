@@ -2,7 +2,7 @@
   max-width: 680px;
   margin: 0 auto;
   padding: clamp(32px, 6vh, 64px) clamp(16px, 4vw, 24px)
-    calc(96px + env(safe-area-inset-bottom));
+    calc(120px + env(safe-area-inset-bottom));
 }
 
 .section-header {

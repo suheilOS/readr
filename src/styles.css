@@ -12,6 +12,7 @@
 @import "./styles/empty-state.css";
 @import "./styles/topbar.css";
 @import "./styles/browse-controls.css";
+@import "./styles/command-dock.css";
 @import "./styles/capture.css";
 @import "./styles/actions.css";
 @import "./styles/utility-dock.css";
