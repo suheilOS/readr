@@ -1,6 +1,6 @@
 .add-form {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto auto;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   align-items: stretch;
   gap: 8px;
 }
@@ -33,7 +33,8 @@
   opacity: 0.72;
 }
 
-.add-url {
+.add-url,
+.add-title {
   grid-column: 1 / -1;
 }
 
@@ -47,7 +48,7 @@
 .type-select {
   position: relative;
   display: flex;
-  width: 9rem;
+  width: 100%;
 }
 
 .type-trigger {
