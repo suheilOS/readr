@@ -15,6 +15,12 @@ function setInputValue(input: HTMLInputElement, value: string): void {
   input.dispatchEvent(new Event("input", { bubbles: true }));
 }
 
+async function openManualMode(): Promise<void> {
+  const toggle = document.querySelector<HTMLButtonElement>(".capture-mode-toggle");
+  if (toggle === null) throw new Error("Manual capture toggle did not render.");
+  await act(async () => toggle.click());
+}
+
 beforeEach(() => {
   const container = document.createElement("div");
   document.body.append(container);
@@ -53,7 +59,7 @@ describe("capture and lifecycle status labels", () => {
     expect(pendingItemActionLabel({ kind: "replace", itemId: "item-1" })).toBe("Replacing desk item.");
   });
 
-  it("puts URL capture first and keeps the title optional for links", async () => {
+  it("shows URL-only quick capture by default", async () => {
     await act(async () => {
       root?.render(createElement(AddItemForm, {
         onAdd: vi.fn(),
@@ -65,8 +71,10 @@ describe("capture and lifecycle status labels", () => {
     });
 
     expect(Array.from(document.querySelectorAll<HTMLInputElement>("#capture-url, #capture-title"), (input) => input.id))
-      .toEqual(["capture-url", "capture-title"]);
-    expect(document.querySelector<HTMLInputElement>("#capture-title")?.required).toBe(false);
+      .toEqual(["capture-url"]);
+    expect(document.querySelector(".type-trigger")).toBeNull();
+    expect(document.querySelector<HTMLButtonElement>(".capture-mode-toggle")?.textContent)
+      .toContain("No link? Add manually");
   });
 
   it("routes a URL without manual fields through URL capture", async () => {
@@ -96,7 +104,7 @@ describe("capture and lifecycle status labels", () => {
     expect(onAdd).not.toHaveBeenCalled();
   });
 
-  it("keeps an explicit title on the URL capture path", async () => {
+  it("keeps quick capture URL-only after leaving manual mode", async () => {
     const onCapture = vi.fn().mockResolvedValue(true);
     const onAdd = vi.fn().mockResolvedValue(true);
     await act(async () => {
@@ -108,6 +116,42 @@ describe("capture and lifecycle status labels", () => {
         formId: "test-form",
       }));
     });
+    await openManualMode();
+
+    const titleInput = document.querySelector<HTMLInputElement>("#capture-title");
+    const urlInput = document.querySelector<HTMLInputElement>("#capture-url");
+    const form = document.querySelector<HTMLFormElement>("#test-form");
+    if (titleInput === null || urlInput === null || form === null) {
+      throw new Error("Capture form did not render.");
+    }
+
+    await act(async () => {
+      setInputValue(titleInput, "Ignored manual title");
+      document.querySelector<HTMLButtonElement>(".capture-mode-toggle")?.click();
+    });
+    await act(async () => {
+      setInputValue(urlInput, "https://example.com/article");
+      form.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+      await Promise.resolve();
+    });
+
+    expect(onCapture).toHaveBeenCalledWith({ url: "https://example.com/article" });
+    expect(onAdd).not.toHaveBeenCalled();
+  });
+
+  it("keeps an explicit title on the manual link path", async () => {
+    const onCapture = vi.fn().mockResolvedValue(true);
+    const onAdd = vi.fn().mockResolvedValue(true);
+    await act(async () => {
+      root?.render(createElement(AddItemForm, {
+        onAdd,
+        onCapture,
+        onCancel: vi.fn(),
+        state: "idle",
+        formId: "test-form",
+      }));
+    });
+    await openManualMode();
 
     const titleInput = document.querySelector<HTMLInputElement>("#capture-title");
     const urlInput = document.querySelector<HTMLInputElement>("#capture-url");
@@ -126,11 +170,12 @@ describe("capture and lifecycle status labels", () => {
     expect(onCapture).toHaveBeenCalledWith({
       title: "My manual title",
       url: "https://example.com/article",
+      type: "article",
     });
     expect(onAdd).not.toHaveBeenCalled();
   });
 
-  it("keeps an explicit type on the URL capture path", async () => {
+  it("keeps an explicit type on the manual link path", async () => {
     const onCapture = vi.fn().mockResolvedValue(true);
     const onAdd = vi.fn().mockResolvedValue(true);
     await act(async () => {
@@ -142,6 +187,7 @@ describe("capture and lifecycle status labels", () => {
         formId: "test-form",
       }));
     });
+    await openManualMode();
 
     const trigger = document.querySelector<HTMLButtonElement>(".type-trigger");
     if (trigger === null) throw new Error("Type selector did not render.");
@@ -155,17 +201,20 @@ describe("capture and lifecycle status labels", () => {
       videoOption.click();
     });
 
+    const titleInput = document.querySelector<HTMLInputElement>("#capture-title");
     const urlInput = document.querySelector<HTMLInputElement>("#capture-url");
     const form = document.querySelector<HTMLFormElement>("#test-form");
-    if (urlInput === null || form === null) throw new Error("Capture form did not render.");
+    if (titleInput === null || urlInput === null || form === null) throw new Error("Capture form did not render.");
 
     await act(async () => {
+      setInputValue(titleInput, "Manual video");
       setInputValue(urlInput, "https://example.com/article");
       form.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
       await Promise.resolve();
     });
 
     expect(onCapture).toHaveBeenCalledWith({
+      title: "Manual video",
       url: "https://example.com/article",
       type: "video",
     });
@@ -184,6 +233,7 @@ describe("capture and lifecycle status labels", () => {
         formId: "test-form",
       }));
     });
+    await openManualMode();
 
     const titleInput = document.querySelector<HTMLInputElement>("#capture-title");
     const form = document.querySelector<HTMLFormElement>("#test-form");

@@ -12,6 +12,7 @@ import {
 export type NewItemInput = Pick<Item, "title" | "url" | "type">;
 
 export type AddItemFormState = "idle" | "submitting";
+type CaptureMode = "quick" | "manual";
 
 type AddItemFormProps = {
   onAdd: (input: NewItemInput) => Promise<boolean>;
@@ -23,19 +24,29 @@ type AddItemFormProps = {
 };
 
 export function AddItemForm({ onAdd, onCapture, onCancel, state, formId, urlRef }: AddItemFormProps) {
+  const [mode, setMode] = useState<CaptureMode>("quick");
   const [title, setTitle] = useState("");
   const [url, setUrl] = useState("");
   const [typeOverride, setTypeOverride] = useState<ItemType | null>(null);
   const [titleError, setTitleError] = useState(false);
   const [urlError, setUrlError] = useState(false);
   const submitting = state === "submitting";
+  const manual = mode === "manual";
   const titleErrorId = `${formId ?? "add-item"}-title-error`;
   const urlErrorId = `${formId ?? "add-item"}-url-error`;
 
   function resetForm(): void {
+    setMode("quick");
     setTitle("");
     setUrl("");
     setTypeOverride(null);
+    setTitleError(false);
+    setUrlError(false);
+  }
+
+  function changeMode(nextMode: CaptureMode): void {
+    if (submitting) return;
+    setMode(nextMode);
     setTitleError(false);
     setUrlError(false);
   }
@@ -46,7 +57,7 @@ export function AddItemForm({ onAdd, onCapture, onCancel, state, formId, urlRef 
 
     const trimmedUrl = url.trim();
     const parsedUrl = trimmedUrl.length === 0 ? null : parseItemUrl(trimmedUrl);
-    if (trimmedUrl.length > 0 && parsedUrl === null) {
+    if (parsedUrl === null && (!manual || trimmedUrl.length > 0)) {
       notify({
         message: "Enter a complete http or https link without a username or password.",
         state: "error",
@@ -58,19 +69,7 @@ export function AddItemForm({ onAdd, onCapture, onCancel, state, formId, urlRef 
     }
 
     const trimmedTitle = title.trim();
-    if (parsedUrl !== null) {
-      const captureInput: CaptureInput = { url: parsedUrl };
-      if (trimmedTitle.length > 0) captureInput.title = trimmedTitle;
-      if (typeOverride !== null) captureInput.type = typeOverride;
-
-      const captured = await onCapture(captureInput);
-      if (!captured) return;
-
-      resetForm();
-      return;
-    }
-
-    if (trimmedTitle.length === 0) {
+    if (manual && trimmedTitle.length === 0) {
       notify({ message: "Enter a title.", state: "error" });
       setTitleError(true);
       const titleInput = event.currentTarget.elements.namedItem("title");
@@ -80,9 +79,23 @@ export function AddItemForm({ onAdd, onCapture, onCancel, state, formId, urlRef 
       return;
     }
 
+    if (parsedUrl !== null) {
+      const captureInput: CaptureInput = { url: parsedUrl };
+      if (manual) {
+        captureInput.title = trimmedTitle;
+        captureInput.type = typeOverride ?? DEFAULT_ITEM_TYPE;
+      }
+
+      const captured = await onCapture(captureInput);
+      if (!captured) return;
+
+      resetForm();
+      return;
+    }
+
     const added = await onAdd({
       title: trimmedTitle,
-      url: parsedUrl,
+      url: null,
       type: typeOverride ?? DEFAULT_ITEM_TYPE,
     });
     if (!added) return;
@@ -98,14 +111,14 @@ export function AddItemForm({ onAdd, onCapture, onCancel, state, formId, urlRef 
 
   return (
     <form
-      className="add-form"
+      className={`add-form add-form--${mode}`}
       id={formId}
       noValidate
       onSubmit={(event) => { void handleSubmit(event); }}
       onKeyDown={handleKeyDown}
     >
       <label className="visually-hidden" htmlFor="capture-url">
-        Link, optional
+        {manual ? "Link, optional" : "Link"}
       </label>
       <input
         ref={urlRef}
@@ -114,7 +127,7 @@ export function AddItemForm({ onAdd, onCapture, onCancel, state, formId, urlRef 
         className="add-url"
         type="url"
         autoComplete="url"
-        placeholder="Link (optional)"
+        placeholder={manual ? "Link (optional)" : "Paste a link…"}
         aria-describedby={urlError ? urlErrorId : undefined}
         aria-invalid={urlError}
         readOnly={submitting}
@@ -129,35 +142,40 @@ export function AddItemForm({ onAdd, onCapture, onCancel, state, formId, urlRef 
           Enter a complete http or https link without a username or password.
         </p>
       )}
-      <label className="visually-hidden" htmlFor="capture-title">
-        Title, optional for links
-      </label>
-      <input
-        id="capture-title"
-        name="title"
-        className="add-title"
-        type="text"
-        autoComplete="off"
-        placeholder="Title (optional for links)"
-        aria-describedby={titleError ? titleErrorId : undefined}
-        aria-invalid={titleError}
-        readOnly={submitting}
-        value={title}
-        onChange={(event) => {
-          setTitleError(false);
-          setTitle(event.target.value);
-        }}
-      />
-      {titleError && (
-        <p id={titleErrorId} className="form-error" role="alert">
-          Enter a title.
-        </p>
+      {manual && (
+        <>
+          <label className="visually-hidden" htmlFor="capture-title">
+            Title
+          </label>
+          <input
+            id="capture-title"
+            name="title"
+            className="add-title"
+            type="text"
+            autoComplete="off"
+            autoFocus
+            placeholder="Title"
+            aria-describedby={titleError ? titleErrorId : undefined}
+            aria-invalid={titleError}
+            readOnly={submitting}
+            value={title}
+            onChange={(event) => {
+              setTitleError(false);
+              setTitle(event.target.value);
+            }}
+          />
+          {titleError && (
+            <p id={titleErrorId} className="form-error" role="alert">
+              Enter a title.
+            </p>
+          )}
+          <TypeSelect
+            value={typeOverride ?? DEFAULT_ITEM_TYPE}
+            onChange={setTypeOverride}
+            disabled={submitting}
+          />
+        </>
       )}
-      <TypeSelect
-        value={typeOverride ?? DEFAULT_ITEM_TYPE}
-        onChange={setTypeOverride}
-        disabled={submitting}
-      />
       <span className="visually-hidden" role="status" aria-atomic="true">
         {submitting ? "Adding to inbox." : ""}
       </span>
@@ -169,6 +187,14 @@ export function AddItemForm({ onAdd, onCapture, onCancel, state, formId, urlRef 
       >
         {submitting && <span className="button-spinner" aria-hidden="true" />}
         <span>{submitting ? "Adding…" : "Add to inbox"}</span>
+      </button>
+      <button
+        type="button"
+        className="capture-mode-toggle"
+        disabled={submitting}
+        onClick={() => changeMode(manual ? "quick" : "manual")}
+      >
+        {manual ? "Use quick capture" : "No link? Add manually"}
       </button>
     </form>
   );

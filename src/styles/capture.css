@@ -5,6 +5,14 @@
   gap: 8px;
 }
 
+.add-form--quick {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.add-form--quick .add-url {
+  grid-column: auto;
+}
+
 .add-form input,
 .add-form select {
   min-width: 0;
@@ -195,9 +203,27 @@
   opacity: 0.72;
 }
 
+.capture-mode-toggle {
+  grid-column: 1 / -1;
+  justify-self: start;
+  min-height: 32px;
+  padding: 4px 0;
+  border: none;
+  background: transparent;
+  color: var(--muted-strong);
+  font-size: var(--font-size-small);
+  cursor: pointer;
+}
+
+.capture-mode-toggle:disabled {
+  cursor: wait;
+  opacity: 0.72;
+}
+
 .add-form input:focus-visible,
 .add-form select:focus-visible,
-.type-trigger:focus-visible {
+.type-trigger:focus-visible,
+.capture-mode-toggle:focus-visible {
   outline: 0;
   box-shadow: inset 0 0 0 2px var(--field-focus);
 }

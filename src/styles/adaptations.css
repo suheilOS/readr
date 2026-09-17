@@ -66,6 +66,7 @@
   }
 
   .add-submit:hover,
+  .capture-mode-toggle:hover,
   .app-state__action:hover {
     opacity: 0.85;
   }
