@@ -1,0 +1,14 @@
+<!doctype html>
+<html>
+  <head><title>Parse a Document</title></head>
+  <body>
+    <article>
+      <h1>Parse a Document</h1>
+      <p>This example loads a document and returns its article element.</p>
+      <pre><code class="language-ts">const document = parseHTML(source).document;
+const article = document.querySelector("article");
+return article?.innerHTML ?? "";</code></pre>
+      <p>The code block stays separate from the prose around it.</p>
+    </article>
+  </body>
+</html>

@@ -1,0 +1,36 @@
+<!doctype html>
+<html>
+  <head>
+    <title>Hacktron: An Exploit Chain</title>
+    <meta name="author" content="Hacktron Research">
+    <style>
+      .exploit-chain { position: relative; height: 260px; }
+      .exploit-node { position: absolute; border: 1px solid #777; padding: 12px; }
+      .node-libheif { left: 0; top: 20px; }
+      .node-debian { left: 260px; top: 20px; }
+      .node-magick { left: 260px; top: 150px; }
+      .chain-arrow { position: absolute; }
+    </style>
+  </head>
+  <body>
+    <header>Hacktron Research</header>
+    <main>
+      <article class="post-content">
+        <h1>Hacktron: An Exploit Chain</h1>
+        <p>This article follows an image-processing exploit through a library, a distribution package, and an application.</p>
+        <figure>
+          <div class="exploit-chain" aria-label="Exploit chain from libheif through Debian to ImageMagick" style="position:relative;height:260px">
+            <div class="exploit-node node-libheif" style="position:absolute;left:0;top:20px"><strong>libheif</strong><span>Image decoder</span></div>
+            <span class="chain-arrow arrow-one" aria-hidden="true" style="position:absolute;left:180px;top:50px">→</span>
+            <div class="exploit-node node-debian" style="position:absolute;left:260px;top:20px"><strong>Debian</strong><span>Missing security backport</span></div>
+            <span class="chain-arrow arrow-two" aria-hidden="true" style="position:absolute;left:300px;top:105px">↓</span>
+            <div class="exploit-node node-magick" style="position:absolute;left:260px;top:150px"><strong>ImageMagick</strong><span>Uses libheif</span></div>
+          </div>
+          <figcaption>The exploit chain links the decoder, the package, and the application.</figcaption>
+        </figure>
+        <p>The relationships in the chain depend on the positions and arrows, not only on the labels.</p>
+        <p>The rest of the article explains how the components interact and where the missing fix matters.</p>
+      </article>
+    </main>
+  </body>
+</html>
