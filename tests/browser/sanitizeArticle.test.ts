@@ -26,6 +26,43 @@ describe("sanitizeArticleHtml", () => {
     expect(result).toContain('src="https://example.com/cover.jpg"');
   });
 
+  it("preserves a figure, its caption, and its nested image", () => {
+    const result = sanitizeArticleHtml(
+      '<figure><img src="/cover.jpg" alt="Cover image"><figcaption>Figure caption</figcaption></figure>',
+      "https://example.com/articles/one",
+    );
+
+    expect(result).toContain("<figure>");
+    expect(result).toContain('src="https://example.com/cover.jpg"');
+    expect(result).toContain('alt="Cover image"');
+    expect(result).toContain("<figcaption>Figure caption</figcaption>");
+    expect(result).toContain("</figure>");
+  });
+
+  it("preserves the existing plain image behavior", () => {
+    const result = sanitizeArticleHtml(
+      '<img src="/cover.jpg" alt="Cover image">',
+      "https://example.com/articles/one",
+    );
+
+    expect(result).toContain('src="https://example.com/cover.jpg"');
+    expect(result).toContain('loading="lazy"');
+    expect(result).toContain('alt="Cover image"');
+  });
+
+  it("keeps a picture fallback and removes unsafe picture sources", () => {
+    const result = sanitizeArticleHtml(
+      '<picture><source srcset="javascript:alert(1)"><source srcset="https://cdn.example/cover.webp 1x"><img src="/cover.jpg" alt="Cover image"></picture>',
+      "https://example.com/articles/one",
+    );
+
+    expect(result).toContain("<picture>");
+    expect(result).toContain('src="https://example.com/cover.jpg"');
+    expect(result).not.toContain("<source");
+    expect(result).not.toContain("srcset");
+    expect(result).not.toContain("javascript:");
+  });
+
   it("removes image requests to local and private-literal hosts", () => {
     const result = sanitizeArticleHtml(
       '<img src="http://127.0.0.1/one"><img src="http://[::1]/two"><img src="http://printer.local/three">',
