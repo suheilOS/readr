@@ -21,7 +21,8 @@ describe("sanitized Defuddle article fixtures", () => {
 
     if (fixture.name === "svg") {
       expect(countTags(defuddle.content, "svg")).toBe(1);
-      expect(countTags(sanitized, "svg")).toBe(0);
+      expect(countTags(sanitized, "svg")).toBe(1);
+      expect(sanitized).toContain("Reader extraction flow");
       return;
     }
 

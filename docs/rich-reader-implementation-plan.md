@@ -141,7 +141,7 @@ Record the result for every fixture in [`docs/rich-reader-fixture-audit.md`](ric
 | --- | --- | --- | --- | --- |
 | Hacktron | positioned, class-based DOM diagram | flattens nodes into paragraphs and removes layout metadata | preserves only the flattened labels and caption | readable fallback; defer visual capture or normalization |
 | Figure | `figure` markup | preserves the figure, image, and caption | preserves the figure, image, and caption | preserve semantics |
-| SVG | inline SVG | preserves the SVG and geometry | removes the SVG because `svg` is forbidden | dedicated SVG policy |
+| SVG | inline SVG | preserves the SVG and geometry | preserves the SVG through the dedicated static SVG policy | render safe inline SVG |
 | Math | MathML | preserves both `<math>` elements | removes MathML because `math` is forbidden | dedicated MathML policy |
 | Table | semantic table | preserves the table structure | preserves the table structure | preserve the current path |
 | Code | `pre` and `code` | preserves the code block and language class | preserves the code block and language class | preserve the current path |

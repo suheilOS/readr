@@ -244,7 +244,16 @@
   max-width: 100%;
 }
 
-.reader-content :where(figure img) {
+.reader-content :where(svg) {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  height: auto;
+  margin: 1.8em auto;
+  overflow: hidden;
+}
+
+.reader-content :where(figure img, figure svg) {
   margin-block: 0;
 }
 

@@ -21,7 +21,7 @@ The audit uses Defuddle's normal output for the Reader path. It uses `debug: tru
 | `plain` | Article prose | Keeps the article paragraphs | Keeps the paragraphs | Preserve the current path |
 | `news` | Article with header, navigation, aside, and footer | Removes page chrome and keeps the article body | Keeps the article body | Preserve the current path |
 | `figure` | `<figure>` with `<img>` and `<figcaption>` | Keeps the figure, image, and caption | Keeps the figure, image, and caption | Preserve the semantic figure |
-| `svg` | Inline static SVG inside a figure | Keeps the SVG, geometry, title, and description | Removes the SVG because `svg` is forbidden | Add a dedicated SVG policy |
+| `svg` | Inline static SVG inside a figure | Keeps the SVG, geometry, title, and description | Preserves the SVG through the dedicated static SVG policy | Render the safe SVG with Reader-controlled sizing |
 | `table` | Semantic table with caption and headers | Keeps the table structure | Keeps the table structure | Preserve the current path |
 | `code` | `<pre><code>` with a language class | Keeps the code block and `language-ts` class | Keeps the code block and class | Preserve the current path |
 | `math` | Block and inline MathML | Keeps both `<math>` elements | Removes both elements because `math` is forbidden | Add a dedicated MathML policy after the contract |
@@ -51,7 +51,7 @@ The server-only Reader cannot recover the relationships from normal output. It m
 ## Loss locations
 
 - Figures, tables, code, animated-image markup, and ordinary prose survive both extraction stages.
-- SVG survives Defuddle and is lost by the client sanitizer.
+- SVG survives Defuddle and the dedicated static SVG sanitizer.
 - MathML survives Defuddle and is lost by the client sanitizer.
 - Native video and its source survive Defuddle and are lost by the client sanitizer.
 - The Hacktron layout is lost during normal Defuddle extraction. The sanitizer receives only the flattened labels.
