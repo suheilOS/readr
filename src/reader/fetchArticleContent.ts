@@ -1,7 +1,7 @@
 import {
-  isArticleContentResponse,
   isArticleContentPendingResponse,
   isExtractErrorBody,
+  normalizeArticleContentResponse,
   type ExtractedArticle,
 } from "../../shared/extraction";
 
@@ -98,12 +98,13 @@ async function requestArticleContent(itemId: string, signal: AbortSignal): Promi
     );
   }
 
-  if (!isArticleContentResponse(responseBody)) {
+  const articleResponse = normalizeArticleContentResponse(responseBody);
+  if (articleResponse === null) {
     throw new ArticleExtractionError(
       "The page returned incomplete content. Please try the original link.",
       "invalid_response",
     );
   }
 
-  return responseBody.content;
+  return articleResponse.content;
 }

@@ -2,6 +2,7 @@ import Defuddle from "defuddle";
 import { parseHTML } from "linkedom/worker";
 import {
   parseExtractRequest,
+  type ArticleCapabilities,
   type ExtractErrorCode,
   type ExtractedArticle,
 } from "../shared/extraction";
@@ -124,9 +125,24 @@ export async function extractFromUrlWithTimings(sourceUrl: URL): Promise<TimedEx
       wordCount: Number.isSafeInteger(result.wordCount) && result.wordCount >= 0
         ? result.wordCount
         : countWords(html),
+      capabilities: detectArticleCapabilities(html),
     },
     timings: { fetchSource, parseHtml, defuddle },
   };
+}
+
+function detectArticleCapabilities(html: string): ArticleCapabilities {
+  try {
+    const { document } = parseHTML(html);
+    return {
+      figures: document.querySelector("figure") !== null,
+      svg: document.querySelector("svg") !== null,
+      media: document.querySelector("audio, video") !== null,
+      math: document.querySelector("math") !== null,
+    };
+  } catch {
+    return { figures: false, svg: false, media: false, math: false };
+  }
 }
 
 export async function readJsonRequestBody(

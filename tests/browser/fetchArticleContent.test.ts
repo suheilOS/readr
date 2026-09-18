@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { fetchArticleContent } from "../../src/reader/fetchArticleContent";
 
-const article = { sourceUrl: "https://example.com/story", title: "Article", author: null, html: "<p>Text</p>", wordCount: 1 };
+const article = { sourceUrl: "https://example.com/story", title: "Article", author: null, html: "<p>Text</p>", wordCount: 1, capabilities: null };
 const pending = () => Response.json({ status: "processing" }, { status: 202, headers: { "Retry-After": "1" } });
 let upstream = vi.fn<typeof fetch>();
 beforeEach(() => {
@@ -55,6 +55,29 @@ describe("article processing retries", () => {
   it.each([null, "<html>Sign in</html>"])("preserves unauthorized responses without a JSON body (%s)", async (body) => {
     upstream.mockResolvedValue(new Response(body, { status: 401 }));
     await expect(fetchArticleContent("article", new AbortController().signal)).rejects.toMatchObject({ code: "unauthorized" });
+    expect(upstream).toHaveBeenCalledOnce();
+  });
+
+  it("normalizes a legacy response that omits capabilities", async () => {
+    const legacyArticle = { sourceUrl: article.sourceUrl, title: article.title, author: article.author, html: article.html, wordCount: article.wordCount };
+    upstream.mockResolvedValueOnce(Response.json({ content: legacyArticle }));
+    await expect(fetchArticleContent("article", new AbortController().signal)).resolves.toEqual({ ...legacyArticle, capabilities: null });
+  });
+
+  it("normalizes capability objects to the shared contract", async () => {
+    upstream.mockResolvedValueOnce(Response.json({ content: {
+      ...article,
+      capabilities: { figures: true, svg: false, media: true, math: false, future: true },
+    } }));
+    await expect(fetchArticleContent("article", new AbortController().signal)).resolves.toEqual({
+      ...article,
+      capabilities: { figures: true, svg: false, media: true, math: false },
+    });
+  });
+
+  it("rejects malformed capability data", async () => {
+    upstream.mockResolvedValueOnce(Response.json({ content: { ...article, capabilities: { figures: "yes" } } }));
+    await expect(fetchArticleContent("article", new AbortController().signal)).rejects.toMatchObject({ code: "invalid_response" });
     expect(upstream).toHaveBeenCalledOnce();
   });
 

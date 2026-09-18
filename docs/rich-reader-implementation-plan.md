@@ -168,7 +168,7 @@ Add a normalization helper for response validation. The helper must accept a mis
 Add an additive migration such as:
 
 ```text
-migrations/0009_article_capabilities.sql
+migrations/0010_article_capabilities.sql
 ```
 
 Store the new capability object in a nullable `capabilities_json` column. Existing rows remain `NULL`. New rows store validated JSON produced by the Worker.
