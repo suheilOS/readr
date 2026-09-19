@@ -3,6 +3,7 @@ import { createRoot } from "react-dom/client";
 import "@fontsource/open-runde/400.css";
 import "@fontsource/open-runde/500.css";
 import "@fontsource/open-runde/600.css";
+import "@fontsource/commit-mono/400.css";
 import "./styles.css";
 import "./styles/reader-fallback.css";
 import App from "./App";

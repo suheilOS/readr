@@ -274,13 +274,13 @@
   padding: 16px;
   background: var(--surface);
   border-radius: var(--radius-compact);
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-family: "Commit Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: 0.8em;
   line-height: 1.55;
 }
 
 .reader-content :where(code) {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-family: "Commit Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: 0.88em;
 }
 
@@ -589,6 +589,7 @@
   line-height: 1.55;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 5;
+  line-clamp: 5;
 }
 
 .transcript-panel {

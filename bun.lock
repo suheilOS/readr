@@ -5,6 +5,7 @@
     "": {
       "dependencies": {
         "@base-ui/react": "^1.7.0",
+        "@fontsource/commit-mono": "^5.3.0",
         "@fontsource/open-runde": "^5.2.1",
         "@web-kits/audio": "^0.2.0",
         "clsx": "^2.1.1",
@@ -210,6 +211,8 @@
     "@floating-ui/react-dom": ["@floating-ui/react-dom@2.1.9", "", { "dependencies": { "@floating-ui/dom": "^1.8.0" }, "peerDependencies": { "react": ">=16.8.0", "react-dom": ">=16.8.0" } }, "sha512-JDjEFGCpImxDCA7JJKviA0M9+RtmJdj0m/NVU5IMgBK+AmZouAQQ7/+2GLH0GXXY0YMw9oXPB8hKdbPYg5QLYg=="],
 
     "@floating-ui/utils": ["@floating-ui/utils@0.2.12", "", {}, "sha512-HpCo8tmWzLVad5s2d19EhAz5zqrrQ6s69qd6moPMQvkOuSwDT1YgRfWSVuc4ennqrgv3OHppiOGMQ7oC13yIww=="],
+
+    "@fontsource/commit-mono": ["@fontsource/commit-mono@5.3.0", "", {}, "sha512-Bs+zlEWHDgk/cCVWEMJJaA7LbBU3Ixi5Zums+SSwMKdm2N7RJ4P7jCJTwsMHRt5WFiXYB0tu0q9HMfkn0YsLsQ=="],
 
     "@fontsource/open-runde": ["@fontsource/open-runde@5.3.0", "", {}, "sha512-htjSGuJ/cq2DARGqEvXhkghhRXxIz3gzw+tbB0xt6zidL0mvDrR/VQCfDeCCw7wp0x5ar6dTLWD5iOF0EDqaGA=="],
 
