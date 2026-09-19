@@ -138,6 +138,7 @@ test(`keeps full-desk replacement mode open while a swap is pending (${reducedMo
   });
 
   await page.goto("/");
+  await page.getByRole("button", { name: "Search" }).click();
   await page.getByRole("searchbox", { name: "Search titles and links" }).fill("Inbox candidate");
   await page.getByRole("button", { name: "Move to desk: Inbox candidate" }).click();
   await expect(page.locator(".swap-banner")).toContainText("Desk is full");
@@ -275,7 +276,6 @@ test("captures a pasted URL through the App and reconciles the saved item", asyn
   });
 
   await page.goto("/");
-  await expect(page.getByRole("searchbox", { name: "Search titles and links" })).toBeVisible();
   await page.getByRole("button", { name: "Add to inbox" }).click();
   await expect(page.locator("#capture-url")).toBeFocused();
   await page.getByRole("button", { name: "Close capture" }).click();

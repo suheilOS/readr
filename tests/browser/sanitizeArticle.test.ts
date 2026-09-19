@@ -93,6 +93,7 @@ describe("sanitizeArticleHtml", () => {
     ["event handlers", '<rect onclick="alert(1)" />'],
     ["javascript URLs", '<rect fill="url(javascript:alert(1))" />'],
     ["external URL references", '<rect fill="URL(https://evil.example/fill)" />'],
+    ["comment-obfuscated external URL references", '<rect fill="url/**/(https://evil.example/fill)" />'],
     ["escaped external URL references", String.raw`<rect fill="\75 rl(https://evil.example/fill)" />`],
     ["unresolved local references", '<rect fill="url(#missing-gradient)" />'],
     ["escaped local references", String.raw`<rect fill="\75 rl(#missing-gradient)" />`],

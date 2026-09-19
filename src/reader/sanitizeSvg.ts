@@ -79,6 +79,7 @@ const SVG_IDENTIFIER = /^[A-Za-z_][A-Za-z0-9_.:-]*$/;
 const SVG_NUMBER = /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?$/i;
 const SVG_LENGTH = /^([+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?)(?:px|pt|pc|mm|cm|in|em|ex|ch|rem|vw|vh|vmin|vmax|%)?$/i;
 const LOCAL_REFERENCE = /^url\(\s*#([A-Za-z_][A-Za-z0-9_.:-]*)\s*\)$/i;
+const CSS_COMMENT_MARKER = /\/\*|\*\//;
 const ARIA_REFERENCE_ATTRIBUTES = new Set(["aria-labelledby", "aria-describedby"]);
 
 export function sanitizeSvgElement(element: Element, namespace: number): Element | null {
@@ -213,7 +214,7 @@ function isValidSvgTree(root: Element): boolean {
         return false;
       }
 
-      if (LOCAL_REFERENCE_ATTRIBUTES.has(name) && /\\/.test(attribute.value)) {
+      if (LOCAL_REFERENCE_ATTRIBUTES.has(name) && (/\\/.test(attribute.value) || CSS_COMMENT_MARKER.test(attribute.value))) {
         return false;
       }
 
