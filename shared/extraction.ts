@@ -2,12 +2,20 @@ export type ExtractRequest = {
   url: string;
 };
 
+export type ArticleCapabilities = {
+  figures: boolean;
+  svg: boolean;
+  media: boolean;
+  math: boolean;
+};
+
 export type ExtractedArticle = {
   sourceUrl: string;
   title: string;
   author: string | null;
   html: string;
   wordCount: number;
+  capabilities: ArticleCapabilities | null;
 };
 
 export type ArticleContentResponse = {
@@ -65,6 +73,62 @@ export function isArticleContentResponse(value: unknown): value is ArticleConten
   return isRecord(value) && isExtractedArticle(value.content);
 }
 
+export function normalizeArticleContentResponse(value: unknown): ArticleContentResponse | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+
+  const content = normalizeExtractedArticle(value.content);
+  return content === null ? null : { content };
+}
+
+export function normalizeExtractedArticle(value: unknown): ExtractedArticle | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+
+  let capabilities: ArticleCapabilities | null = null;
+  if (value.capabilities !== undefined && value.capabilities !== null) {
+    capabilities = normalizeArticleCapabilities(value.capabilities);
+    if (capabilities === null) {
+      return null;
+    }
+  }
+
+  const article = {
+    sourceUrl: value.sourceUrl,
+    title: value.title,
+    author: value.author,
+    html: value.html,
+    wordCount: value.wordCount,
+    capabilities,
+  };
+  return isExtractedArticle(article) ? article : null;
+}
+
+export function isArticleCapabilities(value: unknown): value is ArticleCapabilities {
+  return (
+    isRecord(value) &&
+    typeof value.figures === "boolean" &&
+    typeof value.svg === "boolean" &&
+    typeof value.media === "boolean" &&
+    typeof value.math === "boolean"
+  );
+}
+
+export function normalizeArticleCapabilities(value: unknown): ArticleCapabilities | null {
+  if (!isArticleCapabilities(value)) {
+    return null;
+  }
+
+  return {
+    figures: value.figures,
+    svg: value.svg,
+    media: value.media,
+    math: value.math,
+  };
+}
+
 export function isExtractedArticle(value: unknown): value is ExtractedArticle {
   if (!isRecord(value)) {
     return false;
@@ -77,7 +141,9 @@ export function isExtractedArticle(value: unknown): value is ExtractedArticle {
     isNonEmptyString(value.html) &&
     typeof value.wordCount === "number" &&
     Number.isSafeInteger(value.wordCount) &&
-    value.wordCount >= 0
+    value.wordCount >= 0 &&
+    "capabilities" in value &&
+    (value.capabilities === null || isArticleCapabilities(value.capabilities))
   );
 }
 

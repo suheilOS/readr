@@ -2,6 +2,7 @@ import { env } from 'cloudflare:workers';
 import { applyD1Migrations, createExecutionContext, waitOnExecutionContext } from 'cloudflare:test';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import worker from '../../worker/index';
+import { articleFixtures } from '../fixtures/articleFixtures';
 import { inferUrlType, parseCaptureResult, parseItemMetadata } from '../../shared/capture';
 import { enrichItem, readMetadata, recoverEnrichment } from '../../worker/enrichment';
 import { extractPageMetadata } from '../../worker/metadata';
@@ -10,6 +11,12 @@ import { ensureArticleContentJob, extractArticleContent } from '../../worker/art
 const contexts: ReturnType<typeof createExecutionContext>[] = [];
 const page = '<title>Source title</title><meta name="author" content="Ada"><meta property="og:image" content="/image.jpg">';
 const articlePage = '<!doctype html><html><head><title>A Quiet Article</title></head><body><article><h1>A Quiet Article</h1><p>This article has enough readable content for Defuddle.</p><p>It is persisted for later reads.</p></article></body></html>';
+const svgArticle = articleFixtures.find((fixture) => fixture.name === 'svg');
+if (svgArticle === undefined) throw new Error('Missing SVG article fixture');
+const richArticlePage = svgArticle.html.replace(
+  '</article>',
+  '<video controls><source src="https://example.com/video.mp4" type="video/mp4"></video><math><mi>x</mi><mo>=</mo><mn>1</mn></math></article>',
+);
 
 beforeAll(async () => { await applyD1Migrations(env.READR_DB, env.TEST_MIGRATIONS); });
 beforeEach(() => { vi.stubGlobal('fetch', vi.fn(async () => html(page))); });
@@ -94,6 +101,61 @@ describe('URL capture', () => {
 
     const secondRead = await request(user, `/api/items/${body.item.id}/article-content`);
     expect(secondRead.status).toBe(200);
+    expect(fetch).toHaveBeenCalledOnce();
+  });
+
+  it('persists capability flags and returns them on a second read', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => html(richArticlePage)));
+    const user = crypto.randomUUID();
+    const response = await request(user, '/api/items', {
+      title: 'Rich article', type: 'article', url: 'https://example.com/rich-article',
+    });
+    const body = await response.json() as { item: { id: string } };
+    const expected = { figures: true, svg: true, media: true, math: true };
+
+    const firstRead = await request(user, `/api/items/${body.item.id}/article-content`);
+    expect(firstRead.status).toBe(200);
+    expect(await firstRead.json()).toMatchObject({ content: { capabilities: expected } });
+    expect(await env.READR_DB.prepare('SELECT capabilities_json FROM article_content WHERE item_id = ?').bind(body.item.id).first())
+      .toEqual({ capabilities_json: JSON.stringify(expected) });
+
+    const secondRead = await request(user, `/api/items/${body.item.id}/article-content`);
+    expect(secondRead.status).toBe(200);
+    expect(await secondRead.json()).toMatchObject({ content: { capabilities: expected } });
+    expect(fetch).toHaveBeenCalledOnce();
+  });
+
+  it('keeps legacy rows readable when capability data is NULL', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => html(articlePage)));
+    const user = crypto.randomUUID();
+    const response = await request(user, '/api/items', {
+      title: 'Legacy article', type: 'article', url: 'https://example.com/legacy-article',
+    });
+    const body = await response.json() as { item: { id: string } };
+    const firstRead = await request(user, `/api/items/${body.item.id}/article-content`);
+    expect(firstRead.status).toBe(200);
+
+    await env.READR_DB.prepare('UPDATE article_content SET capabilities_json = NULL WHERE item_id = ?').bind(body.item.id).run();
+    const secondRead = await request(user, `/api/items/${body.item.id}/article-content`);
+    expect(secondRead.status).toBe(200);
+    expect(await secondRead.json()).toMatchObject({ content: { capabilities: null } });
+    expect(fetch).toHaveBeenCalledOnce();
+  });
+
+  it('fails safely when stored capability data is malformed', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => html(articlePage)));
+    const user = crypto.randomUUID();
+    const response = await request(user, '/api/items', {
+      title: 'Corrupt article', type: 'article', url: 'https://example.com/corrupt-article',
+    });
+    const body = await response.json() as { item: { id: string } };
+    const firstRead = await request(user, `/api/items/${body.item.id}/article-content`);
+    expect(firstRead.status).toBe(200);
+
+    await env.READR_DB.prepare("UPDATE article_content SET capabilities_json = '{bad json' WHERE item_id = ?").bind(body.item.id).run();
+    const secondRead = await request(user, `/api/items/${body.item.id}/article-content`);
+    expect(secondRead.status).toBe(500);
+    expect(await secondRead.json()).toEqual({ error: { code: 'internal_error', message: 'The request could not be completed.' } });
     expect(fetch).toHaveBeenCalledOnce();
   });
 

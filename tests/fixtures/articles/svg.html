@@ -1,0 +1,36 @@
+<!doctype html>
+<html>
+  <head><title>A Static SVG Diagram</title></head>
+  <body>
+    <article>
+      <h1>A Static SVG Diagram</h1>
+      <p>This fixture contains a self-contained diagram with no external stylesheet.</p>
+      <figure>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 120" role="img" aria-labelledby="diagram-title diagram-desc">
+          <title id="diagram-title">Reader extraction flow</title>
+          <desc id="diagram-desc">Source HTML flows into Defuddle and then into the Reader.</desc>
+          <defs>
+            <linearGradient id="node-fill" x1="0" x2="1">
+              <stop offset="0" stop-color="#e0f2fe" />
+              <stop offset="1" stop-color="#bae6fd" />
+            </linearGradient>
+          </defs>
+          <rect x="8" y="30" width="88" height="52" rx="8" fill="url(#node-fill)" stroke="#0369a1" />
+          <text x="52" y="60" text-anchor="middle">Source</text>
+          <line x1="96" y1="56" x2="134" y2="56" stroke="#0369a1" stroke-width="2" />
+          <polygon points="134,56 126,51 126,61" fill="#0369a1" />
+          <g transform="translate(142 30)">
+            <rect width="88" height="52" rx="8" fill="#fef3c7" stroke="#b45309" />
+            <text x="44" y="30" text-anchor="middle">Defuddle</text>
+          </g>
+          <line x1="230" y1="56" x2="268" y2="56" stroke="#0369a1" stroke-width="2" />
+          <polygon points="268,56 260,51 260,61" fill="#0369a1" />
+          <rect x="276" y="30" width="36" height="52" rx="8" fill="#dcfce7" stroke="#15803d" />
+          <text x="294" y="60" text-anchor="middle">UI</text>
+        </svg>
+        <figcaption>A static extraction flow that the Reader can render without source-site code.</figcaption>
+      </figure>
+      <p>The diagram is part of the article content, not an application control.</p>
+    </article>
+  </body>
+</html>

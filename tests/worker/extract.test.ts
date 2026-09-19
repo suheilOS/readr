@@ -5,6 +5,7 @@ import {
 } from "cloudflare:test";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import worker from "../../worker/index";
+import { articleFixtures } from "../fixtures/articleFixtures";
 import { normalizePublicUrl } from "../../worker/urlSafety";
 
 const articleHtml = `<!doctype html>
@@ -20,6 +21,13 @@ const articleHtml = `<!doctype html>
     </article>
   </body>
 </html>`;
+
+const svgArticle = articleFixtures.find((fixture) => fixture.name === "svg");
+if (svgArticle === undefined) throw new Error("Missing SVG article fixture");
+const richArticleHtml = svgArticle.html.replace(
+  "</article>",
+  '<video controls><source src="https://example.com/video.mp4" type="video/mp4"></video><math><mi>x</mi><mo>=</mo><mn>1</mn></math></article>',
+);
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -93,7 +101,31 @@ describe("POST /api/extract", () => {
     });
     expect(body).toHaveProperty("html");
     expect(body).toHaveProperty("wordCount");
+    expect(body).toMatchObject({
+      capabilities: { figures: false, svg: false, media: false, math: false },
+    });
     expect(response.headers.get("server-timing")).toContain("fetch-source");
+  });
+
+  it("reports all supported capability flags from extracted content", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        new Response(richArticleHtml, {
+          headers: { "content-type": "text/html; charset=utf-8" },
+        }),
+      ),
+    );
+
+    const response = await callWorker({ url: "https://example.com/rich-story" });
+    const body: unknown = await response.json();
+
+    expect(response.status).toBe(200);
+
+    expect(body).toMatchObject({
+      title: "A Static SVG Diagram",
+      capabilities: { figures: true, svg: true, media: true, math: true },
+    });
   });
 
   it("revalidates redirects before following them", async () => {

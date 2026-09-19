@@ -1,5 +1,7 @@
 import DOMPurify from "dompurify";
+import { sanitizeSvgElement } from "./sanitizeSvg";
 
+const SVG_PLACEHOLDER_ATTRIBUTE = "data-readr-svg-placeholder";
 const FORBIDDEN_TAGS = [
   "audio",
   "button",
@@ -22,30 +24,81 @@ const FORBIDDEN_TAGS = [
 ];
 
 export function sanitizeArticleHtml(html: string, sourceUrl: string): string {
-  const normalizedHtml = normalizeContentUrls(html, sourceUrl);
+  const template = document.createElement("template");
+  template.innerHTML = html;
+  normalizeContentUrls(template.content, sourceUrl);
 
-  return DOMPurify.sanitize(normalizedHtml, {
+  const svgs = replaceSvgsWithPlaceholders(template.content);
+  const sanitizedFragment = DOMPurify.sanitize(template.content, {
     USE_PROFILES: { html: true },
     ALLOW_DATA_ATTR: false,
-    ADD_ATTR: ["target"],
+    ADD_ATTR: svgs.size === 0 ? ["target"] : ["target", SVG_PLACEHOLDER_ATTRIBUTE],
     FORBID_ATTR: ["srcset", "style"],
     FORBID_TAGS: FORBIDDEN_TAGS,
+    RETURN_DOM_FRAGMENT: true,
     SANITIZE_NAMED_PROPS: true,
   });
+
+  return restoreSvgs(sanitizedFragment, svgs);
 }
 
-function normalizeContentUrls(html: string, sourceUrl: string): string {
+function replaceSvgsWithPlaceholders(root: ParentNode): Map<string, Element> {
+  for (const element of root.querySelectorAll(`[${SVG_PLACEHOLDER_ATTRIBUTE}]`)) {
+    if (element.closest("svg") === null) {
+      element.removeAttribute(SVG_PLACEHOLDER_ATTRIBUTE);
+    }
+  }
+
+  const svgs = new Map<string, Element>();
+  let svgIndex = 0;
+  for (const svg of Array.from(root.querySelectorAll("svg")).filter(isTopLevelSvg)) {
+    const currentSvgIndex = svgIndex++;
+    const sanitizedSvg = sanitizeSvgElement(svg, currentSvgIndex);
+    if (sanitizedSvg === null) {
+      svg.remove();
+      continue;
+    }
+
+    const token = `readr-svg-placeholder-${currentSvgIndex}`;
+    const placeholder = document.createElement("span");
+    placeholder.setAttribute(SVG_PLACEHOLDER_ATTRIBUTE, token);
+    svg.replaceWith(placeholder);
+    svgs.set(token, sanitizedSvg);
+  }
+
+  return svgs;
+}
+
+function restoreSvgs(fragment: DocumentFragment, svgs: Map<string, Element>): string {
+  for (const placeholder of Array.from(fragment.querySelectorAll(`[${SVG_PLACEHOLDER_ATTRIBUTE}]`))) {
+    const token = placeholder.getAttribute(SVG_PLACEHOLDER_ATTRIBUTE);
+    const sanitizedSvg = token === null ? undefined : svgs.get(token);
+    if (sanitizedSvg === undefined) {
+      placeholder.removeAttribute(SVG_PLACEHOLDER_ATTRIBUTE);
+      continue;
+    }
+
+    placeholder.replaceWith(sanitizedSvg.cloneNode(true));
+  }
+
+  const template = document.createElement("template");
+  template.content.append(fragment);
+  return template.innerHTML;
+}
+
+function isTopLevelSvg(svg: SVGElement): boolean {
+  return svg.parentElement === null || svg.parentElement.closest("svg") === null;
+}
+
+function normalizeContentUrls(root: ParentNode, sourceUrl: string): void {
   let baseUrl: URL;
   try {
     baseUrl = new URL(sourceUrl);
   } catch {
-    return html;
+    return;
   }
 
-  const template = document.createElement("template");
-  template.innerHTML = html;
-
-  for (const element of template.content.querySelectorAll("a[href], img[src]")) {
+  for (const element of root.querySelectorAll("a[href], img[src]")) {
     const attribute = element.tagName.toLowerCase() === "img" ? "src" : "href";
     const value = element.getAttribute(attribute);
     if (value === null) {
@@ -78,8 +131,6 @@ function normalizeContentUrls(html: string, sourceUrl: string): string {
       element.setAttribute("loading", "lazy");
     }
   }
-
-  return template.innerHTML;
 }
 
 function isPrivateImageHost(hostname: string): boolean {

@@ -223,8 +223,39 @@
   font-size: 1.18em;
 }
 
-.reader-content :where(p, ul, ol, blockquote, pre, table, figure) {
+.reader-content :where(p, ul, ol, blockquote, pre, table) {
   margin: 1.1em 0;
+}
+
+.reader-content :where(figure) {
+  max-width: 100%;
+  margin: 1.8em 0;
+}
+
+.reader-content :where(figcaption) {
+  margin-top: 0.75em;
+  font-size: 0.84em;
+  line-height: 1.45;
+  color: var(--muted);
+}
+
+.reader-content :where(picture) {
+  display: block;
+  max-width: 100%;
+}
+
+.reader-content :where(svg) {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  height: auto;
+  max-height: 1200px;
+  margin: 1.8em auto;
+  overflow: hidden;
+}
+
+.reader-content :where(figure img, figure svg) {
+  margin-block: 0;
 }
 
 .reader-content :where(ul, ol) {

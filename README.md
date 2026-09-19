@@ -93,7 +93,7 @@ Metadata runs after the response. `item_metadata` stores source title, author, s
 
 The D1 job record survives request termination. A one-minute scheduled handler recovers pending jobs and expired leases, processes at most ten jobs with concurrency two, and stops after three attempts. Source requests have a ten-second total timeout, a 1 MiB HTML limit, and public-URL checks on redirects. YouTube uses the existing oEmbed path with a four-second timeout and a 64 KiB response limit. PDF MIME detection cancels the body. Article reader extraction is a separate job; metadata enrichment does not fetch transcripts.
 
-Apply migrations through `0009_capture_urls_owner_integrity.sql` before deploying this Worker. Local immediate enrichment works with the normal development server; scheduled recovery can be exercised with Wrangler's scheduled-event testing. Deployment does not bulk-enrich old items. The web form, paste shortcut, and one-click extension are implemented in Phases 2 and 3 of [the capture roadmap](docs/capture-roadmap.md).
+Apply migrations through `0010_article_capabilities.sql` before deploying this Worker. Local immediate enrichment works with the normal development server; scheduled recovery can be exercised with Wrangler's scheduled-event testing. Deployment does not bulk-enrich old items. The web form, paste shortcut, and one-click extension are implemented in Phases 2 and 3 of [the capture roadmap](docs/capture-roadmap.md).
 
 ### Reader endpoint
 

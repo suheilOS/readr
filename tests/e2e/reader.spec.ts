@@ -45,7 +45,8 @@ test("reads sanitized content under the production security policy", async ({ pa
           title: "Extracted article",
           author: "Reader Test",
           wordCount: 420,
-          html: '<p>Safe article text.</p><script>alert(1)</script><img src="http://127.0.0.1/private.png" onerror="alert(2)">',
+          html: '<p>Safe article text.</p><figure><svg viewBox="0 0 24 24" role="img" aria-label="Reader smoke diagram"><title>Reader smoke diagram</title><rect x="2" y="2" width="20" height="20" fill="#dbeafe" stroke="#1d4ed8" /></svg><figcaption>Safe diagram</figcaption></figure><svg viewBox="0 0 1 20"><rect width="1" height="20" fill="#dbeafe" /></svg><script>alert(1)</script><img src="http://127.0.0.1/private.png" onerror="alert(2)">',
+          capabilities: null,
         },
       }),
     });
@@ -63,6 +64,13 @@ test("reads sanitized content under the production security policy", async ({ pa
   await expect(page.getByRole("heading", { name: "Extracted article" })).toBeFocused();
   await expect(page.locator(".reader-content script")).toHaveCount(0);
   await expect(page.locator(".reader-content img")).not.toHaveAttribute("src");
+  await expect(page.locator(".reader-content svg")).toHaveCount(2);
+  await expect(page.locator(".reader-content svg title")).toHaveText("Reader smoke diagram");
+  const tallSvg = page.locator(".reader-content svg").nth(1);
+  const tallSvgHeight = await tallSvg.evaluate((svg) => svg.getBoundingClientRect().height);
+  const tallSvgMaxHeight = await tallSvg.evaluate((svg) => getComputedStyle(svg).maxHeight);
+  expect(tallSvgMaxHeight).toBe("1200px");
+  expect(tallSvgHeight).toBeLessThanOrEqual(1200.5);
 
   await page.getByRole("button", { name: "Back" }).click();
   await expect(readButton).toBeFocused();
@@ -134,6 +142,7 @@ test(`keeps full-desk replacement mode open while a swap is pending (${reducedMo
   });
 
   await page.goto("/");
+  await page.getByRole("button", { name: "Search" }).click();
   await page.getByRole("searchbox", { name: "Search titles and links" }).fill("Inbox candidate");
   await page.getByRole("button", { name: "Move to desk: Inbox candidate" }).click();
   await expect(page.locator(".swap-banner")).toContainText("Desk is full");
@@ -271,7 +280,6 @@ test("captures a pasted URL through the App and reconciles the saved item", asyn
   });
 
   await page.goto("/");
-  await expect(page.getByRole("searchbox", { name: "Search titles and links" })).toBeVisible();
   await page.getByRole("button", { name: "Add to inbox" }).click();
   await expect(page.locator("#capture-url")).toBeFocused();
   await page.getByRole("button", { name: "Close capture" }).click();

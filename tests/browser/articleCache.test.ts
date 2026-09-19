@@ -13,7 +13,7 @@ vi.mock("../../src/reader/fetchArticleContent", async (importOriginal) => ({
 vi.mock("../../src/reader/sanitizeArticle", () => ({ sanitizeArticleHtml: vi.fn((html: string) => `${html} sanitized`) }));
 
 const item: Pick<Item, "id" | "url" | "type"> = { id: "article-1", url: validUrl("https://example.com/story"), type: "article" };
-const article: ExtractedArticle = { sourceUrl: "https://example.com/story", title: "Article", author: null, html: "<p>Text</p>", wordCount: 1 };
+const article: ExtractedArticle = { sourceUrl: "https://example.com/story", title: "Article", author: null, html: "<p>Text</p>", wordCount: 1, capabilities: null };
 const fetchContent = vi.mocked(fetchArticleContent);
 
 beforeEach(() => {

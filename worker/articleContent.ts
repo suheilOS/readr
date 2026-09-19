@@ -1,6 +1,6 @@
 import type { Context } from 'hono';
-import type { ArticleContentPendingResponse, ArticleContentResponse, ExtractedArticle, ExtractErrorCode } from '../shared/extraction';
-import { isExtractedArticle } from '../shared/extraction';
+import type { ArticleCapabilities, ArticleContentPendingResponse, ArticleContentResponse, ExtractedArticle, ExtractErrorCode } from '../shared/extraction';
+import { isExtractedArticle, normalizeArticleCapabilities } from '../shared/extraction';
 import { ENRICHMENT_RETRY_DELAYS_MS } from '../shared/capture';
 import { findItem } from './itemRepository';
 import {
@@ -213,7 +213,7 @@ async function saveArticleContent(
 ): Promise<boolean> {
   const timestamp = new Date().toISOString();
   const result = await db.prepare(`
-    UPDATE article_content SET source_url = ?, title = ?, author = ?, word_count = ?, html = ?,
+    UPDATE article_content SET source_url = ?, title = ?, author = ?, word_count = ?, html = ?, capabilities_json = ?,
       state = 'ready', extracted_at = ?, error_code = NULL, lease_token = NULL, lease_until = NULL
     WHERE item_id = ? AND state = 'processing' AND lease_token = ?
   `).bind(
@@ -222,6 +222,7 @@ async function saveArticleContent(
     article.author,
     article.wordCount,
     article.html,
+    serializeArticleCapabilities(article.capabilities),
     timestamp,
     job.item_id,
     job.lease_token,
@@ -274,7 +275,7 @@ async function readArticleResponse(
   itemId: string,
 ): Promise<ArticleContentResponse | ArticleContentPendingResponse | null> {
   const row = await db.prepare(`
-    SELECT state, source_url, title, author, word_count, html
+    SELECT state, source_url, title, author, word_count, html, capabilities_json
     FROM article_content
     WHERE item_id = ? AND (state = 'ready' OR (state = 'processing' AND lease_until > ?))
   `).bind(itemId, Date.now()).first<StoredArticleRow>();
@@ -287,6 +288,7 @@ async function readArticleResponse(
     author: row.author,
     wordCount: row.word_count,
     html: row.html,
+    capabilities: parseStoredArticleCapabilities(row.capabilities_json),
   };
   if (!isExtractedArticle(article)) {
     throw new ExtractionError({
@@ -312,6 +314,37 @@ function toSafeUrl(sourceUrl: string): URL {
 
 function canPersistArticle(html: string): boolean {
   return new TextEncoder().encode(html).byteLength <= MAX_STORED_HTML_BYTES;
+}
+
+function serializeArticleCapabilities(capabilities: ArticleCapabilities | null): string | null {
+  return capabilities === null ? null : JSON.stringify(capabilities);
+}
+
+function parseStoredArticleCapabilities(value: string | null): ArticleCapabilities | null {
+  if (value === null) {
+    return null;
+  }
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(value);
+  } catch {
+    throw invalidStoredArticleError();
+  }
+
+  const capabilities = normalizeArticleCapabilities(parsed);
+  if (capabilities === null) {
+    throw invalidStoredArticleError();
+  }
+  return capabilities;
+}
+
+function invalidStoredArticleError(): ExtractionError {
+  return new ExtractionError({
+    code: 'internal_error',
+    status: 500,
+    message: 'The stored article data is invalid.',
+  });
 }
 
 function articleContentError(
@@ -350,5 +383,6 @@ type StoredArticleRow = {
   author: string | null;
   word_count: number | null;
   html: string | null;
+  capabilities_json: string | null;
 };
 
