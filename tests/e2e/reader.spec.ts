@@ -66,7 +66,11 @@ test("reads sanitized content under the production security policy", async ({ pa
   await expect(page.locator(".reader-content img")).not.toHaveAttribute("src");
   await expect(page.locator(".reader-content svg")).toHaveCount(2);
   await expect(page.locator(".reader-content svg title")).toHaveText("Reader smoke diagram");
-  expect(await page.locator(".reader-content svg").nth(1).evaluate((svg) => svg.getBoundingClientRect().height)).toBeLessThanOrEqual(1200);
+  const tallSvg = page.locator(".reader-content svg").nth(1);
+  const tallSvgHeight = await tallSvg.evaluate((svg) => svg.getBoundingClientRect().height);
+  const tallSvgMaxHeight = await tallSvg.evaluate((svg) => getComputedStyle(svg).maxHeight);
+  expect(tallSvgMaxHeight).toBe("1200px");
+  expect(tallSvgHeight).toBeLessThanOrEqual(1200.5);
 
   await page.getByRole("button", { name: "Back" }).click();
   await expect(readButton).toBeFocused();
