@@ -132,6 +132,21 @@ describe("sanitizeArticleHtml", () => {
     expect(result).toContain("Article text.");
   });
 
+  it.each([
+    ["an extreme viewBox", '<svg viewBox="0 0 1 1000000000"><rect width="1" height="1000000000" /></svg>'],
+    ["an extreme height", '<svg width="1" height="1000000000"><rect width="1" height="1000000000" /></svg>'],
+    ["an invalid viewBox", '<svg viewBox="0 0 0 10"><rect width="10" height="10" /></svg>'],
+  ])("rejects SVGs with %s", (_name, svg) => {
+    const result = sanitizeArticleHtml(
+      `<p>Keep this article open.</p>${svg}<p>Keep the rest.</p>`,
+      "https://example.com/articles/one",
+    );
+
+    expect(result).not.toContain("<svg");
+    expect(result).toContain("Keep this article open.");
+    expect(result).toContain("Keep the rest.");
+  });
+
   it("keeps a picture fallback and removes unsafe picture sources", () => {
     const result = sanitizeArticleHtml(
       '<picture><source srcset="javascript:alert(1)"><source srcset="https://cdn.example/cover.webp 1x"><img src="/cover.jpg" alt="Cover image"></picture>',

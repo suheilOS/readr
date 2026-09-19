@@ -4,6 +4,10 @@ const SVG_NAMESPACE = "http://www.w3.org/2000/svg";
 const MAX_SVG_CHARACTERS = 100_000;
 const MAX_SVG_ELEMENTS = 1_000;
 const MAX_PATH_DATA_CHARACTERS = 32_000;
+const MAX_SVG_DIMENSION = 100_000;
+const MAX_SVG_ASPECT_RATIO = 20;
+const DEFAULT_SVG_WIDTH = 300;
+const DEFAULT_SVG_HEIGHT = 150;
 
 const SVG_TAGS = [
   "#text",
@@ -72,6 +76,8 @@ const ALLOWED_TAG_NAMES = new Set(SVG_TAGS.map((tagName) => tagName.toLowerCase(
 const ALLOWED_ATTRIBUTE_NAMES = new Set(SVG_ATTRIBUTES.map((attributeName) => attributeName.toLowerCase()));
 const LOCAL_REFERENCE_ATTRIBUTES = new Set(["fill", "stroke", "clip-path", "mask"]);
 const SVG_IDENTIFIER = /^[A-Za-z_][A-Za-z0-9_.:-]*$/;
+const SVG_NUMBER = /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?$/i;
+const SVG_LENGTH = /^([+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?)(?:px|pt|pc|mm|cm|in|em|ex|ch|rem|vw|vh|vmin|vmax|%)?$/i;
 const LOCAL_REFERENCE = /^url\(\s*#([A-Za-z_][A-Za-z0-9_.:-]*)\s*\)$/i;
 const ARIA_REFERENCE_ATTRIBUTES = new Set(["aria-labelledby", "aria-describedby"]);
 
@@ -169,6 +175,10 @@ function isSafeSvgTree(root: Node): root is Element {
 }
 
 function isValidSvgTree(root: Element): boolean {
+  if (!isSafeIntrinsicSize(root)) {
+    return false;
+  }
+
   const elements = [root, ...Array.from(root.querySelectorAll("*"))];
   const identifiers = new Set(
     elements
@@ -195,6 +205,14 @@ function isValidSvgTree(root: Element): boolean {
         return false;
       }
 
+      if (name === "viewbox" && !isSafeViewBox(attribute.value)) {
+        return false;
+      }
+
+      if ((name === "width" || name === "height") && parseSvgLength(attribute.value) === null) {
+        return false;
+      }
+
       if (LOCAL_REFERENCE_ATTRIBUTES.has(name) && /\\/.test(attribute.value)) {
         return false;
       }
@@ -209,4 +227,79 @@ function isValidSvgTree(root: Element): boolean {
   }
 
   return true;
+}
+
+function isSafeIntrinsicSize(root: Element): boolean {
+  const viewBox = root.getAttribute("viewBox");
+  const parsedViewBox = viewBox === null ? null : parseSvgViewBox(viewBox);
+  if (viewBox !== null && parsedViewBox === null) {
+    return false;
+  }
+
+  const width = parseSvgLength(root.getAttribute("width"));
+  const height = parseSvgLength(root.getAttribute("height"));
+  const ratios: Array<[number, number]> = [];
+
+  if (parsedViewBox !== null) {
+    const viewBoxWidth = parsedViewBox[2];
+    const viewBoxHeight = parsedViewBox[3];
+    if (viewBoxWidth <= 0 || viewBoxHeight <= 0) {
+      return false;
+    }
+
+    ratios.push([viewBoxWidth, viewBoxHeight]);
+  }
+
+  ratios.push([
+    width ?? DEFAULT_SVG_WIDTH,
+    height ?? DEFAULT_SVG_HEIGHT,
+  ]);
+
+  return ratios.every(([intrinsicWidth, intrinsicHeight]) => isSafeAspectRatio(intrinsicWidth, intrinsicHeight));
+}
+
+function isSafeViewBox(value: string): boolean {
+  const parsed = parseSvgViewBox(value);
+  return parsed !== null && parsed[2] > 0 && parsed[3] > 0;
+}
+
+function parseSvgViewBox(value: string): [number, number, number, number] | null {
+  const values = value.trim().split(/[,\s]+/).map(parseSvgNumber);
+  if (values.length !== 4) {
+    return null;
+  }
+
+  const minX = values[0];
+  const minY = values[1];
+  const width = values[2];
+  const height = values[3];
+  if (minX === undefined || minX === null || minY === undefined || minY === null ||
+      width === undefined || width === null || height === undefined || height === null) {
+    return null;
+  }
+
+  return [minX, minY, width, height];
+}
+
+function parseSvgNumber(value: string): number | null {
+  return SVG_NUMBER.test(value) ? Number(value) : null;
+}
+
+function parseSvgLength(value: string | null): number | null {
+  if (value === null) {
+    return null;
+  }
+
+  const match = SVG_LENGTH.exec(value.trim());
+  if (match === null) {
+    return null;
+  }
+
+  const number = Number(match[1]);
+  return Number.isFinite(number) && number > 0 && number <= MAX_SVG_DIMENSION ? number : null;
+}
+
+function isSafeAspectRatio(width: number, height: number): boolean {
+  const ratio = width / height;
+  return Number.isFinite(ratio) && ratio > 0 && ratio <= MAX_SVG_ASPECT_RATIO && ratio >= 1 / MAX_SVG_ASPECT_RATIO;
 }

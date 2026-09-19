@@ -45,7 +45,7 @@ test("reads sanitized content under the production security policy", async ({ pa
           title: "Extracted article",
           author: "Reader Test",
           wordCount: 420,
-          html: '<p>Safe article text.</p><figure><svg viewBox="0 0 24 24" role="img" aria-label="Reader smoke diagram"><title>Reader smoke diagram</title><rect x="2" y="2" width="20" height="20" fill="#dbeafe" stroke="#1d4ed8" /></svg><figcaption>Safe diagram</figcaption></figure><script>alert(1)</script><img src="http://127.0.0.1/private.png" onerror="alert(2)">',
+          html: '<p>Safe article text.</p><figure><svg viewBox="0 0 24 24" role="img" aria-label="Reader smoke diagram"><title>Reader smoke diagram</title><rect x="2" y="2" width="20" height="20" fill="#dbeafe" stroke="#1d4ed8" /></svg><figcaption>Safe diagram</figcaption></figure><svg viewBox="0 0 1 20"><rect width="1" height="20" fill="#dbeafe" /></svg><script>alert(1)</script><img src="http://127.0.0.1/private.png" onerror="alert(2)">',
           capabilities: null,
         },
       }),
@@ -64,8 +64,9 @@ test("reads sanitized content under the production security policy", async ({ pa
   await expect(page.getByRole("heading", { name: "Extracted article" })).toBeFocused();
   await expect(page.locator(".reader-content script")).toHaveCount(0);
   await expect(page.locator(".reader-content img")).not.toHaveAttribute("src");
-  await expect(page.locator(".reader-content svg")).toHaveCount(1);
+  await expect(page.locator(".reader-content svg")).toHaveCount(2);
   await expect(page.locator(".reader-content svg title")).toHaveText("Reader smoke diagram");
+  expect(await page.locator(".reader-content svg").nth(1).evaluate((svg) => svg.getBoundingClientRect().height)).toBeLessThanOrEqual(1200);
 
   await page.getByRole("button", { name: "Back" }).click();
   await expect(readButton).toBeFocused();
